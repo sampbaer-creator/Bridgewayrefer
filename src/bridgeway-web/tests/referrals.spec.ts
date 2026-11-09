@@ -2,12 +2,13 @@ import { test, expect } from "@playwright/test";
 
 test("fictional Cosmos referral flow, card controls, and responsive templates", async ({ page }) => {
   await page.goto("/r/demo-west-office");
-  await expect(page.getByText("West Office Demo", { exact: true })).toBeVisible();
+  await expect(page.getByRole("strong").filter({ hasText: "West Office Demo" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Let’s get acquainted." })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   const name = "Fictional Browser Demo " + Date.now();
-  await page.getByLabel("Patient name").fill(name);
+  await page.getByLabel("First name").fill("Fictional");
+  await page.getByLabel("Last name").fill("Browser");
   await page.getByLabel("Email address").fill("fictional@example.invalid");
   await page.getByLabel("Phone number").fill("8015550100");
   await page.getByLabel("Anything you’d like us to know?").fill("Fictional verification record. No real patient information.");
@@ -15,10 +16,10 @@ test("fictional Cosmos referral flow, card controls, and responsive templates", 
   await page.getByRole("button", { name: "Request my consultation" }).click();
   await expect(page.getByRole("heading", { name: "We look forward to meeting you." })).toBeVisible();
   await page.goto("/staff");
-  const patient = page.getByRole("article").filter({ has: page.getByRole("heading", { name, exact: true }) });
+  const patient = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional Browser", exact: true }) });
   await expect(patient).toBeVisible();
-  await patient.getByRole("combobox").selectOption("Scheduled");
-  await expect(patient.getByRole("combobox")).toHaveValue("Scheduled");
+  await patient.getByLabel("Status for Fictional Browser").selectOption("Scheduled");
+  await expect(patient.getByLabel("Status for Fictional Browser")).toHaveValue("Scheduled");
   await page.getByRole("button", { name: /^Scheduled\s*\d/ }).click();
   await expect(patient).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -53,12 +54,18 @@ test("fictional Cosmos referral flow, card controls, and responsive templates", 
 test("API preserves idempotency, validation and optimistic concurrency", async ({ request }) => {
   const headers = { Origin: "http://localhost:3000" };
   const submissionId = crypto.randomUUID();
-  const data = { name: "Fictional API Demo", email: "fictional@example.invalid", phone: "8015550101", notes: "Fictional only", consent: true, code: "demo-west-office", submissionId };
-  expect((await request.post("/api/referrals", { headers, data })).status()).toBe(201);
-  expect((await request.post("/api/referrals", { headers, data })).status()).toBe(201);
-  const inbox = await (await request.get("/api/staff/referrals")).json();
+  const data = { firstName: "Fictional", lastName: "API Demo", email: "fictional@example.invalid", phone: "8015550101", notes: "Fictional only", consent: true, code: "demo-west-office", submissionId };
+  const first = await request.post("/api/referrals", { headers, data });
+  expect(first.status()).toBe(201);
+  const retry = await request.post("/api/referrals", { headers, data });
+  expect(retry.status()).toBe(200);
+  const inbox = await (await request.get("/api/staff/referrals", { headers: { "X-BridgeWay-Business": "demo-business" } })).json();
   const rows = inbox.referrals.filter((r: { id: string }) => r.id === "ref-" + submissionId);
   expect(rows).toHaveLength(1);
+  expect(rows[0].firstName).toBe("Fictional"); expect(rows[0].lastName).toBe("API Demo"); expect(rows[0].cardId).toBe("demo-west-office");
+  const otherBusiness = await (await request.get("/api/staff/referrals", { headers: { "X-BridgeWay-Business": "demo-trades" } })).json();
+  expect(otherBusiness.referrals.some((r: { id: string }) => r.id === rows[0].id)).toBe(false);
+  expect((await request.patch("/api/staff/referrals/" + rows[0].id, { headers: { ...headers, "X-BridgeWay-Business": "demo-trades" }, data: { status: "Closed", etag: rows[0].etag } })).status()).toBe(404);
   const patch = { status: "Contacted", etag: rows[0].etag };
   expect((await request.patch("/api/staff/referrals/" + rows[0].id, { headers, data: patch })).status()).toBe(200);
   expect((await request.patch("/api/staff/referrals/" + rows[0].id, { headers, data: patch })).status()).toBe(409);

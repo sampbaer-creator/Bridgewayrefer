@@ -1,18 +1,11 @@
 import type { ReactNode } from "react";
 import Header from "../components/Header";
 import "./globals.css";
+import "./launch.css";
+import "./launch-extra.css";
 
-export const metadata = { title: "BridgeWay" };
+export const metadata = { title: "BridgeWay · Referral follow-up" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <a className="skip-link" href="#main-content">Skip to content</a>
-        <Header />
-        {children}
-        <footer className="site-footer"><span>Saratoga Springs Orthodontics · BridgeWay</span><span>A confident smile starts here.</span></footer>
-      </body>
-    </html>
-  );
+  return <html lang="en"><body><a className="skip-link" href="#main-content">Skip to content</a><Header />{children}<footer className="site-footer"><span>BridgeWay · Private referrals, clearer follow-up.</span><a href="/staff/login">Staff sign in</a></footer></body></html>;
 }

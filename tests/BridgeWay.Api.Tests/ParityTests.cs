@@ -31,14 +31,51 @@ public class ParityTests
             [new JObject { ["id"] = "zero", ["officeName"] = "Zero", ["active"] = false }], [new JObject { ["doctorCode"] = "old", ["createdAt"] = "2026-11-02T12:00:00Z" }], "2026-11"));
         Assert.Equal(1, report.Value<int>("total")); Assert.Equal(1, report.Value<int>("linkOpens")); Assert.Equal(2, ((JArray)report["offices"]!).Count);
     }
+    [Fact] public void PartnerOutcomesUseSubmissionCohortAndStatusHistory()
+    {
+        var referrals = new List<JObject>
+        {
+            new() { ["id"] = "ref-a", ["partnerId"] = "partner-a", ["partnerName"] = "Builder One", ["status"] = "Closed", ["createdAt"] = "2026-11-03T12:00:00Z" },
+            new() { ["id"] = "ref-b", ["partnerId"] = "partner-a", ["partnerName"] = "Builder One", ["status"] = "New", ["createdAt"] = "2026-11-05T12:00:00Z" },
+            new() { ["id"] = "ref-c", ["partnerId"] = "partner-b", ["partnerName"] = "Builder Two", ["status"] = "Closed", ["createdAt"] = "2026-11-07T12:00:00Z" },
+        };
+        var partners = new List<JObject> { new() { ["id"] = "partner-a", ["type"] = "partner", ["name"] = "Builder One", ["active"] = true }, new() { ["id"] = "partner-b", ["type"] = "partner", ["name"] = "Builder Two", ["active"] = true } };
+        var history = new List<JObject> { new() { ["referralId"] = "ref-a", ["status"] = "Scheduled" }, new() { ["referralId"] = "ref-c", ["status"] = "Completed" } };
+        var report = JObject.FromObject(MonthlyReport.Build(referrals, partners, [], "2026-11", DateTimeOffset.Parse("2026-11-10T12:00:00Z"), history));
+        Assert.Equal(3, report.Value<int>("total")); Assert.Equal(2, report.Value<int>("outcomes")); Assert.True(report.Value<bool>("hasSubmissions"));
+        var a = ((JArray)report["offices"]!).Single(x => x.Value<string>("officeId") == "partner-a");
+        Assert.Equal(2, a.Value<int>("count")); Assert.Equal(1, a.Value<int>("outcomes")); Assert.Equal(50d, a.Value<double>("outcomeRate"));
+        var trades = JObject.FromObject(MonthlyReport.Build(referrals, partners, [], "2026-11", DateTimeOffset.Parse("2026-11-10T12:00:00Z"), history, "trades"));
+        Assert.Equal(0, trades.Value<int>("outcomes"));
+    }
+    [Fact] public void MembershipSelectionNeverFallsBackToAnotherBusiness()
+    {
+        var memberships = new[]
+        {
+            new JObject { ["businessId"] = "dental-a", ["active"] = true, ["role"] = "Staff" },
+            new JObject { ["businessId"] = "trades-b", ["active"] = true, ["role"] = "Admin" },
+            new JObject { ["businessId"] = "closed-c", ["active"] = false, ["role"] = "Admin" },
+        };
+        Assert.Equal("dental-a", TenantAuthorization.SelectActiveMembership(memberships, "dental-a")?.Value<string>("businessId"));
+        Assert.Null(TenantAuthorization.SelectActiveMembership(memberships, "not-a-member"));
+        Assert.Null(TenantAuthorization.SelectActiveMembership(memberships, "closed-c"));
+        Assert.False(TenantAuthorization.HasRole(memberships[0], "Admin")); Assert.True(TenantAuthorization.HasRole(memberships[1], "Admin"));
+        Assert.NotEqual(CosmosStore.MembershipId("tenant-a", "user"), CosmosStore.MembershipId("tenant-b", "user"));
+    }
+    [Fact] public void LocalDemoGateCannotOpenOutsideDevelopment()
+    {
+        var settings = new Settings { AcceptReferrals = false, LocalDemoStaff = true };
+        Assert.True(settings.IntakeDeploymentGateOpen(true)); Assert.False(settings.IntakeDeploymentGateOpen(false));
+        Assert.True((new Settings { AcceptReferrals = true }).IntakeDeploymentGateOpen(false));
+    }
     [Theory] [InlineData("2026-13")] [InlineData("bad")] [InlineData("1999-01")] [InlineData("2026-1")]
     public void RejectInvalidReportingMonth(string month) => Assert.Throws<ApiError>(() => MonthlyReport.ParseMonth(month));
     [Fact] public void InvalidDateIsCountedWithoutDisclosure() { var report = Report("2026-11", "PRIVATE-BROKEN-DATE"); Assert.Equal(1, report.Value<int>("invalidDates")); Assert.DoesNotContain("PRIVATE", report.ToString()); }
-    static Submission Valid => new("Fictional Patient", "fictional@example.invalid", "8015550100", "Fictional only", true, "demo-west-office", Guid.NewGuid().ToString());
+    static Submission Valid => new("Fictional", "Patient", "fictional@example.invalid", "8015550100", "Fictional only", true, "demo-west-office", Guid.NewGuid().ToString());
     [Fact] public void SubmissionValidatesConsentLimitsHoneypotAndIdempotencyToken()
     {
         Valid.Validate();
-        foreach (var invalid in new[] { Valid with { Consent = false }, Valid with { Name = new string('a', 121) }, Valid with { Email = "bad" }, Valid with { Phone = "123" }, Valid with { Website = "bot" }, Valid with { SubmissionId = "invalid" }, Valid with { Code = "../../private" } }) Assert.Throws<ApiError>(invalid.Validate);
+        foreach (var invalid in new[] { Valid with { Consent = false }, Valid with { FirstName = new string('a', 81) }, Valid with { FirstName = "" }, Valid with { LastName = "" }, Valid with { Email = "bad" }, Valid with { Phone = "123" }, Valid with { Website = "bot" }, Valid with { SubmissionId = "invalid" }, Valid with { Code = "../../private" } }) Assert.Throws<ApiError>(invalid.Validate);
     }
     [Fact] public async Task StaffAuthorizationRejectsAnonymousSpoofedHeadersWrongTenantAndWrongUser()
     {
@@ -46,13 +83,28 @@ public class ParityTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/staff/session")).StatusCode);
         client.DefaultRequestHeaders.Add("X-MS-CLIENT-PRINCIPAL", "spoofed");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/staff/session")).StatusCode);
-        foreach (var value in new[] { "wrong:allowed", "tenant:wrong" })
+        foreach (var value in new[] { "wrong:allowed", "other:wrong" })
         {
             client.DefaultRequestHeaders.Remove("X-Test-Identity"); client.DefaultRequestHeaders.Add("X-Test-Identity", value);
             Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/staff/session")).StatusCode);
         }
-        client.DefaultRequestHeaders.Remove("X-Test-Identity"); client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:allowed");
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/staff/session")).StatusCode);
+        client.DefaultRequestHeaders.Remove("X-Test-Identity"); client.DefaultRequestHeaders.Add("X-Test-Identity", "wrong:allowed");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/staff/session")).StatusCode);
+    }
+    [Fact] public void AlertRecipientsStayScopedToTheirWorkspace()
+    {
+        var settings = new Settings
+        {
+            BusinessId = "default-business", AlertsEnabled = true,
+            AlertRecipient = "default@example.invalid", SmtpUsername = "sender", SmtpPassword = "configured",
+            AlertRecipients = { ["other-business"] = "other@example.invalid" }
+        };
+        Assert.True(settings.AlertsConfiguredFor("default-business"));
+        Assert.Equal("default@example.invalid", settings.AlertRecipientFor("default-business"));
+        Assert.True(settings.AlertsConfiguredFor("other-business"));
+        Assert.Equal("other@example.invalid", settings.AlertRecipientFor("other-business"));
+        Assert.False(settings.AlertsConfiguredFor("unconfigured-business"));
+        Assert.Empty(settings.AlertRecipientFor("unconfigured-business"));
     }
     [Fact] public async Task WriteGuardRejectsCrossOriginAndNonJsonBeforeStorage()
     {

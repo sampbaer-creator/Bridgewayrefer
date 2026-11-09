@@ -69,7 +69,7 @@ Production must place the API behind a private or restricted reverse proxy, term
 
 The C# background worker replaces `notifications.py`. It sends generic dashboard links without patient details, uses Cosmos ETag leases, resumes pending work after restart, and retries with capped exponential delays. Delivery is at least once: a crash after SMTP acceptance can produce a duplicate; stable message IDs help mail clients group retries.
 
-Configure `BridgeWay__AlertsEnabled=true`, `BridgeWay__AlertRecipient`, `BridgeWay__SmtpHost`, `BridgeWay__SmtpPort` (465 for implicit TLS, otherwise STARTTLS), `BridgeWay__SmtpUsername` and `BridgeWay__SmtpPassword` through secret storage. The staff dashboard exposes configuration status and a test button. Alerts are disabled locally by default. No external email was sent during migration verification. Actual SMTP delivery needs the authorized sender configuration and a mailbox test. Keep a hosted worker running continuously if alerts must send without site traffic.
+Configure `BridgeWay__AlertsEnabled=true`, `BridgeWay__AlertRecipient`, `BridgeWay__SmtpHost`, `BridgeWay__SmtpPort` (465 for implicit TLS, otherwise STARTTLS), `BridgeWay__SmtpUsername` and `BridgeWay__SmtpPassword` through secret storage. `BridgeWay__AlertRecipient` applies only to `BridgeWay__BusinessId`. Set `BridgeWay__AlertRecipients__<businessId>` for each additional workspace. The staff dashboard exposes configuration status and a test button. Alerts are disabled locally by default. No external email was sent during migration verification. Actual SMTP delivery needs the authorized sender configuration and a mailbox test. Keep a hosted worker running continuously if alerts must send without site traffic.
 
 ## Verification and packaging
 
