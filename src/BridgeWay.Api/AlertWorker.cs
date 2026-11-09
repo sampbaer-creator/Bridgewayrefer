@@ -16,35 +16,40 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var businesses = settings.AlertRecipients.Keys.Append(settings.BusinessId).Distinct()
+            .Where(settings.AlertsConfiguredFor).ToArray();
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (settings.AlertsConfigured)
+            foreach (var businessId in businesses)
             {
-                try { await SendPending(stoppingToken); }
+                if (stoppingToken.IsCancellationRequested) break;
+                try { await SendPending(businessId, stoppingToken); }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-                catch { logger.LogWarning("Email worker paused; sensitive details suppressed."); }
+                catch { logger.LogWarning("Email worker paused for a workspace; sensitive details suppressed."); }
             }
             try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); } catch (OperationCanceledException) { break; }
         }
     }
-    async Task SendPending(CancellationToken ct)
+    async Task SendPending(string businessId, CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<CosmosStore>();
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var candidates = (await store.Query("alert", ct: ct)).Where(a => a.Value<string>("state") != "Accepted" && a.Value<long>("readyAt") <= now).Take(20);
+        var partitionKey = new PartitionKey(businessId);
+        var recipient = settings.AlertRecipientFor(businessId);
+        var candidates = await store.DueAlerts(businessId, now, ct);
         foreach (var doc in candidates)
         {
             var id = doc.Value<string>("id")!;
             doc["state"] = "Sending"; doc["readyAt"] = now + 300; doc["attempts"] = doc.Value<int>("attempts") + 1;
             ItemResponse<JObject> claim;
-            try { claim = await store.Operations.ReplaceItemAsync(doc, id, store.BusinessKey, new ItemRequestOptions { IfMatchEtag = doc.Value<string>("_etag") }, ct); }
-            catch (CosmosException e) when (e.StatusCode == HttpStatusCode.PreconditionFailed) { continue; }
+            try { claim = await store.Operations.ReplaceItemAsync(doc, id, partitionKey, new ItemRequestOptions { IfMatchEtag = doc.Value<string>("_etag") }, ct); }
+            catch (CosmosException e) when (e.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound) { continue; }
             try
             {
-                var message = new MimeMessage(); message.From.Add(MailboxAddress.Parse(settings.SmtpUsername)); message.To.Add(MailboxAddress.Parse(settings.AlertRecipient));
+                var message = new MimeMessage(); message.From.Add(MailboxAddress.Parse(settings.SmtpUsername)); message.To.Add(MailboxAddress.Parse(recipient));
                 message.Subject = "New referral received - BridgeWay";
-                message.MessageId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id))) + "@" + new Uri(settings.PublicOrigin).Host;
+                message.MessageId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(businessId + ":" + id))) + "@" + new Uri(settings.PublicOrigin).Host;
                 message.Body = new TextPart("plain") { Text = "A new referral is waiting in your secure office dashboard.\n\nSign in to review it:\n" + settings.PublicOrigin + "/staff/login\n\nPatient details are available only in the dashboard." };
                 using var smtp = new SmtpClient { Timeout = 20000 };
                 await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, settings.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls, ct);
@@ -58,8 +63,8 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 logger.LogWarning("Email retry scheduled; sensitive details suppressed.");
                 doc["state"] = "Retry"; doc["readyAt"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Math.Min(3600, 60 * (1 << Math.Min(doc.Value<int>("attempts") - 1, 6)));
             }
-            try { await store.Operations.ReplaceItemAsync(doc, id, store.BusinessKey, new ItemRequestOptions { IfMatchEtag = claim.ETag }, ct); }
-            catch (CosmosException e) when (e.StatusCode == HttpStatusCode.PreconditionFailed) { }
+            try { await store.Operations.ReplaceItemAsync(doc, id, partitionKey, new ItemRequestOptions { IfMatchEtag = claim.ETag }, ct); }
+            catch (CosmosException e) when (e.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound) { }
         }
     }
 }

@@ -1,12 +1,12 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import type { Report } from "../lib/types";
+import type { Report } from "../lib/api";
 
 const months = ["2026-11", "2026-10", "2026-09", "2026-08"];
 function report(month: string): Report {
   const count = Number(month.slice(5));
   return { month, monthLabel: `${month} report`, availableMonths: months, total: count, linkOpens: count * 2,
-    referringOffices: 1, previousTotal: count - 1, invalidDates: 0,
-    offices: [{ officeId: "fictional", name: `${month} office`, active: true, count, opens: count * 2 }],
+    referringOffices: 1, previousTotal: count - 1, invalidDates: 0, hasSubmissions: true, outcomes: 0, outcomeLabel: "Completed",
+    offices: [{ officeId: "fictional", name: `${month} office`, active: true, count, opens: count * 2, outcomes: 0, outcomeRate: 0 }],
     trend: [{ month, total: count, opens: count * 2, offices: { fictional: count }, officeOpens: { fictional: count * 2 } }],
   };
 }
@@ -70,8 +70,9 @@ for (const order of ["old-first", "latest-first"] as const) {
     if (order === "old-first") {
       await complete("2026-10");
       await expect(total).toHaveText("—");
-      await page.getByRole("button", { name: "Refresh inbox" }).click();
-      // An older request's finally must not release the newer request's lock.
+      await expect(page.getByRole("button", { name: "Refreshing…" })).toBeDisabled();
+      // Focus refresh still runs while the button is disabled. The older request must not release the newer lock.
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
       expect(pending.get("2026-09")).toHaveLength(1);
       await complete("2026-09");

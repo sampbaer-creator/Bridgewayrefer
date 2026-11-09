@@ -15,6 +15,7 @@ public sealed class Settings
     public string[] StaffObjectIds { get; set; } = [];
     public bool AlertsEnabled { get; set; }
     public string AlertRecipient { get; set; } = "";
+    public Dictionary<string, string> AlertRecipients { get; set; } = new(StringComparer.Ordinal);
     public string SmtpHost { get; set; } = "smtp.gmail.com";
     public int SmtpPort { get; set; } = 465;
     public string SmtpUsername { get; set; } = "";
@@ -26,7 +27,11 @@ public sealed class Settings
     public string StripeApiVersion { get; set; } = "";
     public bool StripeConfigured => StripeSecretKey.Length > 0 && StripePriceId.StartsWith("price_", StringComparison.Ordinal) && StripeWebhookSecret.Length > 0;
     public bool IdentityConfigured => TenantId.Length > 0 && ClientId.Length > 0 && ClientSecret.Length > 0;
-    public bool AlertsConfigured => AlertsEnabled && AlertRecipient.Length > 0 && SmtpUsername.Length > 0 && SmtpPassword.Length > 0;
+    public string AlertRecipientFor(string businessId) =>
+        AlertRecipients.TryGetValue(businessId, out var recipient) ? recipient : businessId == BusinessId ? AlertRecipient : "";
+
+    public bool AlertsConfiguredFor(string businessId) =>
+        AlertsEnabled && !string.IsNullOrWhiteSpace(AlertRecipientFor(businessId)) && SmtpUsername.Length > 0 && SmtpPassword.Length > 0;
 }
 
 public sealed class ApiError(int status, string message) : Exception(message)

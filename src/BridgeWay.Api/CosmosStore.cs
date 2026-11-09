@@ -32,20 +32,29 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         var businessId = card.Value<string>("businessId")!;
         var officeId = card.Value<string>("officeId"); var partnerId = card.Value<string>("partnerId");
         if (await Business(businessId, ct) is null) return null;
+        // Imported cards and the legacy doctor endpoint did not create related records.
+        var legacy = officeId == "default" && partnerId == code;
         if (officeId is not null)
         {
             var office = await Read(Operations, officeId, new PartitionKey(businessId), ct);
-            if (office?.Value<string>("type") != "office" || office.Value<bool?>("active") == false) return null;
-            card["resolvedOfficeName"] = office.Value<string>("name") ?? card.Value<string>("officeName");
+            if (!ValidCardReference(office, "office", legacy)) return null;
+            card["resolvedOfficeName"] = office?.Value<string>("name") ?? card.Value<string>("officeName");
         }
         if (partnerId is not null)
         {
             var partner = await Read(Operations, partnerId, new PartitionKey(businessId), ct);
-            if (partner?.Value<string>("type") != "partner" || partner.Value<bool?>("active") == false) return null;
-            card["resolvedPartnerName"] = partner.Value<string>("name") ?? card.Value<string>("partnerName");
+            if (!ValidCardReference(partner, "partner", legacy)) return null;
+            card["resolvedPartnerName"] = partner?.Value<string>("name") ?? card.Value<string>("partnerName");
         }
         return card;
     }
+    static bool ValidCardReference(JObject? document, string type, bool allowMissing) =>
+        document is null ? allowMissing : document.Value<string>("type") == type && document.Value<bool?>("active") != false;
+
+    public Task<List<JObject>> DueAlerts(string businessId, long now, CancellationToken ct) => Collect(Operations,
+        new QueryDefinition("SELECT TOP 20 * FROM c WHERE c.type = 'alert' AND c.state IN ('Pending', 'Retry', 'Sending') AND c.readyAt <= @now ORDER BY c.readyAt")
+            .WithParameter("@now", now), new PartitionKey(businessId), 20, ct);
+
     public Task<JObject?> Business(string businessId, CancellationToken ct = default) => Read(Operations, "business", new PartitionKey(businessId), ct);
     public Task<List<JObject>> Memberships(string oid, string tenantId, CancellationToken ct = default) => Collect(Operations,
         new QueryDefinition("SELECT * FROM c WHERE c.type = 'membership' AND c.oid = @oid AND c.tenantId = @tenant AND c.active = true")

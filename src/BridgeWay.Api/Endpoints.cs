@@ -175,13 +175,21 @@ public static class Endpoints
                 throw new ApiError(403, "Administrator access is required.");
             return await next(context);
         });
-        staff.MapGet("/session", (HttpContext ctx) =>
+        staff.MapGet("/session", async (HttpContext ctx, CosmosStore store, BusinessContext scope, CancellationToken ct) =>
         {
             var rows = ctx.Items["memberships"] as List<JObject> ?? [];
-            var businesses = new List<object>();
-            foreach (var row in rows)
-                businesses.Add(new { businessId = row.Value<string>("businessId"), name = row.Value<string>("businessName") ?? row.Value<string>("businessId"), preset = row.Value<string>("preset") ?? "dental", role = row.Value<string>("role") ?? "Staff" });
-            var scope = ctx.RequestServices.GetRequiredService<BusinessContext>();
+            var businesses = await Task.WhenAll(rows.Select(async row =>
+            {
+                var businessId = row.Value<string>("businessId")!;
+                var profile = await store.Business(businessId, ct);
+                return new
+                {
+                    businessId,
+                    name = profile?.Value<string>("name") ?? row.Value<string>("businessName") ?? businessId,
+                    preset = profile is null ? row.Value<string>("preset") ?? "dental" : profile.Value<string>("preset") ?? "dental",
+                    role = row.Value<string>("role") ?? "Staff"
+                };
+            }));
             return Results.Ok(new { ok = true, demo = settings.LocalDemoStaff, businessId = scope.BusinessId, role = scope.Role, businesses });
         });
         staff.MapPost("/businesses", async (BusinessCreate data, HttpContext ctx, CosmosStore store, BusinessContext scope, CancellationToken ct) =>
@@ -314,7 +322,7 @@ public static class Endpoints
         staff.MapPatch("/doctors/{code}", async (string code, CardUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             if (!ValidCode(code) || string.IsNullOrEmpty(data.Etag)) throw new ApiError(400, "Please check the update.");
-            var card = await store.Card(code, ct);
+            var card = await store.Read(store.Cards, code, new PartitionKey(code), ct);
             if (card?.Value<string>("businessId") != store.BusinessId) throw new ApiError(404, "Not found.");
             await store.Create(store.Audit(Actor(ctx), "card-active:" + data.Active, code), ct);
             card["active"] = data.Active;
@@ -333,11 +341,11 @@ public static class Endpoints
         staff.MapGet("/alerts", async (CosmosStore store, CancellationToken ct) =>
         {
             var pending = (await store.Query("alert", ct: ct)).Where(a => a.Value<string>("state") != "Accepted").ToList();
-            return Results.Ok(new { enabled = settings.AlertsConfigured, recipient = settings.AlertRecipient, waiting = pending.Count, retrying = pending.Count(a => a.Value<int>("attempts") > 0) });
+            return Results.Ok(new { enabled = settings.AlertsConfiguredFor(store.BusinessId), recipient = settings.AlertRecipientFor(store.BusinessId), waiting = pending.Count, retrying = pending.Count(a => a.Value<int>("attempts") > 0) });
         });
         staff.MapPost("/alerts/test", async (HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            if (!settings.AlertsConfigured) throw new ApiError(503, "Email alerts are not configured yet.");
+            if (!settings.AlertsConfiguredFor(store.BusinessId)) throw new ApiError(503, "Email alerts are not configured yet.");
             if (!await store.Allow("alert-test-" + Actor(ctx), 10, ct)) throw new ApiError(429, "Please wait before trying again.");
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(store.Audit(Actor(ctx), "test-email-alert", "configured-recipient")).CreateItem(AlertWorker.NewAlert(store, "alert-test-" + Guid.NewGuid())).ExecuteAsync(ct);
             CosmosStore.Check(batch); return Results.Accepted(value: new { ok = true });

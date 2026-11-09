@@ -91,6 +91,21 @@ public class ParityTests
         client.DefaultRequestHeaders.Remove("X-Test-Identity"); client.DefaultRequestHeaders.Add("X-Test-Identity", "wrong:allowed");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/staff/session")).StatusCode);
     }
+    [Fact] public void AlertRecipientsStayScopedToTheirWorkspace()
+    {
+        var settings = new Settings
+        {
+            BusinessId = "default-business", AlertsEnabled = true,
+            AlertRecipient = "default@example.invalid", SmtpUsername = "sender", SmtpPassword = "configured",
+            AlertRecipients = { ["other-business"] = "other@example.invalid" }
+        };
+        Assert.True(settings.AlertsConfiguredFor("default-business"));
+        Assert.Equal("default@example.invalid", settings.AlertRecipientFor("default-business"));
+        Assert.True(settings.AlertsConfiguredFor("other-business"));
+        Assert.Equal("other@example.invalid", settings.AlertRecipientFor("other-business"));
+        Assert.False(settings.AlertsConfiguredFor("unconfigured-business"));
+        Assert.Empty(settings.AlertRecipientFor("unconfigured-business"));
+    }
     [Fact] public async Task WriteGuardRejectsCrossOriginAndNonJsonBeforeStorage()
     {
         await using var app = Factory(); using var client = app.CreateClient();
