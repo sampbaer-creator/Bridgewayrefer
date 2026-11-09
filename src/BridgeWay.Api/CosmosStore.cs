@@ -81,6 +81,10 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
     }
     public Task<List<JObject>> Doctors(CancellationToken ct = default) => Collect(Cards,
         new QueryDefinition("SELECT * FROM c WHERE c.businessId = @business").WithParameter("@business", BusinessId), null, null, ct);
+    public Task<List<JObject>> BusinessDirectory(CancellationToken ct) => Collect(Operations,
+        new QueryDefinition("SELECT c.businessId,c.name FROM c WHERE c.type = 'business' AND (NOT IS_DEFINED(c.testFixture) OR c.testFixture = false)"),
+        null, null, ct);
+
     public Task<List<JObject>> Partners(CancellationToken ct = default) => Query("partner", ct: ct);
     static async Task<List<JObject>> Collect(Container container, QueryDefinition query, PartitionKey? key, int? limit, CancellationToken ct)
     {

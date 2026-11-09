@@ -88,7 +88,10 @@ public static class StripeBillingEndpoints
                         return Results.Ok(new { received = true });
                 }
                 business["stripeCustomerId"] = customerId; business["stripeSubscriptionId"] = subscriptionId;
-                business["billingStatus"] = subscription.Value<string>("status") ?? "unknown";
+                var status = subscription.Value<string>("status") ?? "unknown";
+                business["billingStatus"] = status;
+                if (business.Value<bool?>("customerSignup") == true && status == "active")
+                    business["signupCompleted"] = true;
                 business["billingCancelAtPeriodEnd"] = subscription.Value<bool?>("cancel_at_period_end") ?? false;
                 var periodEnd = RenewalAt(subscription);
                 business["billingRenewalAt"] = periodEnd is null ? JValue.CreateNull() : periodEnd.Value.ToString("O");
