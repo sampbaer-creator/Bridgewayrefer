@@ -6,10 +6,10 @@ import OfficeReport from "./OfficeReport";
 
 type Office = { id: string; name: string; active: boolean; etag: string };
 type CardLink = { id: string; partnerId: string; partnerName: string; officeName: string; active: boolean; etag: string; url: string };
-type Member = { id: string; name: string; email: string; role: string };
+type Member = { id: string; name: string; email: string; role: string; etag: string };
 type BusinessProfile = { name: string; officeName: string; preset: "dental" | "trades"; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; billingStatus: string; monthlyPriceUsd: number; etag: string };
 type Billing = { amountUsd: number; interval: string; status: string; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; testMode: boolean; customerLinked: boolean };
-type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string };
+type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string; etag: string };
 type Session = { demo: boolean; businessId?: string | null; role: string; businesses: Business[] };
 
 export default function StaffDashboard() {
@@ -46,13 +46,35 @@ export default function StaffDashboard() {
       }
       if (!auth.businessId) { setReferrals([]); setReport(null); setError(""); return; }
       const admin = auth.role === "Admin" || auth.demo;
-      const [inbox, partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData] = await Promise.all([
-        api<{ referrals: Referral[]; limited: boolean }>("/api/staff/referrals", options), api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }),
+      const inbox = await api<{ referrals: Referral[]; limited: boolean }>("/api/staff/referrals", options);
+      if (!current()) return;
+      setReferrals(inbox.referrals); setLimited(inbox.limited); setUpdated(new Date().toLocaleTimeString()); setError("");
+
+      const panelResults = await Promise.allSettled([
+        api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }),
       ]);
       if (!current()) return;
-      setReferrals(inbox.referrals); setLimited(inbox.limited); setPartners(partnerData.partners); setOffices(officeData.offices); setCards(cardData.cards); setMembers(memberData.members); setProfile(profileData); setBilling(billingData); setAlerts(alertData); setInvitations(inviteData.invitations); setUpdated(new Date().toLocaleTimeString()); setError("");
-      const analytics = await api<Report>("/api/staff/analytics" + (requestMonth ? "?month=" + requestMonth : ""), options);
-      if (current()) setReport(analytics);
+      const [partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData] = panelResults;
+      if (partnerData.status === "fulfilled") setPartners(partnerData.value.partners);
+      if (officeData.status === "fulfilled") setOffices(officeData.value.offices);
+      if (cardData.status === "fulfilled") setCards(cardData.value.cards);
+      if (memberData.status === "fulfilled") setMembers(memberData.value.members);
+      if (profileData.status === "fulfilled") setProfile(profileData.value);
+      if (billingData.status === "fulfilled") setBilling(billingData.value);
+      if (alertData.status === "fulfilled") setAlerts(alertData.value);
+      if (inviteData.status === "fulfilled") setInvitations(inviteData.value.invitations);
+      const panelError = panelResults.find(result => result.status === "rejected");
+      if (panelError?.status === "rejected" && panelError.reason instanceof ApiError && (panelError.reason.status === 401 || panelError.reason.status === 403)) { handleError(panelError.reason); return; }
+
+      try {
+        const analytics = await api<Report>("/api/staff/analytics" + (requestMonth ? "?month=" + requestMonth : ""), options);
+        if (current()) { setReport(analytics); if (!panelError) setError(""); else setError("The inbox is available, but some optional dashboard panels could not be loaded."); }
+      } catch (e) {
+        if (current()) {
+          if (e instanceof ApiError && (e.status === 401 || e.status === 403)) handleError(e);
+          else setError(e instanceof Error ? e.message : "Analytics could not be loaded. The inbox remains available.");
+        }
+      }
     } catch (e) { if (current()) handleError(e); }
     finally { if (loading.current?.controller === controller) { loading.current = null; setRefreshing(false); } }
   }, [handleError]);
@@ -122,6 +144,17 @@ export default function StaffDashboard() {
     try { const result = await api<{ inviteUrl: string }>("/api/staff/invitations", { method: "POST", body: JSON.stringify({ email: data.get("email"), role: data.get("role") }) }); form.reset(); setNotice("Invite link ready. Share it with the invited email address."); setInviteLink(result.inviteUrl); await refresh(); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
+  async function revokeMember(member: Member) {
+    if (!window.confirm(`Revoke ${member.email || member.name}'s access to this workspace?`)) return;
+    setBusy("member-" + member.id); setError("");
+    try { await api("/api/staff/members/" + encodeURIComponent(member.id), { method: "PATCH", body: JSON.stringify({ active: false, etag: member.etag }) }); setNotice("Member access revoked."); await refresh(); }
+    catch (e) { handleError(e); } finally { setBusy(""); }
+  }
+  async function cancelInvitation(invitation: Invitation) {
+    setBusy("invite-" + invitation.id); setError("");
+    try { await api("/api/staff/invitations/" + encodeURIComponent(invitation.id), { method: "DELETE", body: JSON.stringify({ etag: invitation.etag }) }); setNotice("Invitation canceled."); await refresh(); }
+    catch (e) { handleError(e); } finally { setBusy(""); }
+  }
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!profile) return; const data = new FormData(event.currentTarget); setBusy("profile"); setError("");
     try { await api("/api/staff/business/profile", { method: "PATCH", body: JSON.stringify({ name: data.get("name"), preset: data.get("preset"), welcomeText: data.get("welcomeText"), phone: data.get("phone"), logoUrl: data.get("logoUrl"), acceptReferrals: data.get("acceptReferrals") === "on", etag: profile.etag }) }); setNotice("Business settings saved."); await refresh(); }
@@ -177,7 +210,7 @@ export default function StaffDashboard() {
       </section>
       <div className="management-stack">
         {isAdmin && profile && <section className="card"><p className="eyebrow">PUBLIC INTAKE</p><h2>Business profile</h2><form className="form-grid" onSubmit={saveProfile}><label htmlFor="profile-name">Business name<input id="profile-name" name="name" maxLength={120} defaultValue={profile.name} required/></label><label htmlFor="profile-preset">Preset<select id="profile-preset" name="preset" defaultValue={profile.preset}><option value="dental">Dental &amp; orthodontic</option><option value="trades">Home services</option></select></label><label className="span-two" htmlFor="profile-welcome">Form welcome<input id="profile-welcome" name="welcomeText" maxLength={500} defaultValue={profile.welcomeText}/></label><label htmlFor="profile-phone">Office phone<input id="profile-phone" name="phone" maxLength={40} defaultValue={profile.phone}/></label><label htmlFor="profile-logo">Logo URL<input id="profile-logo" name="logoUrl" maxLength={500} defaultValue={profile.logoUrl} placeholder="/brand-logo.png or https://…"/></label><label className="check span-two"><input type="checkbox" name="acceptReferrals" defaultChecked={profile.acceptReferrals}/><span>Accept referral requests when the deployment intake gate is open.</span></label><button className="primary span-two" disabled={busy === "profile"}>Save business profile</button></form></section>}
-        {isAdmin && <section className="card"><p className="eyebrow">INVITE-ONLY ACCESS</p><h2>Staff access</h2><form className="inline" onSubmit={inviteMember}><label htmlFor="invite-email">Invite email<input id="invite-email" name="email" type="email" maxLength={254} required placeholder="teammate@business.com"/></label><label htmlFor="invite-role">Role<select id="invite-role" name="role"><option>Staff</option><option>Admin</option></select></label><button className="secondary" disabled={busy === "invite"}>Create invite</button></form>{inviteLink && <p className="invite-link">Invite URL <a href={inviteLink}>{inviteLink}</a><button className="secondary" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</button></p>}<div className="partner-card-list">{members.map(m => <div className="card-row" key={m.id}><strong>{m.name}</strong><small>{m.email} · {m.role}</small></div>)}{invitations.filter(i => i.state === "Pending").map(i => <div className="card-row" key={i.id}><strong>{i.email}</strong><small>Invite pending · {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}</small></div>)}</div></section>}
+        {isAdmin && <section className="card"><p className="eyebrow">INVITE-ONLY ACCESS</p><h2>Staff access</h2><form className="inline" onSubmit={inviteMember}><label htmlFor="invite-email">Invite email<input id="invite-email" name="email" type="email" maxLength={254} required placeholder="teammate@business.com"/></label><label htmlFor="invite-role">Role<select id="invite-role" name="role"><option>Staff</option><option>Admin</option></select></label><button className="secondary" disabled={busy === "invite"}>Create invite</button></form>{inviteLink && <p className="invite-link">Invite URL <a href={inviteLink}>{inviteLink}</a><button className="secondary" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</button></p>}<div className="partner-card-list">{members.map(m => <div className="card-row" key={m.id}><div><strong>{m.name}</strong><small>{m.email} · {m.role}</small></div><button className="secondary" disabled={busy === "member-" + m.id} onClick={() => void revokeMember(m)}>Revoke access</button></div>)}{invitations.filter(i => i.state === "Pending").map(i => <div className="card-row" key={i.id}><div><strong>{i.email}</strong><small>Invite pending · {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}</small></div><button className="secondary" disabled={busy === "invite-" + i.id} onClick={() => void cancelInvitation(i)}>Cancel invite</button></div>)}</div></section>}
         {isAdmin && <section className="card" id="billing"><p className="eyebrow">BUSINESS SUBSCRIPTION</p><h2>Billing</h2><div className="billing-price"><strong>$50</strong><span>USD / business / month</span></div><p className="muted">Status: <b>{billing?.status || "Loading"}</b>{billing?.renewalAt ? ` · Renews ${new Date(billing.renewalAt).toLocaleDateString()}` : ""}{billing?.cancelAtPeriodEnd ? " · Cancels at period end" : ""}</p><div className="billing-actions"><button className="primary" disabled={!billing?.configured || busy === "billing" || ["active", "trialing"].includes(billing?.status || "")} onClick={() => void subscribe()}>Subscribe</button><button className="secondary" disabled={!billing?.customerLinked || busy === "billing"} onClick={() => void manageBilling()}>Manage Billing</button></div>{!billing?.configured && <p className="hint">Test billing setup requires Stripe test key, monthly Price ID, webhook signing secret, and a public webhook URL. Live billing stays disabled.</p>}<p className="hint">Past-due intake and grace-period behavior must be agreed before a live subscription pilot.</p></section>}
         <section className="card email-settings"><p className="eyebrow">STAY INFORMED</p><h2>Email alerts</h2><p role="status">{alerts ? alerts.enabled ? `Configured for ${alerts.recipient}. ${alerts.waiting} waiting, ${alerts.retrying} retrying.` : "Email alerts are not configured yet." : "Checking email settings…"}</p><button className="secondary" disabled={!alerts?.enabled || busy === "alert"} onClick={() => void testAlert()}>Queue test alert ↗</button><p className="hint">Alerts contain a dashboard link. Referral details stay in the dashboard.</p></section>
       </div></div>
