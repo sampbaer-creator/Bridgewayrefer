@@ -8,7 +8,7 @@ using MimeKit;
 using Newtonsoft.Json.Linq;
 namespace BridgeWay.Api;
 
-public sealed class AlertWorker(CosmosStore store, Settings settings, ILogger<AlertWorker> logger) : BackgroundService
+public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, ILogger<AlertWorker> logger) : BackgroundService
 {
     public static JObject NewAlert(CosmosStore store, string id)
     {
@@ -29,6 +29,8 @@ public sealed class AlertWorker(CosmosStore store, Settings settings, ILogger<Al
     }
     async Task SendPending(CancellationToken ct)
     {
+        await using var scope = scopes.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<CosmosStore>();
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var candidates = (await store.Query("alert", ct: ct)).Where(a => a.Value<string>("state") != "Accepted" && a.Value<long>("readyAt") <= now).Take(20);
         foreach (var doc in candidates)

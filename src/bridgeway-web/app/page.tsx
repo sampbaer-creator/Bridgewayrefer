@@ -1,3 +1,2 @@
-import PublicPage from "../components/PublicPage";
-export const dynamic = "force-dynamic";
-export default function Home() { return <PublicPage />; }
+import LandingPage from "../components/LandingPage";
+export default function Home() { return <LandingPage />; }

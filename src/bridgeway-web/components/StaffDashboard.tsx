@@ -1,94 +1,186 @@
 "use client";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { api, ApiError } from "../lib/api";
-import { statuses, type Alerts, type Doctor, type Referral, type Report } from "../lib/types";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import QRCode from "qrcode";
+import { api, ApiError, statuses, WORKSPACE_KEY, type Alerts, type Business, type Partner, type Referral, type ReferralHistory, type Report } from "../lib/api";
 import OfficeReport from "./OfficeReport";
 
+type Office = { id: string; name: string; active: boolean; etag: string };
+type CardLink = { id: string; partnerId: string; partnerName: string; officeName: string; active: boolean; etag: string; url: string };
+type Member = { id: string; name: string; email: string; role: string };
+type BusinessProfile = { name: string; officeName: string; preset: "dental" | "trades"; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; billingStatus: string; monthlyPriceUsd: number; etag: string };
+type Billing = { amountUsd: number; interval: string; status: string; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; testMode: boolean; customerLinked: boolean };
+type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string };
+type Session = { demo: boolean; businessId?: string | null; role: string; businesses: Business[] };
+
 export default function StaffDashboard() {
-  const [referrals, setReferrals] = useState<Referral[]>([]), [doctors, setDoctors] = useState<Doctor[]>([]), [report, setReport] = useState<Report | null>(null), [alerts, setAlerts] = useState<Alerts | null>(null);
-  const [month, setMonth] = useState(""), [filter, setFilter] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState(""), [updated, setUpdated] = useState(""), [limited, setLimited] = useState(false);
-  const [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [demo, setDemo] = useState(false), [busy, setBusy] = useState("");
-  const generation = useRef(0), stopped = useRef(false), selectedMonth = useRef("");
-  const loading = useRef<{ month: string; controller: AbortController } | null>(null);
+  const [referrals, setReferrals] = useState<Referral[]>([]), [partners, setPartners] = useState<Partner[]>([]), [offices, setOffices] = useState<Office[]>([]), [cards, setCards] = useState<CardLink[]>([]), [members, setMembers] = useState<Member[]>([]);
+  const [businesses, setBusinesses] = useState<Business[]>([]), [profile, setProfile] = useState<BusinessProfile | null>(null), [billing, setBilling] = useState<Billing | null>(null), [invitations, setInvitations] = useState<Invitation[]>([]), [alerts, setAlerts] = useState<Alerts | null>(null), [report, setReport] = useState<Report | null>(null);
+  const [month, setMonth] = useState(""), [workspace, setWorkspace] = useState(""), [filter, setFilter] = useState(""), [partnerFilter, setPartnerFilter] = useState(""), [query, setQuery] = useState(""), [fromDate, setFromDate] = useState(""), [toDate, setToDate] = useState("");
+  const [error, setError] = useState(""), [notice, setNotice] = useState(""), [updated, setUpdated] = useState(""), [limited, setLimited] = useState(false), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [demo, setDemo] = useState(false), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
+  const [detailId, setDetailId] = useState(""), [history, setHistory] = useState<Record<string, ReferralHistory[]>>({}), [qrCard, setQrCard] = useState<{ id: string; data: string } | null>(null), [inviteLink, setInviteLink] = useState("");
+  const generation = useRef(0), stopped = useRef(false), selectedMonth = useRef(""), workspaceRef = useRef(""), loading = useRef<{ month: string; workspace: string; controller: AbortController } | null>(null);
+
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      stopped.current = true; generation.current++; setReferrals([]); setDoctors([]); setReport(null); setAlerts(null); setSession(e.status === 401 ? "expired" : "denied");
+      stopped.current = true; generation.current++; loading.current?.controller.abort(); setReferrals([]); setPartners([]); setOffices([]); setCards([]); setMembers([]); setReport(null); setAlerts(null); setSession(e.status === 401 ? "expired" : "denied");
     } else setError(e instanceof Error ? e.message : "Service unavailable. Please try again.");
   }, []);
+
   const refresh = useCallback(async () => {
-    const requestMonth = selectedMonth.current;
-    if (stopped.current || (loading.current?.month === requestMonth && !loading.current.controller.signal.aborted)) return;
+    const requestMonth = selectedMonth.current, requestWorkspace = workspaceRef.current;
+    if (stopped.current || (loading.current?.month === requestMonth && loading.current.workspace === requestWorkspace && !loading.current.controller.signal.aborted)) return;
     loading.current?.controller.abort();
     const controller = new AbortController(), request = ++generation.current;
-    loading.current = { month: requestMonth, controller };
-    // Cancellation alone is insufficient: only the latest selected request may commit.
-    const current = () => request === generation.current && !stopped.current && !controller.signal.aborted && requestMonth === selectedMonth.current;
+    loading.current = { month: requestMonth, workspace: requestWorkspace, controller }; setRefreshing(true);
+    const current = () => request === generation.current && !stopped.current && !controller.signal.aborted && requestMonth === selectedMonth.current && requestWorkspace === workspaceRef.current;
     const options = { signal: controller.signal };
     try {
-      const auth = await api<{ demo: boolean }>("/api/staff/session", options);
+      const auth = await api<Session & { ok: boolean }>("/api/staff/session", options);
       if (!current()) return;
-      const [inbox, offices, analytics, email] = await Promise.all([
-        api<{ referrals: Referral[]; limited: boolean }>("/api/staff/referrals", options), api<{ doctors: Doctor[] }>("/api/staff/doctors", options),
-        api<Report>("/api/staff/analytics" + (requestMonth ? "?month=" + requestMonth : ""), options), api<Alerts>("/api/staff/alerts", options),
+      const available = auth.businesses || []; setBusinesses(available); setDemo(auth.demo); setSession("active");
+      if (!auth.businessId && requestWorkspace && !available.some(b => b.businessId === requestWorkspace)) {
+        workspaceRef.current = ""; localStorage.removeItem(WORKSPACE_KEY); setWorkspace(""); setReferrals([]); setReport(null); return;
+      }
+      if (auth.businessId && auth.businessId !== workspaceRef.current) {
+        workspaceRef.current = auth.businessId; localStorage.setItem(WORKSPACE_KEY, auth.businessId); setWorkspace(auth.businessId);
+      }
+      if (!auth.businessId) { setReferrals([]); setReport(null); setError(""); return; }
+      const admin = auth.role === "Admin" || auth.demo;
+      const [inbox, partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData] = await Promise.all([
+        api<{ referrals: Referral[]; limited: boolean }>("/api/staff/referrals", options), api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }),
       ]);
       if (!current()) return;
-      setDemo(auth.demo); setSession("active"); setReferrals(inbox.referrals); setLimited(inbox.limited); setDoctors(offices.doctors); setReport(analytics); setAlerts(email); setUpdated(new Date().toLocaleTimeString()); setError("");
+      setReferrals(inbox.referrals); setLimited(inbox.limited); setPartners(partnerData.partners); setOffices(officeData.offices); setCards(cardData.cards); setMembers(memberData.members); setProfile(profileData); setBilling(billingData); setAlerts(alertData); setInvitations(inviteData.invitations); setUpdated(new Date().toLocaleTimeString()); setError("");
+      const analytics = await api<Report>("/api/staff/analytics" + (requestMonth ? "?month=" + requestMonth : ""), options);
+      if (current()) setReport(analytics);
     } catch (e) { if (current()) handleError(e); }
-    finally { if (loading.current?.controller === controller) loading.current = null; }
+    finally { if (loading.current?.controller === controller) { loading.current = null; setRefreshing(false); } }
   }, [handleError]);
-  function selectMonth(value: string) {
-    if (value === selectedMonth.current) return;
-    selectedMonth.current = value;
-    // Invalidate synchronously, before the month effect starts the next refresh.
-    generation.current++;
-    loading.current?.controller.abort();
-    setMonth(value);
-  }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search), invitedWorkspace = params.get("workspace"), storedWorkspace = localStorage.getItem(WORKSPACE_KEY) || "";
+    const initial = invitedWorkspace || storedWorkspace; workspaceRef.current = initial;
+    if (initial) { localStorage.setItem(WORKSPACE_KEY, initial); setWorkspace(initial); }
+  }, []);
   useEffect(() => {
     void refresh();
     const visibleRefresh = () => { if (document.visibilityState === "visible") void refresh(); };
     const timer = setInterval(visibleRefresh, 60000);
     document.addEventListener("visibilitychange", visibleRefresh); window.addEventListener("focus", visibleRefresh); window.addEventListener("pageshow", visibleRefresh);
-    return () => {
-      clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); window.removeEventListener("focus", visibleRefresh); window.removeEventListener("pageshow", visibleRefresh);
-      generation.current++; loading.current?.controller.abort(); loading.current = null;
-    };
-  }, [month, refresh]);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); window.removeEventListener("focus", visibleRefresh); window.removeEventListener("pageshow", visibleRefresh); generation.current++; loading.current?.controller.abort(); loading.current = null; };
+  }, [month, workspace, refresh]);
+
+  function selectMonth(value: string) { if (value === selectedMonth.current) return; selectedMonth.current = value; generation.current++; loading.current?.controller.abort(); setMonth(value); }
+  function selectWorkspace(value: string) {
+    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setAlerts(null);
+    if (value) localStorage.setItem(WORKSPACE_KEY, value); else localStorage.removeItem(WORKSPACE_KEY);
+  }
   async function changeStatus(referral: Referral, status: string) {
     setBusy(referral.id); setError("");
     try { await api("/api/staff/referrals/" + referral.id, { method: "PATCH", body: JSON.stringify({ status, etag: referral.etag }) }); await refresh(); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
-  async function createDoctor(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = event.currentTarget; setBusy("doctor"); setError(""); setNotice("");
-    try { await api("/api/staff/doctors", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Referral link created."); }
+  async function assign(referral: Referral, owner: Member | undefined) {
+    setBusy("owner-" + referral.id); setError("");
+    try { await api("/api/staff/referrals/" + referral.id + "/assignment", { method: "PATCH", body: JSON.stringify({ ownerId: owner?.id || null, ownerName: owner?.name || null, etag: referral.etag }) }); await refresh(); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
-  async function toggle(doctor: Doctor) {
-    setBusy(doctor.id); setError("");
-    try { await api("/api/staff/doctors/" + doctor.id, { method: "PATCH", body: JSON.stringify({ active: !doctor.active, etag: doctor.etag }) }); await refresh(); }
+  async function showHistory(referralId: string) {
+    if (detailId === referralId) { setDetailId(""); return; }
+    setDetailId(referralId);
+    if (history[referralId]) return;
+    try { const result = await api<{ history: ReferralHistory[] }>("/api/staff/referrals/" + referralId + "/history"); setHistory(current => ({ ...current, [referralId]: result.history })); }
+    catch (e) { handleError(e); }
+  }
+  async function createPartner(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = event.currentTarget; setBusy("partner"); setError("");
+    try { await api("/api/staff/partners", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Partner added."); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
-  async function testAlert() {
-    setBusy("alert"); setNotice("");
-    try { await api("/api/staff/alerts/test", { method: "POST", body: "{}" }); setNotice("Test alert queued. Check the configured inbox shortly."); }
+  async function createOffice(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = event.currentTarget; setBusy("office"); setError("");
+    try { await api("/api/staff/offices", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Office added."); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
-  if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your staff session has ended. Saved referrals are safe. Sign in to continue." : "Your account does not have access to this office. Contact your administrator."}</p><a className="session-sign-in" href="/staff/login">Sign in to the office dashboard</a></section></main>;
-  const filtered = referrals.filter(r => !filter || r.status === filter);
-  return <>{demo && <div className="demo">DEMO · Fictional information only · Local staff preview</div>}<main className="dashboard" id="main-content" aria-busy={session === "loading"}>
-    <div className="dashboard-heading"><div><p className="eyebrow">YOUR REFERRAL NETWORK</p><h1>Every introduction counts.</h1><p className="muted">Monthly office referrals and patient follow-up, all in one place.</p></div><nav className="section-nav" aria-label="Dashboard sections"><a href="#office-report">Overview</a><a href="#inbox">Inbox</a><a href="#offices">Office links</a></nav></div>
+  async function createCard(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); setBusy("card"); setError("");
+    try { await api("/api/staff/cards", { method: "POST", body: JSON.stringify({ partnerId: data.get("partnerId"), officeId: data.get("officeId") }) }); await refresh(); setNotice("Card link created."); }
+    catch (e) { handleError(e); } finally { setBusy(""); }
+  }
+  async function toggleCard(card: CardLink) {
+    setBusy(card.id); setError("");
+    try { await api("/api/staff/doctors/" + card.id, { method: "PATCH", body: JSON.stringify({ active: !card.active, etag: card.etag }) }); await refresh(); }
+    catch (e) { handleError(e); } finally { setBusy(""); }
+  }
+  async function createBusiness(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const data = new FormData(event.currentTarget); setBusy("business"); setError("");
+    try { const created = await api<{ businessId: string; name: string }>("/api/staff/businesses", { method: "POST", body: JSON.stringify({ name: data.get("name"), preset: data.get("preset") }) }); setNotice(created.name + " is ready."); selectWorkspace(created.businessId); }
+    catch (e) { handleError(e); } finally { setBusy(""); }
+  }
+  async function inviteMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); setBusy("invite"); setError("");
+    try { const result = await api<{ inviteUrl: string }>("/api/staff/invitations", { method: "POST", body: JSON.stringify({ email: data.get("email"), role: data.get("role") }) }); form.reset(); setNotice("Invite link ready. Share it with the invited email address."); setInviteLink(result.inviteUrl); await refresh(); }
+    catch (e) { handleError(e); } finally { setBusy(""); }
+  }
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!profile) return; const data = new FormData(event.currentTarget); setBusy("profile"); setError("");
+    try { await api("/api/staff/business/profile", { method: "PATCH", body: JSON.stringify({ name: data.get("name"), preset: data.get("preset"), welcomeText: data.get("welcomeText"), phone: data.get("phone"), logoUrl: data.get("logoUrl"), acceptReferrals: data.get("acceptReferrals") === "on", etag: profile.etag }) }); setNotice("Business settings saved."); await refresh(); }
+    catch (e) { handleError(e); } finally { setBusy(""); }
+  }
+  async function subscribe() { setBusy("billing"); setError(""); try { const response = await api<{ url: string }>("/api/staff/billing/checkout", { method: "POST", body: "{}" }); window.location.assign(response.url); } catch (e) { handleError(e); setBusy(""); } }
+  async function manageBilling() { setBusy("billing"); setError(""); try { const response = await api<{ url: string }>("/api/staff/billing/portal", { method: "POST", body: "{}" }); window.location.assign(response.url); } catch (e) { handleError(e); setBusy(""); } }
+  async function makeQr(card: CardLink) { try { setQrCard({ id: card.id, data: await QRCode.toDataURL(card.url, { width: 320, margin: 1, errorCorrectionLevel: "M" }) }); } catch { setError("Could not create the QR code. Copy the link instead."); } }
+  async function testAlert() { setBusy("alert"); setNotice(""); try { await api("/api/staff/alerts/test", { method: "POST", body: "{}" }); setNotice("Test alert queued."); } catch (e) { handleError(e); } finally { setBusy(""); } }
+
+  const selectedBusiness = businesses.find(b => b.businessId === workspace), isAdmin = demo || selectedBusiness?.role === "Admin";
+  const allowedStatuses = selectedBusiness?.preset === "trades" ? ["New", "Contacted", "Quoted", "Won", "Closed"] : statuses.filter(s => !["Quoted", "Won"].includes(s));
+  const selectedReport = report && (report.month === month || !month) ? report : null;
+  const filtered = useMemo(() => referrals.filter(r => (!filter || r.status === filter) && (!partnerFilter || (r.partnerId || r.doctorCode) === partnerFilter) && (!query || `${r.name} ${r.partnerName || r.doctorName} ${r.email} ${r.phone}`.toLowerCase().includes(query.toLowerCase())) && (!fromDate || r.createdAt.slice(0, 10) >= fromDate) && (!toDate || r.createdAt.slice(0, 10) <= toDate)).sort((a, b) => {
+    const overdue = (r: Referral) => !["Completed", "Won", "Closed"].includes(r.status) && Date.now() - Date.parse(r.createdAt) > 48 * 60 * 60 * 1000;
+    const priority = (r: Referral) => r.status === "New" ? 0 : !r.ownerId ? 1 : overdue(r) ? 2 : 3;
+    return priority(a) - priority(b) || (priority(a) < 3 ? Date.parse(a.createdAt) - Date.parse(b.createdAt) : Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  }), [referrals, filter, partnerFilter, query, fromDate, toDate]);
+
+  if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your staff session has ended. Sign in to continue." : "Your account does not have active access to this workspace. Contact its administrator."}</p><a className="session-sign-in" href="/staff/login">Sign in to the office dashboard</a></section></main>;
+  if (session === "active" && !businesses.length) return <main className="dashboard" id="main-content"><section className="card no-workspace"><p className="eyebrow">STAFF ACCESS</p><h1>Workspace invitation required</h1><p className="muted">Ask a BridgeWay business administrator to invite the email address you use for staff sign in.</p><a className="session-sign-in" href="/staff/login">Try another sign-in</a></section></main>;
+
+  return <>{demo && <div className="demo">DEMO · Fictional information only · Local development</div>}<main className="dashboard dashboard-wide" id="main-content" aria-busy={session === "loading" || refreshing}>
+    <div className="dashboard-heading"><div><p className="eyebrow">BRIDGEWAY STAFF WORKSPACE</p><h1>{selectedBusiness?.name || "Referral follow-up"}</h1><p className="muted">{selectedBusiness?.preset === "trades" ? "Trade requests and partner outcomes." : "Referral requests and partner outcomes."}</p></div>
+      <div className="workspace-actions"><label className="business-switcher-light" htmlFor="workspace-select">Workspace<select id="workspace-select" value={workspace} onChange={e => selectWorkspace(e.target.value)}><option value="">Choose a workspace…</option>{businesses.map(b => <option value={b.businessId} key={b.businessId}>{b.name} · {b.role}</option>)}</select></label><nav className="section-nav" aria-label="Dashboard sections"><a href="#inbox">Follow-up</a><a href="#office-report">Analytics</a><a href="#management">Setup</a></nav></div>
+    </div>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
-    <OfficeReport report={month && report?.month !== month ? null : report} availableMonths={report?.availableMonths} month={month} onMonth={selectMonth} />
-    <section className="inbox-section" id="inbox" aria-labelledby="inbox-title"><div className="section-heading"><div><p className="eyebrow">PATIENT FOLLOW-UP</p><h2 id="inbox-title">Referral inbox</h2><p className="muted">All dates · Track the next step for each patient.</p></div><button className="secondary" onClick={() => void refresh()}>Refresh inbox ↻</button></div>
-      <div className="metrics" role="group" aria-label="Filter referrals by status">{["", ...statuses].map(status => <button key={status} className="metric" aria-pressed={filter === status} aria-controls="referrals" onClick={() => setFilter(status)}>{status || "All referrals"}<b>{status ? referrals.filter(r => r.status === status).length : referrals.length}</b></button>)}</div>
-      <div className="toolbar"><span id="inbox-view" role="status">{filter || "All referrals"} · {filtered.length} shown</span><span>{updated && "Updated " + updated}</span></div>
-      {limited && <p className="notice">Showing the newest 500 referrals. Monthly reporting includes all retained records.</p>}
-      <div className="referrals" id="referrals">{!filtered.length && <p className="empty">{session === "loading" ? "Loading referrals…" : "No referrals in this view yet."}</p>}{filtered.map(r => <article className="referral" key={r.id}><div className="title-row"><h2>{r.name}</h2><label>Status<select className="status" aria-label={`Status for ${r.name}`} value={r.status} disabled={busy === r.id} onChange={e => void changeStatus(r, e.target.value)}>{statuses.map(s => <option key={s}>{s}</option>)}</select></label></div><p className="muted">{r.doctorName} · {new Date(r.createdAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT</p><div className="details"><a href={"mailto:" + encodeURIComponent(r.email)}>{r.email}</a><a href={"tel:" + r.phone.replace(/[^+\d]/g, "")}>{r.phone}</a></div>{r.notes && <p className="notes">{r.notes}</p>}</article>)}</div>
-    </section>
-    <div className="management-grid"><section className="card doctors" id="offices"><p className="eyebrow">REFERRING PARTNERS</p><h2>Office cards &amp; links</h2><p className="muted">Create one link for each referring office. Use the same link for its NFC card and QR code.</p>
-      <form className="inline" onSubmit={createDoctor}><label htmlFor="doctor-name">Referring office name<input id="doctor-name" name="name" maxLength={120} required placeholder="Example Dental" /></label><button className="primary" disabled={busy === "doctor"}>Create referral link ↗</button></form>
-      <div>{doctors.map(d => <article className="doctor-row" key={d.id}><div><strong>{d.name}</strong><span className={d.active ? "badge" : "badge inactive"}>{d.active ? "Active" : "Inactive"}</span><a className="card-url" href={"/r/" + d.id} target="_blank" rel="noreferrer">{d.url}</a></div><div className="doctor-actions"><button className="secondary" onClick={() => void navigator.clipboard.writeText(d.url).then(() => setNotice("Referral link copied.")).catch(() => setError("Copy unavailable. Select the link to copy it manually."))}>Copy link</button><button className="secondary" disabled={busy === d.id} onClick={() => void toggle(d)}>{d.active ? "Deactivate" : "Reactivate"}</button></div></article>)}</div>
-    </section><section className="card email-settings"><p className="eyebrow">STAY INFORMED</p><h2>Email alerts</h2><p role="status">{alerts ? alerts.enabled ? `Configured for ${alerts.recipient}. ${alerts.waiting} waiting, ${alerts.retrying} retrying.` : "Email alerts are not configured yet." : "Checking email settings…"}</p><button className="secondary" disabled={!alerts?.enabled || busy === "alert"} onClick={() => void testAlert()}>Send test alert ↗</button><p className="hint">Alerts contain a dashboard link. Patient details stay in the dashboard.</p></section></div>
+    {!workspace ? <section className="workspace-empty">Choose a workspace to view its private referrals.</section> : <>
+      {isAdmin && <form className="new-business-row" onSubmit={createBusiness}><label htmlFor="new-business-name">Add a business<input id="new-business-name" name="name" maxLength={120} required placeholder="Business name"/></label><label htmlFor="new-business-preset">Preset<select id="new-business-preset" name="preset"><option value="dental">Dental &amp; orthodontic</option><option value="trades">Home services</option></select></label><button className="secondary" disabled={busy === "business"}>Create workspace</button></form>}
+      <OfficeReport report={selectedReport} availableMonths={report?.availableMonths} month={month} onMonth={selectMonth}/>
+      <section className="inbox-section" id="inbox" aria-labelledby="inbox-title"><div className="section-heading"><div><p className="eyebrow">FOLLOW-UP TODAY</p><h2 id="inbox-title">Referral inbox</h2><p className="muted">New, unassigned, and overdue requests first.</p></div><button className="secondary" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh inbox ↻"}</button></div>
+        <div className="metrics" role="group" aria-label="Filter referrals by status">{["", ...allowedStatuses].map(status => <button key={status} className="metric" aria-pressed={filter === status} aria-controls="referrals" onClick={() => setFilter(status)}>{status || "All requests"}<b>{status ? referrals.filter(r => r.status === status).length : referrals.length}</b></button>)}</div>
+        <div className="followup-toolbar"><label htmlFor="inbox-search">Search<input id="inbox-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Name, email, partner"/></label><label htmlFor="partner-filter">Partner<select id="partner-filter" value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)}><option value="">All partners</option>{partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label htmlFor="received-from">Received from<input id="received-from" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}/></label><label htmlFor="received-to">Received to<input id="received-to" type="date" value={toDate} onChange={e => setToDate(e.target.value)}/></label><label htmlFor="status-filter">Status<select id="status-filter" value={filter} onChange={e => setFilter(e.target.value)}><option value="">All statuses</option>{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></label><span id="inbox-view" role="status">{filtered.length} shown{updated ? ` · Updated ${updated}` : ""}</span></div>
+        {limited && <p className="notice">Showing the newest 500 requests. Analytics includes all retained records.</p>}
+        <div className="referrals" id="referrals">{!filtered.length && <p className="empty">{session === "loading" ? "Loading requests…" : "No requests match these filters."}</p>}{filtered.map(r => {
+          const isOverdue = !["Completed", "Won", "Closed"].includes(r.status) && Date.now() - Date.parse(r.createdAt) > 48 * 60 * 60 * 1000;
+          const needsFollowup = r.status === "New" || !r.ownerId || isOverdue;
+          const nextAction = r.status === "New" ? "Contact within one business day" : selectedBusiness?.preset === "trades" && r.status === "Quoted" ? "Follow up on the quote" : r.status === "Contacted" ? selectedBusiness?.preset === "trades" ? "Confirm quote or visit" : "Confirm consultation" : selectedBusiness?.preset === "trades" && r.status === "Won" ? "Job won" : r.status === "Scheduled" ? "Confirm appointment" : r.status;
+          const displayName = r.firstName || r.lastName ? [r.firstName, r.lastName].filter(Boolean).join(" ") : r.name;
+          return <article className="referral" key={r.id}><div className="title-row"><h2>{displayName}</h2><label>Status<select className="status" aria-label={`Status for ${displayName}`} value={r.status} disabled={busy === r.id} onChange={e => void changeStatus(r, e.target.value)}>{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></label></div>
+            <p className="muted">Receiving site: {r.doctorName || "Direct request"} · Referring partner: {r.partnerName || "Direct request"} · Card: {r.cardId || r.doctorCode || "Direct request"} · Received {new Date(r.createdAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT{r.updatedAt ? ` · Updated ${new Date(r.updatedAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT` : ""}{r.serviceType ? ` · ${r.serviceType}` : ""}{r.postalCode ? ` · ${r.postalCode}` : ""}</p>
+            <div className="details"><a href={"mailto:" + encodeURIComponent(r.email)}>{r.email}</a><a href={"tel:" + r.phone.replace(/[^+\d]/g, "")}>{r.phone}</a></div>{r.notes && <p className="notes">{r.notes}</p>}
+            <div className="referral-action">{needsFollowup && <span className="referral-priority">{isOverdue ? "Overdue" : r.status === "New" ? "New request" : "Unassigned"}</span>}<span className="next-action">Next: {nextAction}</span><label htmlFor={`owner-${r.id}`}>Owner<select id={`owner-${r.id}`} value={r.ownerId || ""} disabled={busy === "owner-" + r.id} onChange={e => void assign(r, members.find(m => m.id === e.target.value))}><option value="">Unassigned</option>{members.map(m => <option value={m.id} key={m.id}>{m.name}</option>)}</select></label><button className="secondary detail-toggle" aria-expanded={detailId === r.id} onClick={() => void showHistory(r.id)}>Contact &amp; history</button></div>
+            {detailId === r.id && <div className="referral-history"><strong>Status history</strong>{!history[r.id] ? <p role="status">Loading history…</p> : history[r.id].length ? <ol>{history[r.id].map((item, index) => <li key={index}>{item.status} · {new Date(item.changedAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT · {item.actor}</li>)}</ol> : <p>No status changes yet.</p>}</div>}
+          </article>;
+        })}</div>
+      </section>
+      <div className="management-grid" id="management"><section className="card doctors"><p className="eyebrow">REFERRAL NETWORK</p><h2>Partners, offices &amp; cards</h2><p className="muted">Create a partner once, then assign one or more card links to it.</p>
+        {isAdmin && <><form className="inline" onSubmit={createPartner}><label htmlFor="partner-name">Add partner<input id="partner-name" name="name" maxLength={120} required placeholder="Builder or referring office"/></label><button className="secondary" disabled={busy === "partner"}>Add partner</button></form><div className="form-grid"><form className="inline" onSubmit={createOffice}><label htmlFor="office-name">Add receiving office<input id="office-name" name="name" maxLength={120} required placeholder="Office name"/></label><button className="secondary" disabled={busy === "office"}>Add office</button></form><form className="inline" onSubmit={createCard}><label htmlFor="card-partner">Create card link<select id="card-partner" name="partnerId" required defaultValue=""><option value="" disabled>Choose partner</option>{partners.filter(p => p.active).map(p => <option value={p.id} key={p.id}>{p.name}</option>)}</select></label><label htmlFor="card-office">Receiving office<select id="card-office" name="officeId" required defaultValue=""><option value="" disabled>Choose office</option>{offices.filter(o => o.active).map(o => <option value={o.id} key={o.id}>{o.name}</option>)}</select></label><button className="secondary" disabled={busy === "card"}>Create card</button></form></div></>}
+        <div className="partner-card-list">{cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.partnerName} · {card.officeName}</strong><small>{card.active ? "Active" : "Inactive"} · {card.url}</small></div><div className="card-row-actions"><button className="secondary" onClick={() => void navigator.clipboard.writeText(card.url).then(() => setNotice("Referral link copied.")).catch(() => setError("Copy unavailable. Select the link to copy it manually."))}>Copy link</button><button className="secondary" onClick={() => void makeQr(card)}>QR code</button>{isAdmin && <button className="secondary" disabled={busy === card.id} onClick={() => void toggleCard(card)}>{card.active ? "Deactivate" : "Reactivate"}</button>}</div>{qrCard?.id === card.id && <div className="qr-download"><img src={qrCard.data} alt={`QR code for ${card.partnerName}`}/><a href={qrCard.data} download={`bridgeway-${card.id}.png`}>Download QR PNG</a></div>}</article>)}</div>
+        <div className="partner-card-list"><p className="eyebrow">PARTNERS</p>{partners.map(p => <div className="card-row" key={p.id}><strong>{p.name}</strong><small>{p.active ? "Active" : "Inactive"}</small></div>)}</div>
+        <div className="partner-card-list"><p className="eyebrow">RECEIVING OFFICES</p>{offices.map(o => <div className="card-row" key={o.id}><strong>{o.name}</strong><small>{o.active ? "Active" : "Inactive"}</small></div>)}</div>
+      </section>
+      <div className="management-stack">
+        {isAdmin && profile && <section className="card"><p className="eyebrow">PUBLIC INTAKE</p><h2>Business profile</h2><form className="form-grid" onSubmit={saveProfile}><label htmlFor="profile-name">Business name<input id="profile-name" name="name" maxLength={120} defaultValue={profile.name} required/></label><label htmlFor="profile-preset">Preset<select id="profile-preset" name="preset" defaultValue={profile.preset}><option value="dental">Dental &amp; orthodontic</option><option value="trades">Home services</option></select></label><label className="span-two" htmlFor="profile-welcome">Form welcome<input id="profile-welcome" name="welcomeText" maxLength={500} defaultValue={profile.welcomeText}/></label><label htmlFor="profile-phone">Office phone<input id="profile-phone" name="phone" maxLength={40} defaultValue={profile.phone}/></label><label htmlFor="profile-logo">Logo URL<input id="profile-logo" name="logoUrl" maxLength={500} defaultValue={profile.logoUrl} placeholder="/brand-logo.png or https://…"/></label><label className="check span-two"><input type="checkbox" name="acceptReferrals" defaultChecked={profile.acceptReferrals}/><span>Accept referral requests when the deployment intake gate is open.</span></label><button className="primary span-two" disabled={busy === "profile"}>Save business profile</button></form></section>}
+        {isAdmin && <section className="card"><p className="eyebrow">INVITE-ONLY ACCESS</p><h2>Staff access</h2><form className="inline" onSubmit={inviteMember}><label htmlFor="invite-email">Invite email<input id="invite-email" name="email" type="email" maxLength={254} required placeholder="teammate@business.com"/></label><label htmlFor="invite-role">Role<select id="invite-role" name="role"><option>Staff</option><option>Admin</option></select></label><button className="secondary" disabled={busy === "invite"}>Create invite</button></form>{inviteLink && <p className="invite-link">Invite URL <a href={inviteLink}>{inviteLink}</a><button className="secondary" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</button></p>}<div className="partner-card-list">{members.map(m => <div className="card-row" key={m.id}><strong>{m.name}</strong><small>{m.email} · {m.role}</small></div>)}{invitations.filter(i => i.state === "Pending").map(i => <div className="card-row" key={i.id}><strong>{i.email}</strong><small>Invite pending · {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}</small></div>)}</div></section>}
+        {isAdmin && <section className="card" id="billing"><p className="eyebrow">BUSINESS SUBSCRIPTION</p><h2>Billing</h2><div className="billing-price"><strong>$50</strong><span>USD / business / month</span></div><p className="muted">Status: <b>{billing?.status || "Loading"}</b>{billing?.renewalAt ? ` · Renews ${new Date(billing.renewalAt).toLocaleDateString()}` : ""}{billing?.cancelAtPeriodEnd ? " · Cancels at period end" : ""}</p><div className="billing-actions"><button className="primary" disabled={!billing?.configured || busy === "billing" || ["active", "trialing"].includes(billing?.status || "")} onClick={() => void subscribe()}>Subscribe</button><button className="secondary" disabled={!billing?.customerLinked || busy === "billing"} onClick={() => void manageBilling()}>Manage Billing</button></div>{!billing?.configured && <p className="hint">Test billing setup requires Stripe test key, monthly Price ID, webhook signing secret, and a public webhook URL. Live billing stays disabled.</p>}<p className="hint">Past-due intake and grace-period behavior must be agreed before a live subscription pilot.</p></section>}
+        <section className="card email-settings"><p className="eyebrow">STAY INFORMED</p><h2>Email alerts</h2><p role="status">{alerts ? alerts.enabled ? `Configured for ${alerts.recipient}. ${alerts.waiting} waiting, ${alerts.retrying} retrying.` : "Email alerts are not configured yet." : "Checking email settings…"}</p><button className="secondary" disabled={!alerts?.enabled || busy === "alert"} onClick={() => void testAlert()}>Queue test alert ↗</button><p className="hint">Alerts contain a dashboard link. Referral details stay in the dashboard.</p></section>
+      </div></div>
+    </>}
   </main></>;
 }

@@ -1,12 +1,18 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 export default function Header() {
-  const staff = usePathname().startsWith("/staff");
-  async function logout() { await fetch("/api/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); window.location.assign("/sign-in"); }
-  return <header className="site-header"><div className="header-inner">
-    <Link className="brand" href="/" aria-label="Referral home"><img src="/brand-logo.png" alt="Saratoga Springs Orthodontics" width="230" height="85" /></Link>
-    {staff ? <div className="staff-header-actions"><span className="portal-label">● OFFICE REFERRAL PORTAL</span><button className="header-signout" onClick={logout}>Sign out ↗</button></div>
-      : <a className="header-contact" href="tel:8017684554"><span>OUR TEAM IS HERE TO HELP</span>801.768.4554 <span aria-hidden="true">↗</span></a>}
+  const path = usePathname();
+  if (path.startsWith("/r/")) return null;
+  const staff = path.startsWith("/staff");
+  async function logout() {
+    await fetch("/api/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    window.localStorage.removeItem("bridgeway.workspace");
+    window.location.assign("/sign-in");
+  }
+  return <header className="site-header"><div className="header-inner launch-header">
+    <Link className="bridgeway-brand" href="/" aria-label="BridgeWay home"><span className="brand-mark" aria-hidden="true">B</span><span>BridgeWay</span></Link>
+    {staff ? <div className="staff-header-actions"><span className="portal-label">STAFF WORKSPACE</span><button className="header-signout" onClick={logout}>Sign out</button></div> : <nav className="public-nav" aria-label="Main navigation"><a href="/#book-a-demo">Book a demo</a><a className="public-nav-signin" href="/staff/login">Staff sign in</a></nav>}
   </div></header>;
 }

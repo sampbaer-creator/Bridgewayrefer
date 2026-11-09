@@ -12,6 +12,7 @@ function report(month: string): Report {
 }
 
 async function dashboard(page: Page) {
+  await page.addInitScript(() => { localStorage.setItem("bridgeway.workspace", "demo-business"); sessionStorage.setItem("bridgeway.testMonth", "2026-11"); });
   // Deliberately ignore analytics cancellation: late responses must also be rejected
   // by request ownership, even if a transport does not honor AbortSignal.
   await page.addInitScript(() => {
@@ -25,10 +26,17 @@ async function dashboard(page: Page) {
     if (url.pathname.endsWith("/analytics")) {
       const month = url.searchParams.get("month");
       if (month) { pending.set(month, [...pending.get(month) || [], route]); return; }
-      await route.fulfill({ json: report(months[0]) });
-    } else if (url.pathname.endsWith("/session")) await route.fulfill({ json: { demo: true } });
+      await route.fulfill({ json: report("2026-11") });
+    } else if (url.pathname.endsWith("/session")) await route.fulfill({ json: { demo: true, businessId: "demo-business", role: "Admin", businesses: [{ businessId: "demo-business", name: "Fictional Demo", preset: "dental", role: "Admin" }] } });
     else if (url.pathname.endsWith("/referrals")) await route.fulfill({ json: { referrals: [], limited: false } });
     else if (url.pathname.endsWith("/doctors")) await route.fulfill({ json: { doctors: [] } });
+    else if (url.pathname.endsWith("/partners")) await route.fulfill({ json: { partners: [] } });
+    else if (url.pathname.endsWith("/offices")) await route.fulfill({ json: { offices: [] } });
+    else if (url.pathname.endsWith("/cards")) await route.fulfill({ json: { cards: [] } });
+    else if (url.pathname.endsWith("/members")) await route.fulfill({ json: { members: [] } });
+    else if (url.pathname.endsWith("/business/profile")) await route.fulfill({ json: { name: "Fictional Demo", officeName: "Fictional Demo", preset: "dental", welcomeText: "", phone: "", logoUrl: "", acceptReferrals: false, billingStatus: "not_configured", monthlyPriceUsd: 50, etag: "fictional" } });
+    else if (url.pathname.endsWith("/billing")) await route.fulfill({ json: { amountUsd: 50, interval: "month", status: "not_configured", cancelAtPeriodEnd: false, configured: false, testMode: false, customerLinked: false } });
+    else if (url.pathname.endsWith("/invitations")) await route.fulfill({ json: { invitations: [] } });
     else if (url.pathname.endsWith("/alerts")) await route.fulfill({ json: { enabled: false, recipient: "", waiting: 0, retrying: 0 } });
     else throw new Error(`Unexpected staff request: ${url.pathname}`);
   });
