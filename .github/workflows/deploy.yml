@@ -1,0 +1,78 @@
+name: Deploy to Azure
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: azure-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - run: node --check static/app.js
+      - run: node --check static/reporting.js
+      - run: node --check static/tracking.js
+      - run: node --test tests/*.cjs
+      - name: Require Azure settings
+        env:
+          CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+        run: test -n "$CLIENT_ID" && test -n "$TENANT_ID" && test -n "$SUBSCRIPTION_ID" && test -n "$WEBAPP_NAME"
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Build deployable Python dependencies
+        run: |
+          python -m pip install --target .python_packages/lib/site-packages -r requirements.txt
+          PYTHONPATH="$PWD/.python_packages/lib/site-packages" python -S -c "import flask, gunicorn, azure.data.tables, azure.identity"
+      - name: Validate deployment scripts
+        run: bash -n startup.sh && bash -n deploy.sh
+      - name: Configure packaged application
+        env:
+          WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+        run: |
+          az webapp config appsettings set --resource-group sso-referrals-rg --name "$WEBAPP_NAME" --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false --output none
+          az webapp config set --resource-group sso-referrals-rg --name "$WEBAPP_NAME" --startup-file "bash /home/site/wwwroot/startup.sh" --output none
+      - name: Package application
+        run: zip -r app.zip app.py notifications.py reporting.py requirements.txt templates static startup.sh .python_packages .deployment deploy.sh
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: app.zip
+      - name: Verify application responds
+        env:
+          WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+        run: |
+          python - <<'PY'
+          import os, time, urllib.request
+          url = "https://" + os.environ["WEBAPP_NAME"] + ".azurewebsites.net/"
+          for attempt in range(24):
+              try:
+                  with urllib.request.urlopen(url, timeout=15) as response:
+                      html = response.read().decode()
+                      if response.status == 200 and "referral-form" in html:
+                          print("Referral application is responding.")
+                          break
+              except Exception as error:
+                  print("Waiting for application:", type(error).__name__)
+              time.sleep(10)
+          else:
+              raise SystemExit("Deployment uploaded but application did not become healthy.")
+          PY
+

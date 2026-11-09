@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10243c">
+  <title>{% block title %}Saratoga Springs Orthodontics | Referrals{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/brand-mark.png">
+  <link rel="stylesheet" href="/static/style.css?v=20261106-inbox2">
+  <script src="/static/app.js?v=20261106-inbox2" defer></script>
+  {% block scripts %}{% endblock %}
+</head>
+<body class="{% block body_class %}patient-page{% endblock %}">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  {% if demo %}<div class="demo">DEMO · Fictional information only · Local development</div>{% endif %}
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="https://www.saratogaspringsortho.com" aria-label="Saratoga Springs Orthodontics website">
+        <img src="/static/brand-logo.png" alt="Saratoga Springs Orthodontics" width="230" height="85">
+      </a>
+      {% block header_actions %}<a class="header-contact" href="tel:8017684554"><span>OUR TEAM IS HERE TO HELP</span>801.768.4554 <span aria-hidden="true">↗</span></a>{% endblock %}
+    </div>
+  </header>
+  {% block content %}{% endblock %}
+  <footer class="site-footer"><span>Saratoga Springs Orthodontics</span><span>A confident smile starts here.</span></footer>
+</body>
+</html>
+
