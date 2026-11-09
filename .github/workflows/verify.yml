@@ -1,0 +1,42 @@
+name: Verify C# and React
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test tests/BridgeWay.Api.Tests --configuration Release
+      - run: dotnet publish src/BridgeWay.Api --configuration Release --output artifacts/api
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridgeway-api
+          path: artifacts/api
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/bridgeway-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/bridgeway-web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Assemble standalone frontend
+        run: |
+          cp -r public .next/standalone/public
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/static
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridgeway-web
+          path: src/bridgeway-web/.next/standalone
+          include-hidden-files: true
