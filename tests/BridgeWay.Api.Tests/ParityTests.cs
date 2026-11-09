@@ -1,11 +1,14 @@
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Xml.Linq;
 using BridgeWay.Api;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
@@ -95,6 +98,32 @@ public class ParityTests
         Assert.Equal(expected, StripeBillingEndpoints.RenewalAt(new JObject { ["current_period_end"] = 1794240000L }));
         Assert.Null(StripeBillingEndpoints.RenewalAt(new JObject { ["items"] = new JObject { ["data"] = new JArray() } }));
     }
+    [Theory]
+    [InlineData("canceled", true)]
+    [InlineData("incomplete_expired", true)]
+    [InlineData("active", false)]
+    [InlineData("past_due", false)]
+    [InlineData("unpaid", false)]
+    public void OnlyTerminalStripeSubscriptionsCanBeReplaced(string status, bool terminal) =>
+        Assert.Equal(terminal, StripeBillingEndpoints.IsTerminal(status));
+
+    [Fact] public void ReplacementStripeSubscriptionMustMatchTheCompletedCheckout()
+    {
+        var session = new JObject
+        {
+            ["id"] = "cs_test_new", ["livemode"] = false, ["mode"] = "subscription", ["status"] = "complete",
+            ["client_reference_id"] = "business-a", ["customer"] = "cus_a", ["subscription"] = "sub_new"
+        };
+        bool Matches(JObject value) => StripeBillingEndpoints.MatchesReplacementCheckout(value, "cs_test_new", "business-a", "cus_a", "sub_new");
+        Assert.True(Matches(session));
+        foreach (var (field, value) in new (string, JToken)[]
+        {
+            ("id", "cs_test_other"), ("livemode", true), ("mode", "payment"), ("status", "open"),
+            ("client_reference_id", "business-b"), ("customer", "cus_b"), ("subscription", "sub_old")
+        })
+            Assert.False(Matches(new JObject(session) { [field] = value }));
+    }
+
     [Fact] public void LocalDemoGateCannotOpenOutsideDevelopment()
     {
         var settings = new Settings { AcceptReferrals = false, LocalDemoStaff = true };
@@ -146,11 +175,33 @@ public class ParityTests
         client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, (await client.PostAsync("/api/referrals", new StringContent("{}"))).StatusCode);
     }
+    [Fact] public async Task InvitationDeleteAcceptsJsonAndRequiresStaffAuthentication()
+    {
+        await using var app = Factory(); using var client = app.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Delete, "/api/staff/invitations/invite-1234567890abcdef");
+        request.Headers.Add("Origin", "http://localhost:3000");
+        request.Content = new StringContent("""{"etag":"test"}""", System.Text.Encoding.UTF8, "application/json");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.SendAsync(request)).StatusCode);
+    }
+    sealed class TestKeyRepository : IXmlRepository
+    {
+        readonly List<XElement> elements = [];
+        public IReadOnlyCollection<XElement> GetAllElements()
+        {
+            lock (elements) return elements.Select(element => new XElement(element)).ToArray();
+        }
+
+        public void StoreElement(XElement element, string friendlyName)
+        {
+            lock (elements) elements.Add(new XElement(element));
+        }
+    }
     static WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(web =>
     {
         web.UseEnvironment("Development").UseSetting("Cosmos:Endpoint", "https://example.documents.azure.com/").UseSetting("BridgeWay:LocalDemoStaff", "false").UseSetting("BridgeWay:TenantId", "tenant").UseSetting("BridgeWay:StaffObjectIds:0", "allowed");
         web.ConfigureServices(services =>
         {
+            services.Replace(ServiceDescriptor.Singleton<IXmlRepository, TestKeyRepository>());
             services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => {});
             services.PostConfigure<AuthenticationOptions>(options => options.DefaultAuthenticateScheme = "Test");
         });

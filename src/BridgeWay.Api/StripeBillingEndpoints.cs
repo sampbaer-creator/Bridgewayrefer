@@ -27,6 +27,17 @@ public static class StripeBillingEndpoints
         catch (ArgumentOutOfRangeException) { return null; }
     }
 
+    public static bool IsTerminal(string? status) => status is "canceled" or "incomplete_expired";
+
+    public static bool MatchesReplacementCheckout(JObject session, string sessionId, string businessId, string customerId, string subscriptionId) =>
+        session.Value<string>("id") == sessionId &&
+        session.Value<bool?>("livemode") == false &&
+        session.Value<string>("mode") == "subscription" &&
+        session.Value<string>("status") == "complete" &&
+        session.Value<string>("client_reference_id") == businessId &&
+        session.Value<string>("customer") == customerId &&
+        session.Value<string>("subscription") == subscriptionId;
+
     public static void MapStripeWebhook(this WebApplication app)
     {
         app.MapPost("/api/stripe/webhook", async (HttpRequest request, CosmosStore store, StripeBillingService stripe, Settings settings, CancellationToken ct) =>
@@ -63,15 +74,32 @@ public static class StripeBillingEndpoints
             {
                 if (await store.Read(store.Operations, eventDocumentId, businessKey, ct) is not null) return Results.Ok(new { received = true, duplicate = true });
                 var business = await store.Read(store.Operations, "business", businessKey, ct);
-                if (business is null || business.Value<string>("stripeCustomerId") is not string knownCustomer || knownCustomer != customerId ||
-                    business.Value<string>("stripeSubscriptionId") is string knownSubscription && knownSubscription != subscriptionId) return Results.Ok(new { received = true });
+                if (business is null || business.Value<string>("stripeCustomerId") != customerId) return Results.Ok(new { received = true });
+                var knownSubscription = business.Value<string>("stripeSubscriptionId");
+                var newSubscription = knownSubscription != subscriptionId;
+                if (newSubscription && !string.IsNullOrWhiteSpace(knownSubscription))
+                {
+                    if (!IsTerminal(business.Value<string>("billingStatus")) ||
+                        business.Value<string>("checkoutSessionId") is not { Length: > 0 } sessionId)
+                        return Results.Ok(new { received = true });
+
+                    var session = await stripe.GetCheckout(sessionId, ct);
+                    if (!MatchesReplacementCheckout(session, sessionId, businessId, customerId, subscriptionId))
+                        return Results.Ok(new { received = true });
+                }
                 business["stripeCustomerId"] = customerId; business["stripeSubscriptionId"] = subscriptionId;
                 business["billingStatus"] = subscription.Value<string>("status") ?? "unknown";
                 business["billingCancelAtPeriodEnd"] = subscription.Value<bool?>("cancel_at_period_end") ?? false;
                 var periodEnd = RenewalAt(subscription);
                 business["billingRenewalAt"] = periodEnd is null ? JValue.CreateNull() : periodEnd.Value.ToString("O");
                 business["billingUpdatedAt"] = DateTimeOffset.UtcNow.ToString("O");
-                business.Remove("checkoutSessionId"); business.Remove("checkoutSessionUrl"); business.Remove("checkoutSessionExpiresAt");
+                // Events for the existing subscription must leave a pending replacement checkout intact.
+                if (newSubscription)
+                {
+                    business.Remove("checkoutSessionId");
+                    business.Remove("checkoutSessionUrl");
+                    business.Remove("checkoutSessionExpiresAt");
+                }
                 var eventDoc = new JObject { ["id"] = eventDocumentId, ["businessId"] = businessId, ["type"] = "stripe-event", ["eventId"] = eventId, ["eventType"] = eventType, ["createdAt"] = DateTimeOffset.UtcNow.ToString("O"), ["ttl"] = 7776000 };
                 using var batch = await store.Operations.CreateTransactionalBatch(businessKey)
                     .CreateItem(eventDoc)

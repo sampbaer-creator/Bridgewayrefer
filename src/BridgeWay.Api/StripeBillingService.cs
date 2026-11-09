@@ -85,6 +85,12 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         return result.Value<string>("url") ?? throw new ApiError(503, "Stripe did not return a billing portal URL.");
     }
 
+    public async Task<JObject> GetCheckout(string sessionId, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, Api + "checkout/sessions/" + Uri.EscapeDataString(sessionId));
+        return await Send(request, ct);
+    }
+
     public async Task<JObject> GetSubscription(string subscriptionId, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, Api + "subscriptions/" + Uri.EscapeDataString(subscriptionId));

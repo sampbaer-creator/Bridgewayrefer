@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -35,7 +36,7 @@ public static class Endpoints
     static async Task<JObject?> AcceptInvite(CosmosStore store, string businessId, string oid, string tenant, string email, CancellationToken ct)
     {
         var invite = (await store.PendingInvites(email, businessId, ct)).FirstOrDefault();
-        if (!TenantAuthorization.IsValidInvite(invite, businessId, email, DateTimeOffset.UtcNow)) return null;
+        if (invite is null || !TenantAuthorization.IsValidInvite(invite, businessId, email, DateTimeOffset.UtcNow)) return null;
         if (!Regex.IsMatch(businessId, @"\A[A-Za-z0-9_-]{1,80}\z")) return null;
         var business = await store.Business(businessId, ct);
         if (business is null) return null;
@@ -292,7 +293,7 @@ public static class Endpoints
             await store.Create(invite, ct);
             return Results.Json(new { invitationId = invite.Value<string>("id"), email, role = data.Role, expiresAt = invite.Value<string>("expiresAt"), inviteUrl = settings.PublicOrigin + "/staff/login?workspace=" + Uri.EscapeDataString(store.BusinessId) }, statusCode: 201);
         });
-        staff.MapDelete("/invitations/{id}", async (string id, InvitationCancel data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        staff.MapDelete("/invitations/{id}", async (string id, [FromBody] InvitationCancel data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             if (!Regex.IsMatch(id, @"\Ainvite-[A-Za-z0-9]{16,40}\z") || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the invitation cancellation.");
             if (ctx.RequestServices.GetRequiredService<BusinessContext>().Role != "Admin") throw new ApiError(403, "Administrator access is required.");
@@ -439,7 +440,10 @@ public static class Endpoints
             if (!settings.StripeConfigured || !stripe.TestCredentialsReady) throw new ApiError(503, "Stripe test billing is not configured yet.");
             await stripe.ValidateTestPrice(ct);
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
-            if (business.Value<string>("billingStatus") is "active" or "trialing") throw new ApiError(409, "This business already has an active subscription. Use Manage Billing.");
+            var billingStatus = business.Value<string>("billingStatus");
+            if (billingStatus is "active" or "trialing" ||
+                (business.Value<string>("stripeSubscriptionId") is { Length: > 0 } && !StripeBillingEndpoints.IsTerminal(billingStatus)))
+                throw new ApiError(409, "This business already has a subscription. Use Manage Billing.");
             var now = DateTimeOffset.UtcNow;
             if (business.Value<string>("checkoutSessionUrl") is string existingUrl && DateTimeOffset.TryParse(business.Value<string>("checkoutSessionExpiresAt"), out var expires) && expires > now)
                 return Results.Ok(new { url = existingUrl });
