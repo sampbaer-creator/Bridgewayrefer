@@ -8,6 +8,25 @@ namespace BridgeWay.Api;
 
 public static class StripeBillingEndpoints
 {
+    public static DateTimeOffset? RenewalAt(JObject subscription)
+    {
+        var seconds = subscription.Value<long?>("current_period_end");
+        if (seconds is null)
+        {
+            seconds = (subscription["items"]?["data"] as JArray)?
+                .OfType<JObject>()
+                .Select(item => item.Value<long?>("current_period_end"))
+                .Where(value => value.HasValue)
+                .Select(value => value!.Value)
+                .DefaultIfEmpty()
+                .Max();
+            if (seconds == 0) seconds = null;
+        }
+        if (seconds is null or <= 0) return null;
+        try { return DateTimeOffset.FromUnixTimeSeconds(seconds.Value); }
+        catch (ArgumentOutOfRangeException) { return null; }
+    }
+
     public static void MapStripeWebhook(this WebApplication app)
     {
         app.MapPost("/api/stripe/webhook", async (HttpRequest request, CosmosStore store, StripeBillingService stripe, Settings settings, CancellationToken ct) =>
@@ -31,7 +50,7 @@ public static class StripeBillingEndpoints
 
             var subscription = await stripe.GetSubscription(subscriptionId, ct);
             var subscriptionBusinessId = subscription["metadata"]?.Value<string>("businessId");
-            if (subscription.Value<bool>("livemode") || string.IsNullOrWhiteSpace(subscriptionBusinessId) || (businessId is not null && subscriptionBusinessId != businessId) || !System.Text.RegularExpressions.Regex.IsMatch(subscriptionBusinessId, @"\A[A-Za-z0-9_-]{1,80}\z")) return Results.Ok(new { received = true });
+            if (subscription.Value<bool>("livemode") || subscription.Value<string>("id") != subscriptionId || string.IsNullOrWhiteSpace(subscriptionBusinessId) || (businessId is not null && subscriptionBusinessId != businessId) || !System.Text.RegularExpressions.Regex.IsMatch(subscriptionBusinessId, @"\A[A-Za-z0-9_-]{1,80}\z")) return Results.Ok(new { received = true });
             businessId = subscriptionBusinessId;
             var customerToken = subscription["customer"];
             var customerId = customerToken?.Type == JTokenType.String ? customerToken.Value<string>() : customerToken?.Value<string>("id");
@@ -44,12 +63,13 @@ public static class StripeBillingEndpoints
             {
                 if (await store.Read(store.Operations, eventDocumentId, businessKey, ct) is not null) return Results.Ok(new { received = true, duplicate = true });
                 var business = await store.Read(store.Operations, "business", businessKey, ct);
-                if (business is null || (business.Value<string>("stripeCustomerId") is string knownCustomer && knownCustomer != customerId)) return Results.Ok(new { received = true });
+                if (business is null || business.Value<string>("stripeCustomerId") is not string knownCustomer || knownCustomer != customerId ||
+                    business.Value<string>("stripeSubscriptionId") is string knownSubscription && knownSubscription != subscriptionId) return Results.Ok(new { received = true });
                 business["stripeCustomerId"] = customerId; business["stripeSubscriptionId"] = subscriptionId;
                 business["billingStatus"] = subscription.Value<string>("status") ?? "unknown";
                 business["billingCancelAtPeriodEnd"] = subscription.Value<bool?>("cancel_at_period_end") ?? false;
-                var periodEnd = subscription.Value<long?>("current_period_end");
-                business["billingRenewalAt"] = periodEnd is null ? JValue.CreateNull() : DateTimeOffset.FromUnixTimeSeconds(periodEnd.Value).ToString("O");
+                var periodEnd = RenewalAt(subscription);
+                business["billingRenewalAt"] = periodEnd is null ? JValue.CreateNull() : periodEnd.Value.ToString("O");
                 business["billingUpdatedAt"] = DateTimeOffset.UtcNow.ToString("O");
                 business.Remove("checkoutSessionId"); business.Remove("checkoutSessionUrl"); business.Remove("checkoutSessionExpiresAt");
                 var eventDoc = new JObject { ["id"] = eventDocumentId, ["businessId"] = businessId, ["type"] = "stripe-event", ["eventId"] = eventId, ["eventType"] = eventType, ["createdAt"] = DateTimeOffset.UtcNow.ToString("O"), ["ttl"] = 7776000 };

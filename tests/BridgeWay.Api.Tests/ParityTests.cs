@@ -62,6 +62,39 @@ public class ParityTests
         Assert.False(TenantAuthorization.HasRole(memberships[0], "Admin")); Assert.True(TenantAuthorization.HasRole(memberships[1], "Admin"));
         Assert.NotEqual(CosmosStore.MembershipId("tenant-a", "user"), CosmosStore.MembershipId("tenant-b", "user"));
     }
+    [Fact] public void InviteConflictCannotRestoreInactiveOrCrossTenantMembership()
+    {
+        var member = new JObject { ["active"] = true, ["businessId"] = "dental-a", ["tenantId"] = "tenant-a", ["oid"] = "guest-1", ["role"] = "Staff" };
+        Assert.True(TenantAuthorization.IsActiveMembershipFor(member, "dental-a", "tenant-a", "guest-1"));
+        Assert.False(TenantAuthorization.IsActiveMembershipFor(new JObject(member) { ["active"] = false }, "dental-a", "tenant-a", "guest-1"));
+        Assert.False(TenantAuthorization.IsActiveMembershipFor(member, "dental-a", "tenant-b", "guest-1"));
+        Assert.False(TenantAuthorization.IsActiveMembershipFor(member, "trades-b", "tenant-a", "guest-1"));
+        Assert.False(TenantAuthorization.IsActiveMembershipFor(member, "dental-a", "tenant-a", "guest-2"));
+    }
+    [Fact] public void GuestInvitesRequireMatchingEmailWorkspaceRoleAndUnexpiredPendingState()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        var invite = new JObject { ["type"] = "membership-invite", ["businessId"] = "dental-a", ["state"] = "Pending", ["email"] = "Guest@Example.Invalid", ["role"] = "Staff", ["expiresAt"] = now.AddMinutes(1).ToString("O") };
+        Assert.True(TenantAuthorization.IsValidInvite(invite, "dental-a", "guest@example.invalid", now));
+        Assert.False(TenantAuthorization.IsValidInvite(invite, "trades-b", "guest@example.invalid", now));
+        Assert.False(TenantAuthorization.IsValidInvite(invite, "dental-a", "other@example.invalid", now));
+        Assert.False(TenantAuthorization.IsValidInvite(new JObject(invite) { ["expiresAt"] = now.ToString("O") }, "dental-a", "guest@example.invalid", now));
+        Assert.False(TenantAuthorization.IsValidInvite(new JObject(invite) { ["state"] = "Accepted" }, "dental-a", "guest@example.invalid", now));
+        Assert.False(TenantAuthorization.IsValidInvite(new JObject(invite) { ["role"] = "Owner" }, "dental-a", "guest@example.invalid", now));
+    }
+    [Fact] public void AlertRetriesUseBoundedBackoffAndExposeTerminalFailure()
+    {
+        Assert.Equal(("Retry", 1060L), AlertWorker.FailureDisposition(1, 1000));
+        Assert.Equal(("Retry", 4600L), AlertWorker.FailureDisposition(7, 1000));
+        Assert.Equal(("Failed", 0L), AlertWorker.FailureDisposition(AlertWorker.MaximumAttempts, 1000));
+    }
+    [Fact] public void StripeRenewalSupportsSubscriptionItemPeriods()
+    {
+        var expected = DateTimeOffset.FromUnixTimeSeconds(1794240000);
+        Assert.Equal(expected, StripeBillingEndpoints.RenewalAt(new JObject { ["items"] = new JObject { ["data"] = new JArray(new JObject { ["current_period_end"] = 1794240000L }) } }));
+        Assert.Equal(expected, StripeBillingEndpoints.RenewalAt(new JObject { ["current_period_end"] = 1794240000L }));
+        Assert.Null(StripeBillingEndpoints.RenewalAt(new JObject { ["items"] = new JObject { ["data"] = new JArray() } }));
+    }
     [Fact] public void LocalDemoGateCannotOpenOutsideDevelopment()
     {
         var settings = new Settings { AcceptReferrals = false, LocalDemoStaff = true };

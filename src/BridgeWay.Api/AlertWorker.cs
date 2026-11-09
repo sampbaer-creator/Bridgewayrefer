@@ -10,6 +10,14 @@ namespace BridgeWay.Api;
 
 public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, ILogger<AlertWorker> logger) : BackgroundService
 {
+    public const int MaximumAttempts = 8;
+
+    public static (string State, long ReadyAt) FailureDisposition(int attempts, long now)
+    {
+        if (attempts >= MaximumAttempts) return ("Failed", 0);
+        return ("Retry", now + Math.Min(3600, 60 * (1L << Math.Clamp(attempts - 1, 0, 6))));
+    }
+
     public static JObject NewAlert(CosmosStore store, string id)
     {
         var doc = store.Document("alert", id); doc["state"] = "Pending"; doc["readyAt"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); doc["attempts"] = 0; return doc;
@@ -60,8 +68,9 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch
             {
-                logger.LogWarning("Email retry scheduled; sensitive details suppressed.");
-                doc["state"] = "Retry"; doc["readyAt"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Math.Min(3600, 60 * (1 << Math.Min(doc.Value<int>("attempts") - 1, 6)));
+                var disposition = FailureDisposition(doc.Value<int>("attempts"), DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                logger.LogWarning("Email delivery failed ({State}); sensitive details suppressed.", disposition.State);
+                doc["state"] = disposition.State; doc["readyAt"] = disposition.ReadyAt;
             }
             try { await store.Operations.ReplaceItemAsync(doc, id, partitionKey, new ItemRequestOptions { IfMatchEtag = claim.ETag }, ct); }
             catch (CosmosException e) when (e.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound) { }
