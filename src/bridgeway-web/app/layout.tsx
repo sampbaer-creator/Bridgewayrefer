@@ -4,6 +4,7 @@ import "./globals.css";
 import "./launch.css";
 import "./launch-extra.css";
 import "./access.css";
+import "./plain.css";
 
 export const metadata = { title: "BridgeWay · Referral follow-up" };
 
