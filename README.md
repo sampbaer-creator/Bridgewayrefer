@@ -65,6 +65,12 @@ For hosted Cosmos access, give the API managed identity Cosmos DB Built-in Data 
 
 Production must place the API behind a private or restricted reverse proxy, terminate browser HTTPS, persist/share ASP.NET Data Protection keys across replicas and restarts, and configure the trusted proxy address for forwarded client IPs. The default forwarded-header trust is loopback only. Review origin settings, staff allowlist and end-to-end Entra sign-in on the actual host before opening intake. Staff sign-in has automated authorization tests but has not been validated against a configured production app registration in this workspace.
 
+## Customer entry and card administration
+
+The homepage links to staff sign-in and /signup. Signup requires a verified Entra identity. With the current single-tenant setup, onboard outside customers as Entra guests before sending them to signup. Set `BridgeWay__CustomerSignupEnabled=true` only after configuring Entra and Stripe sandbox Checkout. The signed-in owner creates or resumes one workspace, pays through Stripe, and sees the dashboard after a verified active subscription is recorded. Existing staff workspaces keep their current access. Signup workspaces start with referral intake closed.
+
+The platform card desk is at /admin. Set `BridgeWay__PlatformAdminObjectIds__0` to the Entra object ID of a platform administrator. This role is separate from customer workspace Admin. Select the business and receiving office, optionally choose a referring partner, and copy the generated /r/<code> URL to program the physical NFC card. Customer staff can see the cards and referral statistics for their own workspace. Existing cards keep their codes.
+
 ## Email alerts
 
 The C# background worker replaces `notifications.py`. It sends generic dashboard links without patient details, uses Cosmos ETag leases, resumes pending work after restart, and retries with capped exponential delays. Delivery is at least once: a crash after SMTP acceptance can produce a duplicate; stable message IDs help mail clients group retries.

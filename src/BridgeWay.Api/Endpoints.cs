@@ -53,6 +53,49 @@ public static class Endpoints
         CosmosStore.Check(batch); return null;
     }
     static object PatientView(JObject row) => new { id = row.Value<string>("id"), name = row.Value<string>("name"), firstName = row.Value<string>("firstName"), lastName = row.Value<string>("lastName"), email = row.Value<string>("email"), phone = row.Value<string>("phone"), notes = row.Value<string>("notes"), businessId = row.Value<string>("businessId"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), doctorCode = row.Value<string>("doctorCode"), doctorName = row.Value<string>("doctorName"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName") ?? row.Value<string>("doctorName"), ownerId = row.Value<string>("ownerId"), ownerName = row.Value<string>("ownerName"), serviceType = row.Value<string>("serviceType"), postalCode = row.Value<string>("postalCode"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), updatedAt = row.Value<string>("updatedAt"), etag = row.Value<string>("_etag") };
+    static bool SignupPending(JObject? business) =>
+        business?.Value<bool?>("customerSignup") == true && business.Value<bool?>("signupCompleted") != true;
+
+    static (string Tenant, string ObjectId) RequireIdentity(HttpContext ctx, Settings settings)
+    {
+        if (ctx.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
+        var tenant = ctx.User.FindFirstValue("tid");
+        var objectId = ctx.User.FindFirstValue("oid");
+        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(objectId) ||
+            !string.Equals(tenant, settings.TenantId, StringComparison.OrdinalIgnoreCase))
+            throw new ApiError(403, "Access denied.");
+        return (tenant, objectId);
+    }
+
+    static async Task<IResult> IssueCard(CardCreate data, HttpContext ctx, CosmosStore store, Settings settings, CancellationToken ct, bool allowDirect = false)
+    {
+        JObject? partner = null;
+        if (!allowDirect || !string.IsNullOrWhiteSpace(data.PartnerId))
+        {
+            if (string.IsNullOrWhiteSpace(data.PartnerId)) throw new ApiError(400, "Choose an active referring partner.");
+            partner = await store.Read(data.PartnerId, ct);
+            if (partner?.Value<string>("type") != "partner" || partner.Value<bool>("active") != true)
+                throw new ApiError(400, "Choose an active referring partner.");
+        }
+        var officeId = string.IsNullOrWhiteSpace(data.OfficeId) ? "office-main" : data.OfficeId;
+        var office = await store.Read(officeId, ct);
+        if (office?.Value<string>("type") != "office" || office.Value<bool>("active") != true)
+            throw new ApiError(400, "Choose an active receiving office.");
+        var code = Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant();
+        var officeName = office.Value<string>("name") ?? settings.OfficeName;
+        var card = new JObject
+        {
+            ["id"] = code, ["businessId"] = store.BusinessId, ["officeId"] = officeId,
+            ["partnerId"] = partner?.Value<string>("id"), ["partnerName"] = partner?.Value<string>("name") ?? "Direct card",
+            ["officeName"] = officeName, ["active"] = true,
+            ["welcomeText"] = "Share a few details and our team will be in touch.",
+            ["createdAt"] = DateTimeOffset.UtcNow.ToString("O")
+        };
+        await store.Create(store.Audit(Actor(ctx), "create-card", code), ct);
+        await store.Cards.CreateItemAsync(card, new PartitionKey(code), cancellationToken: ct);
+        return Results.Json(new { id = code, partnerId = card.Value<string>("partnerId"), partnerName = card.Value<string>("partnerName"), officeName, active = true, url = settings.PublicOrigin + "/r/" + code }, statusCode: 201);
+    }
+
     public static void MapBridgeWay(this WebApplication app, Settings settings, IWebHostEnvironment environment)
     {
         object PublicCard(JObject? card, JObject? business) => new { officeName = card?.Value<string>("resolvedOfficeName") ?? card?.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? settings.OfficeName, welcomeText = card?.Value<string>("welcomeText") ?? business?.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = settings.IntakeDeploymentGateOpen(environment) && business?.Value<bool?>("acceptReferrals") == true, demo = settings.LocalDemoStaff, preset = business?.Value<string>("preset") ?? "dental", businessName = business?.Value<string>("name") ?? settings.OfficeName, logoUrl = business?.Value<string>("logoUrl") ?? "", phone = business?.Value<string>("phone") ?? "" };
@@ -122,6 +165,81 @@ public static class Endpoints
             try { await store.Create(doc, ct); } catch (CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
             return Results.Json(new { ok = true }, statusCode: 201);
         });
+        app.MapGet("/api/signup", (HttpContext ctx, StripeBillingService stripe) =>
+            Results.Ok(new { signedIn = ctx.User.Identity?.IsAuthenticated == true, enabled = settings.CustomerSignupEnabled && settings.IdentityConfigured && settings.StripeConfigured && stripe.TestCredentialsReady }));
+
+        app.MapPost("/api/signup", async (BusinessCreate data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
+        {
+            var (tenant, objectId) = RequireIdentity(ctx, settings);
+            if (!settings.CustomerSignupEnabled || !settings.StripeConfigured || !stripe.TestCredentialsReady)
+                throw new ApiError(503, "Subscription signup is currently unavailable.");
+            var name = data.Name?.Trim() ?? "";
+            var preset = data.Preset?.Trim().ToLowerInvariant() ?? "";
+            if (name.Length is < 2 or > 120 || preset is not ("dental" or "trades"))
+                throw new ApiError(400, "Choose a business name and a business type.");
+
+            // Retrying signup for the same verified identity resumes its original workspace.
+            var memberId = CosmosStore.MembershipId(tenant, objectId);
+            var businessId = "signup-" + memberId["member-".Length..];
+            store.UseBusiness(businessId);
+            if (await store.Business(businessId, ct) is null)
+            {
+                var email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "";
+                var business = store.Document("business", "business");
+                business["name"] = name; business["officeName"] = name; business["preset"] = preset;
+                business["acceptReferrals"] = false; business["customerSignup"] = true;
+                business["monthlyPriceUsd"] = 50; business["billingStatus"] = "not_configured";
+                var office = store.Document("office", "office-main");
+                office["name"] = name; office["active"] = true;
+                var member = store.Membership(businessId, tenant, objectId, email, "Admin", businessName: name, preset: preset);
+                using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
+                    .CreateItem(business).CreateItem(office).CreateItem(member)
+                    .CreateItem(store.Audit(objectId, "customer-signup", businessId)).ExecuteAsync(ct);
+                if (!batch.IsSuccessStatusCode && !batch.Any(item => item.StatusCode == HttpStatusCode.Conflict)) CosmosStore.Check(batch);
+            }
+            var membership = await store.Read(memberId, ct);
+            var existing = await store.Business(businessId, ct);
+            if (existing?.Value<bool?>("customerSignup") != true || !TenantAuthorization.IsActiveMembershipFor(membership, businessId, tenant, objectId) ||
+                !TenantAuthorization.HasRole(membership, "Admin"))
+                throw new ApiError(403, "This signup workspace is unavailable.");
+            return Results.Ok(new { businessId, signupPending = SignupPending(existing) });
+        });
+
+        var admin = app.MapGroup("/api/admin");
+        admin.AddEndpointFilter(async (context, next) =>
+        {
+            var ctx = context.HttpContext;
+            var (_, objectId) = RequireIdentity(ctx, settings);
+            if (!settings.PlatformAdminObjectIds.Contains(objectId, StringComparer.OrdinalIgnoreCase))
+                throw new ApiError(403, "Platform administrator access is required.");
+            ctx.Items["actor"] = objectId;
+            return await next(context);
+        });
+        admin.MapGet("/businesses", async (CosmosStore store, CancellationToken ct) =>
+            Json(new { businesses = await store.BusinessDirectory(ct) }));
+        admin.MapGet("/businesses/{businessId}/cards", async (string businessId, CosmosStore store, CancellationToken ct) =>
+        {
+            var business = await store.Business(businessId, ct) ?? throw new ApiError(404, "Business not found.");
+            store.UseBusiness(businessId);
+            var offices = await store.Query("office", ct: ct);
+            var partners = await store.Partners(ct);
+            var cards = await store.Doctors(ct);
+            return Results.Ok(new
+            {
+                signupPending = SignupPending(business),
+                offices = offices.Where(o => o.Value<bool>("active")).Select(o => new { id = o.Value<string>("id"), name = o.Value<string>("name") }),
+                partners = partners.Where(p => p.Value<bool>("active")).Select(p => new { id = p.Value<string>("id"), name = p.Value<string>("name") }),
+                cards = cards.Select(c => new { id = c.Value<string>("id"), officeName = c.Value<string>("officeName"), partnerName = c.Value<string>("partnerName"), active = c.Value<bool>("active"), url = settings.PublicOrigin + "/r/" + c.Value<string>("id") })
+            });
+        });
+        admin.MapPost("/businesses/{businessId}/cards", async (string businessId, CardCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        {
+            var business = await store.Business(businessId, ct) ?? throw new ApiError(404, "Business not found.");
+            if (SignupPending(business)) throw new ApiError(409, "This business is still awaiting its first payment.");
+            store.UseBusiness(businessId);
+            return await IssueCard(data, ctx, store, settings, ct, allowDirect: true);
+        });
+
         var staff = app.MapGroup("/api/staff");
         staff.AddEndpointFilter(async (context, next) =>
         {
@@ -184,6 +302,22 @@ public static class Endpoints
                 businessContext.Actor = oid; http.Items["actor"] = oid; http.Items["memberships"] = memberships;
             }
             var path = http.Request.Path.Value ?? "";
+            if (!IsSession(http) && businessContext.BusinessId is null)
+                throw new ApiError(403, "No active membership was found for this workspace.");
+            if (businessContext.BusinessId?.StartsWith("signup-", StringComparison.Ordinal) == true &&
+                !IsSession(http) && !path.StartsWith("/api/staff/billing", StringComparison.OrdinalIgnoreCase))
+            {
+                var profile = await store.Business(store.BusinessId, http.RequestAborted);
+                if (profile is null || SignupPending(profile)) throw new ApiError(403, "Complete the subscription to open this workspace.");
+                if (profile?.Value<bool?>("customerSignup") == true && HttpMethods.IsPost(http.Request.Method))
+                {
+                    if (path.Equals("/api/staff/businesses", StringComparison.OrdinalIgnoreCase))
+                        throw new ApiError(403, "Additional businesses require a separate subscription.");
+                    if (path.Equals("/api/staff/cards", StringComparison.OrdinalIgnoreCase) ||
+                        path.Equals("/api/staff/doctors", StringComparison.OrdinalIgnoreCase))
+                        throw new ApiError(403, "BridgeWay issues cards for this workspace.");
+                }
+            }
             if ((HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsPatch(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method)) &&
                 (path.EndsWith("/doctors", StringComparison.OrdinalIgnoreCase) || path.Contains("/doctors/", StringComparison.OrdinalIgnoreCase) || path.Contains("/invitations", StringComparison.OrdinalIgnoreCase) || path.Contains("/members/", StringComparison.OrdinalIgnoreCase) || path.Contains("/businesses", StringComparison.OrdinalIgnoreCase) || path.Contains("/business/", StringComparison.OrdinalIgnoreCase) || path.Contains("/offices", StringComparison.OrdinalIgnoreCase) || path.Contains("/partners", StringComparison.OrdinalIgnoreCase) || path.Contains("/cards", StringComparison.OrdinalIgnoreCase) || path.Contains("/billing/checkout", StringComparison.OrdinalIgnoreCase) || path.Contains("/billing/portal", StringComparison.OrdinalIgnoreCase)) && businessContext.Role != "Admin")
                 throw new ApiError(403, "Administrator access is required.");
@@ -201,7 +335,9 @@ public static class Endpoints
                     businessId,
                     name = profile?.Value<string>("name") ?? row.Value<string>("businessName") ?? businessId,
                     preset = profile is null ? row.Value<string>("preset") ?? "dental" : profile.Value<string>("preset") ?? "dental",
-                    role = row.Value<string>("role") ?? "Staff"
+                    role = row.Value<string>("role") ?? "Staff",
+                    signupPending = SignupPending(profile),
+                    customerSignup = profile?.Value<bool?>("customerSignup") == true
                 };
             }));
             return Results.Ok(new { ok = true, demo = settings.LocalDemoStaff, businessId = scope.BusinessId, role = scope.Role, businesses });
@@ -313,20 +449,8 @@ public static class Endpoints
             return Results.Json(new { id, name, active = true }, statusCode: 201);
         });
         staff.MapGet("/cards", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { cards = (await store.Doctors(ct)).Select(c => new { id = c.Value<string>("id"), partnerId = c.Value<string>("partnerId"), partnerName = c.Value<string>("partnerName") ?? c.Value<string>("officeName"), officeName = c.Value<string>("officeName"), active = c.Value<bool>("active"), etag = c.Value<string>("_etag"), url = settings.PublicOrigin + "/r/" + c.Value<string>("id") }) }));
-        staff.MapPost("/cards", async (CardCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
-        {
-            var partner = await store.Read(data.PartnerId ?? "", ct);
-            if (partner?.Value<string>("type") != "partner" || partner.Value<bool>("active") != true) throw new ApiError(400, "Choose an active referring partner.");
-            var officeId = string.IsNullOrWhiteSpace(data.OfficeId) ? "office-main" : data.OfficeId;
-            var office = await store.Read(officeId, ct);
-            if (office?.Value<string>("type") != "office" || office.Value<bool>("active") != true) throw new ApiError(400, "Choose an active receiving office.");
-            var code = Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant();
-            await store.Create(store.Audit(Actor(ctx), "create-card", code), ct);
-            var officeName = office.Value<string>("name") ?? settings.OfficeName;
-            var card = new JObject { ["id"] = code, ["businessId"] = store.BusinessId, ["officeId"] = string.IsNullOrWhiteSpace(data.OfficeId) ? "office-main" : data.OfficeId, ["partnerId"] = partner.Value<string>("id"), ["partnerName"] = partner.Value<string>("name"), ["officeName"] = officeName, ["active"] = true, ["welcomeText"] = "Share a few details and our team will be in touch.", ["createdAt"] = DateTimeOffset.UtcNow.ToString("O") };
-            await store.Cards.CreateItemAsync(card, new Microsoft.Azure.Cosmos.PartitionKey(code), cancellationToken: ct);
-            return Results.Json(new { id = code, partnerId = card.Value<string>("partnerId"), partnerName = card.Value<string>("partnerName"), officeName, active = true, url = settings.PublicOrigin + "/r/" + code }, statusCode: 201);
-        });
+        staff.MapPost("/cards", (CardCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+            IssueCard(data, ctx, store, settings, ct));
         staff.MapGet("/referrals", async (HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             await store.AuditRead(Actor(ctx), "list-referrals", ct);

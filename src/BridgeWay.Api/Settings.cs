@@ -13,6 +13,8 @@ public sealed class Settings
     public string ClientId { get; set; } = "";
     public string ClientSecret { get; set; } = "";
     public string[] StaffObjectIds { get; set; } = [];
+    public string[] PlatformAdminObjectIds { get; set; } = [];
+    public bool CustomerSignupEnabled { get; set; }
     public bool AlertsEnabled { get; set; }
     public string AlertRecipient { get; set; } = "";
     public Dictionary<string, string> AlertRecipients { get; set; } = new(StringComparer.Ordinal);
