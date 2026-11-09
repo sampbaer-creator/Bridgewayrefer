@@ -1,18 +1,18 @@
 "use client";
 import { useState } from "react";
 import type { Report } from "../lib/types";
-export default function OfficeReport({ report, month, onMonth }: { report: Report | null; month: string; onMonth: (month: string) => void }) {
+export default function OfficeReport({ report, month, onMonth, availableMonths = report?.availableMonths || [] }: { report: Report | null; month: string; onMonth: (month: string) => void; availableMonths?: string[] }) {
   const [view, setView] = useState("bars"), [metric, setMetric] = useState("forms"), [office, setOffice] = useState("");
   const rows = report?.offices || [];
   const values = report?.trend.map(t => metric === "forms" ? office ? t.offices[office] || 0 : t.total : office ? t.officeOpens[office] || 0 : t.opens) || [];
   const peak = Math.max(1, ...rows.flatMap(r => [r.count, r.opens]));
   const trendPeak = Math.max(1, ...values);
-  const selectedIndex = report?.availableMonths.indexOf(month || report.month) ?? 0;
+  const selectedIndex = availableMonths.indexOf(month || report?.month || "");
   return <section id="office-report" className="report-section" aria-labelledby="report-title">
     <div className="report-heading"><div><p className="eyebrow">MONTHLY PERFORMANCE</p><h2 id="report-title">Referrals by office</h2></div><div className="month-controls">
-      <button className="icon-button" aria-label="Previous month" disabled={!report || selectedIndex >= report.availableMonths.length - 1} onClick={() => report && onMonth(report.availableMonths[selectedIndex + 1])}>←</button>
-      <label htmlFor="report-month" className="sr-only">Reporting month</label><select id="report-month" value={month || report?.month || ""} onChange={e => onMonth(e.target.value)}>{!report && <option>Loading months…</option>}{report?.availableMonths.map(m => <option key={m} value={m}>{new Date(m + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select>
-      <button className="icon-button" aria-label="Next month" disabled={!report || selectedIndex <= 0} onClick={() => report && onMonth(report.availableMonths[selectedIndex - 1])}>→</button>
+      <button className="icon-button" aria-label="Previous month" disabled={selectedIndex < 0 || selectedIndex >= availableMonths.length - 1} onClick={() => onMonth(availableMonths[selectedIndex + 1])}>←</button>
+      <label htmlFor="report-month" className="sr-only">Reporting month</label><select id="report-month" value={month || report?.month || ""} onChange={e => onMonth(e.target.value)}>{!availableMonths.length && <option>Loading months…</option>}{availableMonths.map(m => <option key={m} value={m}>{new Date(m + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select>
+      <button className="icon-button" aria-label="Next month" disabled={selectedIndex <= 0} onClick={() => onMonth(availableMonths[selectedIndex - 1])}>→</button>
     </div></div>
     <div className="report-summary" aria-live="polite">
       <div className="summary-card summary-primary"><p>Total referrals</p><strong>{report?.total ?? "—"}</strong><small>{report ? `${report.previousTotal} in the previous month` : "Loading monthly totals"}</small></div>

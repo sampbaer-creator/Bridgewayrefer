@@ -30,6 +30,17 @@ jobs:
           cache-dependency-path: src/bridgeway-web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify reporting-month races without Azure credentials
+        run: |
+          npm run start -- --hostname 127.0.0.1 > /tmp/bridgeway-web.log 2>&1 &
+          web_pid=$!
+          trap 'kill "$web_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3000/staff > /dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test tests/staff-report-race.spec.ts
       - name: Assemble standalone frontend
         run: |
           cp -r public .next/standalone/public

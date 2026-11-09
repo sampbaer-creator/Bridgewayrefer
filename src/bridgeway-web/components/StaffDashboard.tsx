@@ -8,33 +8,52 @@ export default function StaffDashboard() {
   const [referrals, setReferrals] = useState<Referral[]>([]), [doctors, setDoctors] = useState<Doctor[]>([]), [report, setReport] = useState<Report | null>(null), [alerts, setAlerts] = useState<Alerts | null>(null);
   const [month, setMonth] = useState(""), [filter, setFilter] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState(""), [updated, setUpdated] = useState(""), [limited, setLimited] = useState(false);
   const [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [demo, setDemo] = useState(false), [busy, setBusy] = useState("");
-  const generation = useRef(0), stopped = useRef(false), loading = useRef(false);
+  const generation = useRef(0), stopped = useRef(false), selectedMonth = useRef("");
+  const loading = useRef<{ month: string; controller: AbortController } | null>(null);
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       stopped.current = true; generation.current++; setReferrals([]); setDoctors([]); setReport(null); setAlerts(null); setSession(e.status === 401 ? "expired" : "denied");
     } else setError(e instanceof Error ? e.message : "Service unavailable. Please try again.");
   }, []);
   const refresh = useCallback(async () => {
-    if (stopped.current || loading.current) return;
-    loading.current = true; const request = ++generation.current;
+    const requestMonth = selectedMonth.current;
+    if (stopped.current || (loading.current?.month === requestMonth && !loading.current.controller.signal.aborted)) return;
+    loading.current?.controller.abort();
+    const controller = new AbortController(), request = ++generation.current;
+    loading.current = { month: requestMonth, controller };
+    // Cancellation alone is insufficient: only the latest selected request may commit.
+    const current = () => request === generation.current && !stopped.current && !controller.signal.aborted && requestMonth === selectedMonth.current;
+    const options = { signal: controller.signal };
     try {
-      const auth = await api<{ demo: boolean }>("/api/staff/session");
+      const auth = await api<{ demo: boolean }>("/api/staff/session", options);
+      if (!current()) return;
       const [inbox, offices, analytics, email] = await Promise.all([
-        api<{ referrals: Referral[]; limited: boolean }>("/api/staff/referrals"), api<{ doctors: Doctor[] }>("/api/staff/doctors"),
-        api<Report>("/api/staff/analytics" + (month ? "?month=" + month : "")), api<Alerts>("/api/staff/alerts"),
+        api<{ referrals: Referral[]; limited: boolean }>("/api/staff/referrals", options), api<{ doctors: Doctor[] }>("/api/staff/doctors", options),
+        api<Report>("/api/staff/analytics" + (requestMonth ? "?month=" + requestMonth : ""), options), api<Alerts>("/api/staff/alerts", options),
       ]);
-      if (request !== generation.current || stopped.current) return;
+      if (!current()) return;
       setDemo(auth.demo); setSession("active"); setReferrals(inbox.referrals); setLimited(inbox.limited); setDoctors(offices.doctors); setReport(analytics); setAlerts(email); setUpdated(new Date().toLocaleTimeString()); setError("");
-    } catch (e) { if (request === generation.current) handleError(e); }
-    finally { loading.current = false; }
-  }, [month, handleError]);
+    } catch (e) { if (current()) handleError(e); }
+    finally { if (loading.current?.controller === controller) loading.current = null; }
+  }, [handleError]);
+  function selectMonth(value: string) {
+    if (value === selectedMonth.current) return;
+    selectedMonth.current = value;
+    // Invalidate synchronously, before the month effect starts the next refresh.
+    generation.current++;
+    loading.current?.controller.abort();
+    setMonth(value);
+  }
   useEffect(() => {
     void refresh();
     const visibleRefresh = () => { if (document.visibilityState === "visible") void refresh(); };
     const timer = setInterval(visibleRefresh, 60000);
     document.addEventListener("visibilitychange", visibleRefresh); window.addEventListener("focus", visibleRefresh); window.addEventListener("pageshow", visibleRefresh);
-    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); window.removeEventListener("focus", visibleRefresh); window.removeEventListener("pageshow", visibleRefresh); };
-  }, [refresh]);
+    return () => {
+      clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); window.removeEventListener("focus", visibleRefresh); window.removeEventListener("pageshow", visibleRefresh);
+      generation.current++; loading.current?.controller.abort(); loading.current = null;
+    };
+  }, [month, refresh]);
   async function changeStatus(referral: Referral, status: string) {
     setBusy(referral.id); setError("");
     try { await api("/api/staff/referrals/" + referral.id, { method: "PATCH", body: JSON.stringify({ status, etag: referral.etag }) }); await refresh(); }
@@ -60,7 +79,7 @@ export default function StaffDashboard() {
   return <>{demo && <div className="demo">DEMO · Fictional information only · Local staff preview</div>}<main className="dashboard" id="main-content" aria-busy={session === "loading"}>
     <div className="dashboard-heading"><div><p className="eyebrow">YOUR REFERRAL NETWORK</p><h1>Every introduction counts.</h1><p className="muted">Monthly office referrals and patient follow-up, all in one place.</p></div><nav className="section-nav" aria-label="Dashboard sections"><a href="#office-report">Overview</a><a href="#inbox">Inbox</a><a href="#offices">Office links</a></nav></div>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
-    <OfficeReport report={report} month={month} onMonth={setMonth} />
+    <OfficeReport report={month && report?.month !== month ? null : report} availableMonths={report?.availableMonths} month={month} onMonth={selectMonth} />
     <section className="inbox-section" id="inbox" aria-labelledby="inbox-title"><div className="section-heading"><div><p className="eyebrow">PATIENT FOLLOW-UP</p><h2 id="inbox-title">Referral inbox</h2><p className="muted">All dates · Track the next step for each patient.</p></div><button className="secondary" onClick={() => void refresh()}>Refresh inbox ↻</button></div>
       <div className="metrics" role="group" aria-label="Filter referrals by status">{["", ...statuses].map(status => <button key={status} className="metric" aria-pressed={filter === status} aria-controls="referrals" onClick={() => setFilter(status)}>{status || "All referrals"}<b>{status ? referrals.filter(r => r.status === status).length : referrals.length}</b></button>)}</div>
       <div className="toolbar"><span id="inbox-view" role="status">{filter || "All referrals"} · {filtered.length} shown</span><span>{updated && "Updated " + updated}</span></div>
