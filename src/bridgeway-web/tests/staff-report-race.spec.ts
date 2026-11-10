@@ -27,7 +27,7 @@ async function dashboard(page: Page) {
       const month = url.searchParams.get("month");
       if (month) { pending.set(month, [...pending.get(month) || [], route]); return; }
       await route.fulfill({ json: report("2026-11") });
-    } else if (url.pathname.endsWith("/session")) await route.fulfill({ json: { demo: true, businessId: "demo-business", role: "Admin", businesses: [{ businessId: "demo-business", name: "Fictional Demo", preset: "dental", role: "Admin" }] } });
+    } else if (url.pathname.endsWith("/session")) await route.fulfill({ json: { businessId: "demo-business", role: "Admin", businesses: [{ businessId: "demo-business", name: "Fictional Demo", preset: "dental", role: "Admin" }] } });
     else if (url.pathname.endsWith("/referrals")) await route.fulfill({ json: { referrals: [], limited: false } });
     else if (url.pathname.endsWith("/doctors")) await route.fulfill({ json: { doctors: [] } });
     else if (url.pathname.endsWith("/partners")) await route.fulfill({ json: { partners: [] } });

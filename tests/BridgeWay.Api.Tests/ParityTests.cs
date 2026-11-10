@@ -124,16 +124,25 @@ public class ParityTests
             Assert.False(Matches(new JObject(session) { [field] = value }));
     }
 
-    [Fact] public void LocalDemoGateCannotOpenOutsideDevelopment()
+    [Fact] public void IntakeRequiresKillSwitchEnabledUnsuspendedAndPaidOrExempt()
     {
-        var settings = new Settings { AcceptReferrals = false, LocalDemoStaff = true };
-        Assert.True(settings.IntakeDeploymentGateOpen(true)); Assert.False(settings.IntakeDeploymentGateOpen(false));
-        Assert.True((new Settings { AcceptReferrals = true }).IntakeDeploymentGateOpen(false));
+        var on = new Settings { AcceptReferrals = true };
+        JObject Business(string status = "active", bool accept = true, bool suspended = false, bool exempt = false) => new() { ["acceptReferrals"] = accept, ["suspended"] = suspended, ["billingExempt"] = exempt, ["billingStatus"] = status };
+        Assert.True(BusinessRules.AcceptsReferrals(on, Business()));
+        Assert.True(BusinessRules.AcceptsReferrals(on, Business("trialing")));
+        Assert.True(BusinessRules.AcceptsReferrals(on, Business("past_due")));
+        Assert.True(BusinessRules.AcceptsReferrals(on, Business("not_configured", exempt: true)));
+        Assert.False(BusinessRules.AcceptsReferrals(on, Business("canceled")));
+        Assert.False(BusinessRules.AcceptsReferrals(on, Business("not_configured")));
+        Assert.False(BusinessRules.AcceptsReferrals(on, Business(suspended: true)));
+        Assert.False(BusinessRules.AcceptsReferrals(on, Business(accept: false)));
+        Assert.False(BusinessRules.AcceptsReferrals(new Settings { AcceptReferrals = false }, Business()));
+        Assert.False(BusinessRules.AcceptsReferrals(on, null));
     }
     [Theory] [InlineData("2026-13")] [InlineData("bad")] [InlineData("1999-01")] [InlineData("2026-1")]
     public void RejectInvalidReportingMonth(string month) => Assert.Throws<ApiError>(() => MonthlyReport.ParseMonth(month));
     [Fact] public void InvalidDateIsCountedWithoutDisclosure() { var report = Report("2026-11", "PRIVATE-BROKEN-DATE"); Assert.Equal(1, report.Value<int>("invalidDates")); Assert.DoesNotContain("PRIVATE", report.ToString()); }
-    static Submission Valid => new("Fictional", "Patient", "fictional@example.invalid", "8015550100", "Fictional only", true, "demo-west-office", Guid.NewGuid().ToString());
+    static Submission Valid => new("Fictional", "Patient", "fictional@example.invalid", "8015550100", "Fictional only", true, "a1b2c3d4e5f6a7b8", Guid.NewGuid().ToString());
     [Fact] public void SubmissionValidatesConsentLimitsHoneypotAndIdempotencyToken()
     {
         Valid.Validate();
@@ -153,20 +162,33 @@ public class ParityTests
         client.DefaultRequestHeaders.Remove("X-Test-Identity"); client.DefaultRequestHeaders.Add("X-Test-Identity", "wrong:allowed");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/staff/session")).StatusCode);
     }
-    [Fact] public void AlertRecipientsStayScopedToTheirWorkspace()
+    [Fact] public void AlertRecipientComesFromTheBusinessAndRequiresSmtp()
     {
-        var settings = new Settings
+        var smtp = new Settings { AlertsEnabled = true, SmtpUsername = "sender", SmtpPassword = "configured" };
+        var business = new JObject { ["alertEmail"] = "office@example.invalid" };
+        Assert.Equal("office@example.invalid", BusinessRules.AlertEmail(smtp, business));
+        Assert.Empty(BusinessRules.AlertEmail(smtp, new JObject()));
+        Assert.Empty(BusinessRules.AlertEmail(new Settings { AlertsEnabled = false, SmtpUsername = "sender", SmtpPassword = "configured" }, business));
+        Assert.Empty(BusinessRules.AlertEmail(new Settings { AlertsEnabled = true }, business));
+    }
+    [Fact] public async Task PlatformAdminConsoleRejectsEveryoneButConfiguredAdmins()
+    {
+        await using var app = Factory(); using var client = app.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/admin/session")).StatusCode);
+        foreach (var value in new[] { "tenant:someone-else", "other:platform-owner" })
         {
-            BusinessId = "default-business", AlertsEnabled = true,
-            AlertRecipient = "default@example.invalid", SmtpUsername = "sender", SmtpPassword = "configured",
-            AlertRecipients = { ["other-business"] = "other@example.invalid" }
-        };
-        Assert.True(settings.AlertsConfiguredFor("default-business"));
-        Assert.Equal("default@example.invalid", settings.AlertRecipientFor("default-business"));
-        Assert.True(settings.AlertsConfiguredFor("other-business"));
-        Assert.Equal("other@example.invalid", settings.AlertRecipientFor("other-business"));
-        Assert.False(settings.AlertsConfiguredFor("unconfigured-business"));
-        Assert.Empty(settings.AlertRecipientFor("unconfigured-business"));
+            client.DefaultRequestHeaders.Remove("X-Test-Identity"); client.DefaultRequestHeaders.Add("X-Test-Identity", value);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/session")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/businesses")).StatusCode);
+        }
+        client.DefaultRequestHeaders.Remove("X-Test-Identity"); client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:platform-owner");
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/admin/session")).StatusCode);
+    }
+    [Fact] public void StripeReplacementCheckoutMustMatchKeyMode()
+    {
+        var live = new JObject { ["id"] = "cs_live", ["livemode"] = true, ["mode"] = "subscription", ["status"] = "complete", ["client_reference_id"] = "b", ["customer"] = "c", ["subscription"] = "s" };
+        Assert.True(StripeBillingEndpoints.MatchesReplacementCheckout(live, "cs_live", "b", "c", "s", liveMode: true));
+        Assert.False(StripeBillingEndpoints.MatchesReplacementCheckout(live, "cs_live", "b", "c", "s", liveMode: false));
     }
     [Fact] public async Task WriteGuardRejectsCrossOriginAndNonJsonBeforeStorage()
     {
@@ -183,6 +205,25 @@ public class ParityTests
         request.Content = new StringContent("""{"etag":"test"}""", System.Text.Encoding.UTF8, "application/json");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.SendAsync(request)).StatusCode);
     }
+    [Fact] public async Task PlatformCardDirectoryRejectsAnonymousAndOrdinaryStaff()
+    {
+        await using var app = Factory(); using var client = app.CreateClient();
+        const string directory = "/api/admin/businesses";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(directory)).StatusCode);
+        client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:allowed");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(directory)).StatusCode);
+    }
+
+    [Fact] public async Task SignupRequiresAuthenticationAndAnEnabledCheckout()
+    {
+        await using var app = Factory(); using var client = app.CreateClient();
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+        static StringContent Business() => new("""{"name":"Fictional Business","preset":"trades"}""", System.Text.Encoding.UTF8, "application/json");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync("/api/signup", Business())).StatusCode);
+        client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:allowed");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/api/signup", Business())).StatusCode);
+    }
+
     sealed class TestKeyRepository : IXmlRepository
     {
         readonly List<XElement> elements = [];
@@ -198,7 +239,7 @@ public class ParityTests
     }
     static WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(web =>
     {
-        web.UseEnvironment("Development").UseSetting("Cosmos:Endpoint", "https://example.documents.azure.com/").UseSetting("BridgeWay:LocalDemoStaff", "false").UseSetting("BridgeWay:TenantId", "tenant").UseSetting("BridgeWay:StaffObjectIds:0", "allowed");
+        web.UseEnvironment("Development").UseSetting("Cosmos:Endpoint", "https://example.documents.azure.com/").UseSetting("BridgeWay:TenantId", "tenant").UseSetting("BridgeWay:PlatformAdminObjectIds:0", "platform-owner");
         web.ConfigureServices(services =>
         {
             services.Replace(ServiceDescriptor.Singleton<IXmlRepository, TestKeyRepository>());

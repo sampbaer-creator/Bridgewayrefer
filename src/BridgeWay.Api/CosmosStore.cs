@@ -13,11 +13,14 @@ public sealed class BusinessContext
 
 public sealed class CosmosStore(CosmosClient client, IConfiguration config, Settings settings, BusinessContext? business = null)
 {
-    public Container Cards { get; } = client.GetContainer(config["Cosmos:Database"] ?? "bridgeway-dev", config["Cosmos:CardContainer"] ?? "card-directory");
-    public Container Operations { get; } = client.GetContainer(config["Cosmos:Database"] ?? "bridgeway-dev", config["Cosmos:OperationsContainer"] ?? "business-operations");
-    public string BusinessId => business?.BusinessId ?? settings.BusinessId;
+    static string Database(IConfiguration config) => config["Cosmos:Database"] is { Length: > 0 } name ? name : throw new InvalidOperationException("Set Cosmos:Database.");
+    public Container Cards { get; } = client.GetContainer(Database(config), config["Cosmos:CardContainer"] ?? "card-directory");
+    public Container Operations { get; } = client.GetContainer(Database(config), config["Cosmos:OperationsContainer"] ?? "business-operations");
+    public const string PlatformPartition = "bridgeway-platform";
+    string? selected = business?.BusinessId;
+    public string BusinessId => selected ?? throw new InvalidOperationException("No business selected for this request.");
     public PartitionKey BusinessKey => new(BusinessId);
-    public void UseBusiness(string businessId) { if (business is not null) business.BusinessId = businessId; }
+    public void UseBusiness(string businessId) { selected = businessId; if (business is not null) business.BusinessId = businessId; }
 
     public async Task<JObject?> Read(Container container, string id, PartitionKey key, CancellationToken ct = default)
     {
@@ -79,8 +82,20 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
             .WithParameter("@business", BusinessId).WithParameter("@type", type);
         return await Collect(Operations, query, BusinessKey, limit, ct);
     }
-    public Task<List<JObject>> Doctors(CancellationToken ct = default) => Collect(Cards,
-        new QueryDefinition("SELECT * FROM c WHERE c.businessId = @business").WithParameter("@business", BusinessId), null, null, ct);
+    /// <summary>Card directory is partitioned by card code for O(1) public taps, so listing a business's cards is a cross-partition query.</summary>
+    public Task<List<JObject>> BusinessCards(string? businessId = null, CancellationToken ct = default) => Collect(Cards,
+        new QueryDefinition("SELECT * FROM c WHERE c.businessId = @business").WithParameter("@business", businessId ?? BusinessId), null, 2000, ct);
+    public Task<List<JObject>> AllBusinesses(CancellationToken ct = default) => Collect(Operations,
+        new QueryDefinition("SELECT * FROM c WHERE c.type = 'business' AND c.id = 'business'"), null, 5000, ct);
+    public async Task<Dictionary<(string Business, string Type), long>> CountsByBusiness(CancellationToken ct = default)
+    {
+        var rows = await Collect(Operations, new QueryDefinition("SELECT c.businessId, c.type, COUNT(1) AS n FROM c WHERE c.type IN ('referral', 'link-open') GROUP BY c.businessId, c.type"), null, null, ct);
+        var cards = await Collect(Cards, new QueryDefinition("SELECT c.businessId, COUNT(1) AS n FROM c GROUP BY c.businessId"), null, null, ct);
+        var result = new Dictionary<(string, string), long>();
+        foreach (var row in rows) result[(row.Value<string>("businessId") ?? "", row.Value<string>("type") ?? "")] = row.Value<long>("n");
+        foreach (var row in cards) result[(row.Value<string>("businessId") ?? "", "card")] = row.Value<long>("n");
+        return result;
+    }
     public Task<List<JObject>> Partners(CancellationToken ct = default) => Query("partner", ct: ct);
     static async Task<List<JObject>> Collect(Container container, QueryDefinition query, PartitionKey? key, int? limit, CancellationToken ct)
     {
@@ -126,41 +141,40 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         }
         return false;
     }
-    public async Task Seed(CancellationToken ct = default)
+    /// <summary>
+    /// One-time cleanup of the fictional records the old --seed command and browser tests created.
+    /// Deletes only well-known demo partitions, test-e2e-* partitions, their cards, and local-demo memberships.
+    /// </summary>
+    public async Task<int> PurgeDemoData(CancellationToken ct = default)
     {
-        var business = Document("business", "business"); business["name"] = "West Office Demo"; business["officeName"] = settings.OfficeName; business["preset"] = "dental"; business["acceptReferrals"] = settings.AcceptReferrals || settings.LocalDemoStaff; business["monthlyPriceUsd"] = 50; business["subscriptionStatus"] = "not_configured";
-        var existingBusiness = await Read("business", ct);
-        if (existingBusiness is null) await Create(business, ct);
-        else if (settings.LocalDemoStaff && existingBusiness.Value<bool?>("acceptReferrals") != true) { existingBusiness["acceptReferrals"] = true; await Operations.ReplaceItemAsync(existingBusiness, "business", BusinessKey, cancellationToken: ct); }
-        var partnerId = "demo-referring-office";
-        var partner = Document("partner", partnerId); partner["name"] = "West Office Demo"; partner["active"] = true;
-        if (await Read(partnerId, ct) is null) await Create(partner, ct);
-        var mainOffice = Document("office", "west-office"); mainOffice["name"] = "West Office Demo"; mainOffice["active"] = true;
-        if (await Read("west-office", ct) is null) await Create(mainOffice, ct);
-        var card = await Read(Cards, "demo-west-office", new PartitionKey("demo-west-office"), ct);
-        card ??= new JObject { ["id"] = "demo-west-office", ["active"] = true, ["officeName"] = "West Office Demo", ["welcomeText"] = "This is a fictional BridgeWay office." };
-        if (card.Value<string>("businessId") is string owner && owner != BusinessId) throw new InvalidOperationException("Demo card belongs to another business.");
-        card["businessId"] = BusinessId; card["officeId"] = "west-office"; card["partnerId"] = partnerId; card["partnerName"] = "West Office Demo";
-        card["createdAt"] ??= DateTimeOffset.UtcNow.ToString("O");
-        await Cards.UpsertItemAsync(card, new PartitionKey("demo-west-office"), cancellationToken: ct);
-        if (settings.StaffObjectIds.Length > 0 && settings.TenantId.Length > 0)
+        var businesses = new HashSet<string>(StringComparer.Ordinal) { "demo-business", "demo-trades" };
+        using (var iterator = Operations.GetItemQueryIterator<string>(new QueryDefinition("SELECT DISTINCT VALUE c.businessId FROM c WHERE STARTSWITH(c.businessId, 'test-e2e-') OR STARTSWITH(c.businessId, 'verification-')")))
+            while (iterator.HasMoreResults) foreach (var id in await iterator.ReadNextAsync(ct)) if (!string.IsNullOrWhiteSpace(id)) businesses.Add(id);
+        var removed = 0;
+        foreach (var businessId in businesses)
         {
-            var member = Membership(BusinessId, settings.TenantId, settings.StaffObjectIds[0], "", "Admin", businessName: "West Office Demo");
-            try { await Operations.CreateItemAsync(member, BusinessKey, cancellationToken: ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
+            var key = new PartitionKey(businessId);
+            foreach (var row in await Collect(Operations, new QueryDefinition("SELECT c.id FROM c"), key, null, ct))
+            {
+                try { await Operations.DeleteItemAsync<JObject>(row.Value<string>("id")!, key, cancellationToken: ct); removed++; }
+                catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound) { }
+            }
+            foreach (var card in await BusinessCards(businessId, ct))
+            {
+                try { await Cards.DeleteItemAsync<JObject>(card.Value<string>("id")!, new PartitionKey(card.Value<string>("id")!), cancellationToken: ct); removed++; }
+                catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound) { }
+            }
         }
-        var tradesId = "demo-trades";
-        var tradesBusiness = Document("business", "business", tradesId); tradesBusiness["name"] = "North Star HVAC Demo"; tradesBusiness["officeName"] = "North Star HVAC Demo"; tradesBusiness["preset"] = "trades"; tradesBusiness["acceptReferrals"] = true; tradesBusiness["monthlyPriceUsd"] = 50; tradesBusiness["subscriptionStatus"] = "not_configured";
-        try { await Operations.CreateItemAsync(tradesBusiness, new PartitionKey(tradesId), cancellationToken: ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { if (settings.LocalDemoStaff) { var old = await Read(Operations, "business", new PartitionKey(tradesId), ct); if (old is not null && old.Value<bool?>("acceptReferrals") != true) { old["acceptReferrals"] = true; await Operations.ReplaceItemAsync(old, "business", new PartitionKey(tradesId), cancellationToken: ct); } } }
-        var tradesOffice = Document("office", "north-star", tradesId); tradesOffice["name"] = "North Star HVAC Demo"; tradesOffice["active"] = true;
-        try { await Operations.CreateItemAsync(tradesOffice, new PartitionKey(tradesId), cancellationToken: ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
-        var tradesPartner = Document("partner", "demo-builder-network", tradesId); tradesPartner["name"] = "Builder Network"; tradesPartner["active"] = true;
-        try { await Operations.CreateItemAsync(tradesPartner, new PartitionKey(tradesId), cancellationToken: ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
-        var tradesCard = new JObject { ["id"] = "demo-hvac-referral", ["businessId"] = tradesId, ["officeId"] = "north-star", ["partnerId"] = "demo-builder-network", ["partnerName"] = "Builder Network", ["officeName"] = "North Star HVAC Demo", ["active"] = true, ["welcomeText"] = "Tell us about the service you need.", ["createdAt"] = DateTimeOffset.UtcNow.ToString("O") };
-        try { await Cards.CreateItemAsync(tradesCard, new PartitionKey("demo-hvac-referral"), cancellationToken: ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
-        foreach (var businessId in new[] { BusinessId, tradesId })
+        foreach (var code in new[] { "demo-west-office", "demo-hvac-referral" })
         {
-            var demoMember = Membership(businessId, "local-demo", "local-demo", "local-demo@localhost", "Admin", businessName: businessId == tradesId ? "North Star HVAC Demo" : "West Office Demo", preset: businessId == tradesId ? "trades" : "dental");
-            try { await Operations.CreateItemAsync(demoMember, new PartitionKey(businessId), cancellationToken: ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
+            try { await Cards.DeleteItemAsync<JObject>(code, new PartitionKey(code), cancellationToken: ct); removed++; }
+            catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound) { }
         }
+        foreach (var member in await Collect(Operations, new QueryDefinition("SELECT c.id, c.businessId FROM c WHERE c.type = 'membership' AND c.tenantId = 'local-demo'"), null, null, ct))
+        {
+            try { await Operations.DeleteItemAsync<JObject>(member.Value<string>("id")!, new PartitionKey(member.Value<string>("businessId")!), cancellationToken: ct); removed++; }
+            catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound) { }
+        }
+        return removed;
     }
 }

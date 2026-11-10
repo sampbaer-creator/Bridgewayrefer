@@ -12,7 +12,7 @@ public sealed class CosmosXmlRepository(CosmosClient client, IConfiguration conf
 {
     const string PartitionId = "bridgeway-platform";
     readonly Container container = client.GetContainer(
-        configuration["Cosmos:Database"] ?? "bridgeway-dev",
+        configuration["Cosmos:Database"] ?? throw new InvalidOperationException("Set Cosmos:Database."),
         configuration["Cosmos:OperationsContainer"] ?? "business-operations");
 
     public IReadOnlyCollection<XElement> GetAllElements()
