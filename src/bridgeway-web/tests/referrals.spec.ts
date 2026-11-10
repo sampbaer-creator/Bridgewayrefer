@@ -14,6 +14,7 @@ async function createFixture(request: APIRequestContext, name: string, preset: "
 async function removeFixture(request: APIRequestContext, businessId: string) {
   const response = await request.delete("/api/staff/test-fixtures/" + encodeURIComponent(businessId), {
     headers: { Origin: origin, "X-BridgeWay-Business": businessId },
+    data: {},
   });
   expect([204, 404]).toContain(response.status());
 }
@@ -35,11 +36,11 @@ test("admin creates a fictional office and card, submits once, and follows it up
     await expect(page.getByText(partnerName, { exact: true }).first()).toBeVisible();
 
     await page.getByLabel("Add receiving office").fill(officeName);
-    await page.getByRole("button", { name: "Add receiving office" }).click();
-    await expect(page.getByText(officeName, { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Add office" }).click();
+    await expect(page.locator("#card-office")).toContainText(officeName);
 
     await page.getByLabel("Create card link").selectOption({ label: partnerName });
-    await page.getByLabel("Receiving office").selectOption({ label: officeName });
+    await page.locator("#card-office").selectOption({ label: officeName });
     await page.getByRole("button", { name: "Create card" }).click();
     await expect(page.getByText("Card link created.", { exact: true })).toBeVisible();
     const card = page.locator(".card-row").filter({ hasText: partnerName }).filter({ hasText: officeName }).last();
@@ -69,7 +70,9 @@ test("admin creates a fictional office and card, submits once, and follows it up
     await expect(patient).toBeVisible();
     await expect(patient).toContainText(partnerName);
     await expect(patient).toContainText(officeName);
+    const statusResponse = page.waitForResponse(response => response.request().method() === "PATCH" && /\/api\/staff\/referrals\/ref-[^/]+$/.test(new URL(response.url()).pathname));
     await patient.getByLabel(`Status for Fictional ${contactName}`).selectOption("Scheduled");
+    expect((await statusResponse).status()).toBe(200);
     await expect(patient.getByLabel(`Status for Fictional ${contactName}`)).toHaveValue("Scheduled");
     expect(code).toMatch(/^[a-f0-9]{36}$/);
   } finally {
@@ -87,7 +90,7 @@ test("fictional API retries are idempotent and workspace scoped", async ({ reque
     const partnerId = (await partner.json()).id as string;
     const cardResponse = await request.post("/api/staff/cards", { headers, data: { partnerId, officeId: "office-main" } });
     expect(cardResponse.status()).toBe(201);
-    const { code } = (await cardResponse.json()) as { code: string };
+    const { id: code } = (await cardResponse.json()) as { id: string };
     const submissionId = crypto.randomUUID();
     const data = { firstName: "Fictional", lastName: `API ${token.slice(0, 8)}`, email: `fictional+${token}@example.invalid`, phone: "8015550101", notes: "Fictional only", consent: true, code, submissionId };
     const first = await request.post("/api/referrals", { headers: { Origin: origin }, data });
@@ -97,7 +100,7 @@ test("fictional API retries are idempotent and workspace scoped", async ({ reque
     const inboxResponse = await request.get("/api/staff/referrals", { headers });
     const inbox = await inboxResponse.json();
     const rows = inbox.referrals.filter((row: { id: string }) => row.id === "ref-" + submissionId);
-    expect(rows).toHaveLength(1);
+    expect(rows, `Inbox HTTP ${inboxResponse.status()}: ${JSON.stringify(inbox)}`).toHaveLength(1);
     expect(rows[0].firstName).toBe("Fictional");
     expect(rows[0].status).toBe("New");
     expect(rows[0].cardId).toBe(code);

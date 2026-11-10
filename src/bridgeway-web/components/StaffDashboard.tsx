@@ -26,9 +26,9 @@ export default function StaffDashboard() {
     } else setError(e instanceof Error ? e.message : "Service unavailable. Please try again.");
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     const requestMonth = selectedMonth.current, requestWorkspace = workspaceRef.current;
-    if (stopped.current || (loading.current?.month === requestMonth && loading.current.workspace === requestWorkspace && !loading.current.controller.signal.aborted)) return;
+    if (stopped.current || (!force && loading.current?.month === requestMonth && loading.current.workspace === requestWorkspace && !loading.current.controller.signal.aborted)) return;
     loading.current?.controller.abort();
     const controller = new AbortController(), request = ++generation.current;
     loading.current = { month: requestMonth, workspace: requestWorkspace, controller }; setRefreshing(true);
@@ -106,12 +106,12 @@ export default function StaffDashboard() {
   }
   async function changeStatus(referral: Referral, status: string) {
     setBusy(referral.id); setError("");
-    try { await api("/api/staff/referrals/" + referral.id, { method: "PATCH", body: JSON.stringify({ status, etag: referral.etag }) }); await refresh(); }
+    try { await api("/api/staff/referrals/" + referral.id, { method: "PATCH", body: JSON.stringify({ status, etag: referral.etag }) }); await refresh(true); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function assign(referral: Referral, owner: Member | undefined) {
     setBusy("owner-" + referral.id); setError("");
-    try { await api("/api/staff/referrals/" + referral.id + "/assignment", { method: "PATCH", body: JSON.stringify({ ownerId: owner?.id || null, ownerName: owner?.name || null, etag: referral.etag }) }); await refresh(); }
+    try { await api("/api/staff/referrals/" + referral.id + "/assignment", { method: "PATCH", body: JSON.stringify({ ownerId: owner?.id || null, ownerName: owner?.name || null, etag: referral.etag }) }); await refresh(true); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function showHistory(referralId: string) {
@@ -123,22 +123,22 @@ export default function StaffDashboard() {
   }
   async function createPartner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; setBusy("partner"); setError("");
-    try { await api("/api/staff/partners", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Partner added."); }
+    try { await api("/api/staff/partners", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(true); setNotice("Partner added."); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function createOffice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; setBusy("office"); setError("");
-    try { await api("/api/staff/offices", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Office added."); }
+    try { await api("/api/staff/offices", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(true); setNotice("Office added."); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function createCard(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); setBusy("card"); setError("");
-    try { await api("/api/staff/cards", { method: "POST", body: JSON.stringify({ partnerId: data.get("partnerId"), officeId: data.get("officeId") }) }); await refresh(); setNotice("Card link created."); }
+    try { await api("/api/staff/cards", { method: "POST", body: JSON.stringify({ partnerId: data.get("partnerId"), officeId: data.get("officeId") }) }); await refresh(true); setNotice("Card link created."); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function toggleCard(card: CardLink) {
     setBusy(card.id); setError("");
-    try { await api("/api/staff/doctors/" + card.id, { method: "PATCH", body: JSON.stringify({ active: !card.active, etag: card.etag }) }); await refresh(); }
+    try { await api("/api/staff/doctors/" + card.id, { method: "PATCH", body: JSON.stringify({ active: !card.active, etag: card.etag }) }); await refresh(true); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function createBusiness(event: FormEvent<HTMLFormElement>) {
@@ -148,23 +148,23 @@ export default function StaffDashboard() {
   }
   async function inviteMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); setBusy("invite"); setError("");
-    try { const result = await api<{ inviteUrl: string }>("/api/staff/invitations", { method: "POST", body: JSON.stringify({ email: data.get("email"), role: data.get("role") }) }); form.reset(); setNotice("Invite link ready. Share it with the invited email address."); setInviteLink(result.inviteUrl); await refresh(); }
+    try { const result = await api<{ inviteUrl: string }>("/api/staff/invitations", { method: "POST", body: JSON.stringify({ email: data.get("email"), role: data.get("role") }) }); form.reset(); setNotice("Invite link ready. Share it with the invited email address."); setInviteLink(result.inviteUrl); await refresh(true); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function revokeMember(member: Member) {
     if (!window.confirm(`Revoke ${member.email || member.name}'s access to this workspace?`)) return;
     setBusy("member-" + member.id); setError("");
-    try { await api("/api/staff/members/" + encodeURIComponent(member.id), { method: "PATCH", body: JSON.stringify({ active: false, etag: member.etag }) }); setNotice("Member access revoked."); await refresh(); }
+    try { await api("/api/staff/members/" + encodeURIComponent(member.id), { method: "PATCH", body: JSON.stringify({ active: false, etag: member.etag }) }); setNotice("Member access revoked."); await refresh(true); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function cancelInvitation(invitation: Invitation) {
     setBusy("invite-" + invitation.id); setError("");
-    try { await api("/api/staff/invitations/" + encodeURIComponent(invitation.id), { method: "DELETE", body: JSON.stringify({ etag: invitation.etag }) }); setNotice("Invitation canceled."); await refresh(); }
+    try { await api("/api/staff/invitations/" + encodeURIComponent(invitation.id), { method: "DELETE", body: JSON.stringify({ etag: invitation.etag }) }); setNotice("Invitation canceled."); await refresh(true); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!profile) return; const data = new FormData(event.currentTarget); setBusy("profile"); setError("");
-    try { await api("/api/staff/business/profile", { method: "PATCH", body: JSON.stringify({ name: data.get("name"), preset: data.get("preset"), welcomeText: data.get("welcomeText"), phone: data.get("phone"), logoUrl: data.get("logoUrl"), acceptReferrals: data.get("acceptReferrals") === "on", etag: profile.etag }) }); setNotice("Business settings saved."); await refresh(); }
+    try { await api("/api/staff/business/profile", { method: "PATCH", body: JSON.stringify({ name: data.get("name"), preset: data.get("preset"), welcomeText: data.get("welcomeText"), phone: data.get("phone"), logoUrl: data.get("logoUrl"), acceptReferrals: data.get("acceptReferrals") === "on", etag: profile.etag }) }); setNotice("Business settings saved."); await refresh(true); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function subscribe() { setBusy("billing"); setError(""); try { const response = await api<{ url: string }>("/api/staff/billing/checkout", { method: "POST", body: "{}" }); window.location.assign(response.url); } catch (e) { handleError(e); setBusy(""); } }

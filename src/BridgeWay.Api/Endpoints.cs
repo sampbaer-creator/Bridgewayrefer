@@ -370,10 +370,10 @@ public static class Endpoints
                 requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(businessId) }))
                 while (iterator.HasMoreResults) operationIds.AddRange((await iterator.ReadNextAsync(ct)).Select(item => item.Value<string>("id")!).Where(id => !string.IsNullOrWhiteSpace(id)));
             var cardIds = new List<string>();
-            using (var iterator = store.Cards.GetItemQueryIterator<JObject>(
-                new QueryDefinition("SELECT c.id FROM c WHERE c.businessId = @business").WithParameter("@business", businessId),
-                requestOptions: new QueryRequestOptions()))
-                while (iterator.HasMoreResults) cardIds.AddRange((await iterator.ReadNextAsync(ct)).Select(item => item.Value<string>("id")!).Where(id => !string.IsNullOrWhiteSpace(id)));
+            using (var iterator = store.Operations.GetItemQueryIterator<JObject>(
+                new QueryDefinition("SELECT c.target FROM c WHERE c.businessId = @business AND c.type = 'audit' AND c.action = 'create-card'").WithParameter("@business", businessId),
+                requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(businessId) }))
+                while (iterator.HasMoreResults) cardIds.AddRange((await iterator.ReadNextAsync(ct)).Select(item => item.Value<string>("target")!).Where(id => !string.IsNullOrWhiteSpace(id)));
             foreach (var id in operationIds) await store.Operations.DeleteItemAsync<JObject>(id, new PartitionKey(businessId), cancellationToken: ct);
             foreach (var id in cardIds) await store.Cards.DeleteItemAsync<JObject>(id, new PartitionKey(id), cancellationToken: ct);
             return Results.NoContent();
