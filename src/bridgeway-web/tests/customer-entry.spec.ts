@@ -19,7 +19,7 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
     }
   });
   await page.route("**/api/staff/billing/checkout", async route => {
-    expect(route.request().headers()["x-bridgeway-business"]).toBe("signup-test");
+    expect(route.request().headers()["x-bridgewayrefer-business"]).toBe("signup-test");
     await route.fulfill({ json: { url: "/signup?checkout=verified" } });
   });
   await page.goto("/signup");
@@ -38,7 +38,7 @@ test("resuming signup reuses its pending workspace and opens Checkout without a 
     await route.fulfill({ json: { businessId: "signup-resumed", signupPending: true } });
   });
   await page.route("**/api/staff/billing/checkout", async route => {
-    expect(route.request().headers()["x-bridgeway-business"]).toBe("signup-resumed");
+    expect(route.request().headers()["x-bridgewayrefer-business"]).toBe("signup-resumed");
     await route.fulfill({ json: { url: "/signup?checkout=verified" } });
   });
   await page.goto("/signup");
