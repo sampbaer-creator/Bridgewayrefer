@@ -10,13 +10,13 @@ type Member = { id: string; name: string; email: string; role: string; etag: str
 type BusinessProfile = { name: string; officeName: string; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; accepting: boolean; suspended: boolean; alertEmail: string; billingStatus: string; monthlyPriceUsd: number; etag: string };
 type Billing = { amountUsd: number; interval: string; status: string; billingExempt: boolean; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; testMode: boolean; customerLinked: boolean };
 type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string; etag: string };
-type Session = { platformAdmin?: boolean; businessId?: string | null; role: string; businesses: Business[] };
+type Session = { businessId?: string | null; role: string; businesses: Business[] };
 
 export default function StaffDashboard() {
   const [referrals, setReferrals] = useState<Referral[]>([]), [partners, setPartners] = useState<Partner[]>([]), [offices, setOffices] = useState<Office[]>([]), [cards, setCards] = useState<CardLink[]>([]), [members, setMembers] = useState<Member[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]), [profile, setProfile] = useState<BusinessProfile | null>(null), [billing, setBilling] = useState<Billing | null>(null), [invitations, setInvitations] = useState<Invitation[]>([]), [alerts, setAlerts] = useState<Alerts | null>(null), [report, setReport] = useState<Report | null>(null);
   const [month, setMonth] = useState(""), [workspace, setWorkspace] = useState(""), [filter, setFilter] = useState(""), [partnerFilter, setPartnerFilter] = useState(""), [query, setQuery] = useState(""), [fromDate, setFromDate] = useState(""), [toDate, setToDate] = useState("");
-  const [error, setError] = useState(""), [notice, setNotice] = useState(""), [updated, setUpdated] = useState(""), [limited, setLimited] = useState(false), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [platformAdmin, setPlatformAdmin] = useState(false), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(""), [notice, setNotice] = useState(""), [updated, setUpdated] = useState(""), [limited, setLimited] = useState(false), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
   const [detailId, setDetailId] = useState(""), [history, setHistory] = useState<Record<string, ReferralHistory[]>>({}), [qrCard, setQrCard] = useState<{ id: string; data: string } | null>(null), [inviteLink, setInviteLink] = useState("");
   const generation = useRef(0), stopped = useRef(false), selectedMonth = useRef(""), workspaceRef = useRef(""), loading = useRef<{ month: string; workspace: string; controller: AbortController } | null>(null);
 
@@ -37,7 +37,7 @@ export default function StaffDashboard() {
     try {
       const auth = await api<Session & { ok: boolean }>("/api/staff/session", options);
       if (!current()) return;
-      const available = auth.businesses || []; setBusinesses(available); setPlatformAdmin(!!auth.platformAdmin); setSession("active");
+      const available = auth.businesses || []; setBusinesses(available); setSession("active");
       if (!auth.businessId && requestWorkspace && !available.some(b => b.businessId === requestWorkspace)) {
         workspaceRef.current = ""; localStorage.removeItem(WORKSPACE_KEY); setWorkspace(""); setReferrals([]); setReport(null); return;
       }
@@ -167,11 +167,11 @@ export default function StaffDashboard() {
   }), [referrals, filter, partnerFilter, query, fromDate, toDate]);
 
   if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your staff session has ended. Sign in to continue." : "Your account does not have active access to this workspace. Contact its administrator."}</p><a className="session-sign-in" href="/staff/login">Sign in to the office dashboard</a></section></main>;
-  if (session === "active" && !businesses.length) return <main className="dashboard" id="main-content"><section className="card no-workspace"><p className="eyebrow">STAFF ACCESS</p><h1>Workspace invitation required</h1><p className="muted">Ask a BridgeWay business administrator to invite the email address you use for staff sign in.</p><a className="session-sign-in" href="/staff/login">Try another sign-in</a>{platformAdmin && <p><a href="/admin">Open the platform admin console →</a></p>}</section></main>;
+  if (session === "active" && !businesses.length) return <main className="dashboard" id="main-content"><section className="card no-workspace"><p className="eyebrow">STAFF ACCESS</p><h1>Workspace invitation required</h1><p className="muted">Ask a BridgeWay business administrator to invite the email address you use for staff sign in.</p><a className="session-sign-in" href="/staff/login">Try another sign-in</a></section></main>;
 
   return <><main className="dashboard dashboard-wide" id="main-content" aria-busy={session === "loading" || refreshing}>
     <div className="dashboard-heading"><div><p className="eyebrow">BRIDGEWAY STAFF WORKSPACE</p><h1>{selectedBusiness?.name || "Referral follow-up"}</h1><p className="muted">Referral requests and partner outcomes.</p></div>
-      <div className="workspace-actions"><label className="business-switcher-light" htmlFor="workspace-select">Workspace<select id="workspace-select" value={workspace} onChange={e => selectWorkspace(e.target.value)}><option value="">Choose a workspace…</option>{businesses.map(b => <option value={b.businessId} key={b.businessId}>{b.name} · {b.role}</option>)}</select></label><nav className="section-nav" aria-label="Dashboard sections"><a href="#inbox">Follow-up</a><a href="#office-report">Analytics</a><a href="#management">Setup</a>{platformAdmin && <a href="/admin">Platform admin</a>}</nav></div>
+      <div className="workspace-actions"><label className="business-switcher-light" htmlFor="workspace-select">Workspace<select id="workspace-select" value={workspace} onChange={e => selectWorkspace(e.target.value)}><option value="">Choose a workspace…</option>{businesses.map(b => <option value={b.businessId} key={b.businessId}>{b.name} · {b.role}</option>)}</select></label><nav className="section-nav" aria-label="Dashboard sections"><a href="#inbox">Follow-up</a><a href="#office-report">Analytics</a><a href="#management">Setup</a></nav></div>
     </div>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {!workspace ? <section className="workspace-empty">Choose a workspace to view its private referrals.</section> : selectedBusiness?.signupPending ?
@@ -217,3 +217,4 @@ export default function StaffDashboard() {
     </>}
   </main></>;
 }
+
