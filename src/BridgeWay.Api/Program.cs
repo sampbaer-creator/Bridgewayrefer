@@ -125,9 +125,17 @@ app.MapGet("/health/cosmos", async (CosmosStore store, CancellationToken ct) =>
 app.MapGet("/admin/login", () => settings.IdentityConfigured
     ? Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + "/admin" }, [OpenIdConnectDefaults.AuthenticationScheme])
     : Results.Redirect("/sign-in?error=configuration"));
-app.MapGet("/staff/login", (string? workspace) => settings.IdentityConfigured
-    ? Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + "/staff" + (string.IsNullOrWhiteSpace(workspace) ? "" : "?workspace=" + Uri.EscapeDataString(workspace)) }, [OpenIdConnectDefaults.AuthenticationScheme])
-    : Results.Redirect("/sign-in?error=configuration"));
+app.MapGet("/staff/login", (string? workspace, string? flow) =>
+{
+    if (!settings.IdentityConfigured) return Results.Redirect("/sign-in?error=configuration");
+    var destination = flow switch
+    {
+        "signup" => "/signup",
+        "admin" => "/admin",
+        _ => "/staff" + (string.IsNullOrWhiteSpace(workspace) ? "" : "?workspace=" + Uri.EscapeDataString(workspace))
+    };
+    return Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + destination }, [OpenIdConnectDefaults.AuthenticationScheme]);
+});
 app.MapPost("/api/logout", async (HttpContext ctx) => { await ctx.SignOutAsync(); return Results.Ok(new { ok = true }); });
 app.MapBridgeWay(settings);
 app.MapPlatformAdmin(settings);

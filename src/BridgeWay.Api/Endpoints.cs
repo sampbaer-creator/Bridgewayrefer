@@ -43,6 +43,17 @@ public static class Endpoints
         CosmosStore.Check(batch); return null;
     }
     static object PatientView(JObject row) => new { id = row.Value<string>("id"), name = row.Value<string>("name"), firstName = row.Value<string>("firstName"), lastName = row.Value<string>("lastName"), email = row.Value<string>("email"), phone = row.Value<string>("phone"), notes = row.Value<string>("notes"), businessId = row.Value<string>("businessId"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), doctorCode = row.Value<string>("doctorCode"), doctorName = row.Value<string>("doctorName"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName") ?? row.Value<string>("doctorName"), ownerId = row.Value<string>("ownerId"), ownerName = row.Value<string>("ownerName"), serviceType = row.Value<string>("serviceType"), postalCode = row.Value<string>("postalCode"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), updatedAt = row.Value<string>("updatedAt"), etag = row.Value<string>("_etag") };
+    static (string Tenant, string ObjectId) RequireIdentity(HttpContext ctx, Settings settings)
+    {
+        if (ctx.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
+        var tenant = ctx.User.FindFirstValue("tid");
+        var objectId = ctx.User.FindFirstValue("oid");
+        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(objectId) ||
+            !string.Equals(tenant, settings.TenantId, StringComparison.OrdinalIgnoreCase))
+            throw new ApiError(403, "Access denied.");
+        return (tenant, objectId);
+    }
+
     public static void MapBridgeWay(this WebApplication app, Settings settings)
     {
         object PublicCard(JObject card, JObject? business) => new { officeName = card.Value<string>("resolvedOfficeName") ?? card.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? "", partnerName = card.Value<string>("resolvedPartnerName") ?? card.Value<string>("partnerName") ?? "", welcomeText = business?.Value<string>("welcomeText") is { Length: > 0 } welcome ? welcome : card.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = BusinessRules.AcceptsReferrals(settings, business), preset = business?.Value<string>("preset") ?? "dental", businessName = business?.Value<string>("name") ?? "", logoUrl = business?.Value<string>("logoUrl") ?? "", phone = business?.Value<string>("phone") ?? "" };
@@ -109,6 +120,46 @@ public static class Endpoints
             try { await store.Create(doc, ct); } catch (CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
             return Results.Json(new { ok = true }, statusCode: 201);
         });
+        app.MapGet("/api/signup", (HttpContext ctx, StripeBillingService stripe) =>
+            Results.Ok(new { signedIn = ctx.User.Identity?.IsAuthenticated == true, enabled = settings.CustomerSignupEnabled && settings.IdentityConfigured && settings.StripeConfigured && stripe.KeyReady }));
+
+        app.MapPost("/api/signup", async (CustomerSignup data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
+        {
+            var (tenant, objectId) = RequireIdentity(ctx, settings);
+            if (!settings.CustomerSignupEnabled || !settings.StripeConfigured || !stripe.KeyReady)
+                throw new ApiError(503, "Subscription signup is currently unavailable.");
+            var name = data.Name?.Trim() ?? "";
+            var preset = data.Preset?.Trim().ToLowerInvariant() ?? "";
+            if (name.Length is < 2 or > 120 || preset is not ("dental" or "trades"))
+                throw new ApiError(400, "Choose a business name and a business type.");
+
+            // Retrying signup for the same verified identity resumes its original workspace.
+            var memberId = CosmosStore.MembershipId(tenant, objectId);
+            var businessId = "signup-" + memberId["member-".Length..];
+            store.UseBusiness(businessId);
+            if (await store.Business(businessId, ct) is null)
+            {
+                var email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "";
+                var business = store.Document("business", "business");
+                business["name"] = name; business["officeName"] = name; business["preset"] = preset;
+                business["acceptReferrals"] = false; business["customerSignup"] = true;
+                business["monthlyPriceUsd"] = settings.MonthlyPriceUsd; business["billingStatus"] = "not_configured";
+                var office = store.Document("office", "office-main");
+                office["name"] = name; office["active"] = true;
+                var member = store.Membership(businessId, tenant, objectId, email, "Admin", businessName: name, preset: preset);
+                using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
+                    .CreateItem(business).CreateItem(office).CreateItem(member)
+                    .CreateItem(store.Audit(objectId, "customer-signup", businessId)).ExecuteAsync(ct);
+                if (!batch.IsSuccessStatusCode && !batch.Any(item => item.StatusCode == HttpStatusCode.Conflict)) CosmosStore.Check(batch);
+            }
+            var membership = await store.Read(memberId, ct);
+            var existing = await store.Business(businessId, ct);
+            if (existing?.Value<bool?>("customerSignup") != true || !TenantAuthorization.IsActiveMembershipFor(membership, businessId, tenant, objectId) ||
+                !TenantAuthorization.HasRole(membership, "Admin"))
+                throw new ApiError(403, "This signup workspace is unavailable.");
+            return Results.Ok(new { businessId, signupPending = BusinessRules.SignupPending(existing) });
+        });
+
         var staff = app.MapGroup("/api/staff");
         staff.AddEndpointFilter(async (context, next) =>
         {
@@ -155,6 +206,15 @@ public static class Endpoints
                 }
                 businessContext.Actor = oid; http.Items["actor"] = oid; http.Items["memberships"] = memberships;
             }
+            if (!IsSession(http) && businessContext.BusinessId is null)
+                throw new ApiError(403, "No active membership was found for this workspace.");
+            if (businessContext.BusinessId?.StartsWith("signup-", StringComparison.Ordinal) == true &&
+                !IsSession(http) && !http.Request.Path.StartsWithSegments("/api/staff/billing"))
+            {
+                var profile = await store.Business(store.BusinessId, http.RequestAborted);
+                if (profile is null || BusinessRules.SignupPending(profile))
+                    throw new ApiError(403, "Complete the subscription to open this workspace.");
+            }
             return await next(context);
         });
         staff.MapGet("/session", async (HttpContext ctx, CosmosStore store, BusinessContext scope, CancellationToken ct) =>
@@ -169,7 +229,8 @@ public static class Endpoints
                     businessId,
                     name = profile?.Value<string>("name") ?? row.Value<string>("businessName") ?? businessId,
                     preset = profile is null ? row.Value<string>("preset") ?? "dental" : profile.Value<string>("preset") ?? "dental",
-                    role = row.Value<string>("role") ?? "Staff"
+                    role = row.Value<string>("role") ?? "Staff",
+                    signupPending = BusinessRules.SignupPending(profile)
                 };
             }));
             return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User.FindFirstValue("tid"), ctx.User.FindFirstValue("oid")), businessId = scope.BusinessId, role = scope.Role, businesses });

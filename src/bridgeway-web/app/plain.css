@@ -1,0 +1,121 @@
+:root {
+  color-scheme: light;
+  --navy: #202020;
+  --navy-deep: #111111;
+  --blue: #222222;
+  --sky: #777777;
+  --silver: #666666;
+  --offwhite: #ffffff;
+  --paper: #ffffff;
+  --ink: #111111;
+  --muted: #555555;
+  --line: #cccccc;
+  --pale: #f4f4f4;
+  --error: #a00000;
+  --radius: 0;
+}
+
+html { scroll-behavior: auto; }
+body { background: #fff; color: #111; font: 16px/1.5 Arial, Helvetica, sans-serif; }
+h1, h2, h3, .bridgeway-brand, .billing-price strong { font-family: Arial, Helvetica, sans-serif; font-weight: 600; letter-spacing: normal; }
+h1 { font-size: 32px; line-height: 1.2; }
+h2 { font-size: 24px; line-height: 1.25; }
+h3 { font-size: 18px; }
+a { color: #111; text-underline-offset: 2px; }
+
+.site-header { background: #fff; border-bottom: 1px solid #ccc; }
+.header-inner { max-width: 1000px; padding: 12px 20px; }
+.bridgeway-brand, .staff-header-actions > a, .header-signout { color: #111; }
+.brand-mark { border: 0; border-radius: 0; width: auto; height: auto; color: #111; font: inherit; }
+.portal-label, .intake-label { color: #444; }
+.card, .summary-card, .metric, .referral, .workspace-empty, .new-business-row,
+.consultation, .preview-phone, .preview-inbox, .session-expired {
+  border: 1px solid #bbb;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fff;
+}
+button, .access-action, .landing-cta, .session-sign-in {
+  border: 1px solid #222;
+  border-radius: 0;
+  background: #222;
+  color: #fff;
+  box-shadow: none;
+  transition: none;
+}
+button:hover, .access-action:hover, .landing-cta:hover, .session-sign-in:hover { background: #444; color: #fff; }
+button.secondary, .access-action-secondary { background: #fff; color: #111; }
+button.secondary:hover, .access-action-secondary:hover { background: #f2f2f2; color: #111; }
+button:not(:disabled):active { transform: none; }
+input, textarea, select { border: 1px solid #999; border-radius: 0; box-shadow: none; }
+input:focus, textarea:focus, select:focus { border-color: #111; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
+}
+
+.access-page, .dashboard, .dashboard-wide { width: min(100% - 32px, 1000px); max-width: 1000px; padding: 28px 0; }
+.access-page { min-height: 0; }
+.access-intro { margin-bottom: 20px; }
+.access-intro h1, .dashboard-heading h1 { font-size: 32px; }
+.access-intro > p:not(.eyebrow) { font-size: 16px; }
+.access-options { gap: 12px; }
+.access-option { min-height: 0; }
+.dashboard-heading { align-items: start; margin-bottom: 20px; gap: 12px; }
+.section-nav { border-radius: 0; padding: 0; gap: 0; }
+.section-nav > a { border-radius: 0; }
+.section-nav > a:first-child { background: #222; }
+.report-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.summary-card { min-height: 0; padding: 14px; }
+.summary-card strong, .metric b { font-size: 28px; letter-spacing: normal; }
+.summary-card.summary-primary, .metrics .metric[aria-pressed="true"] { background: #f4f4f4; color: #111; border-color: #999; box-shadow: none; }
+.summary-primary p, .summary-primary small, .metrics .metric[aria-pressed="true"] b { color: #111; }
+.report-grid, .management-grid { grid-template-columns: 1fr; gap: 12px; }
+.chart-card, .table-card, .management-stack > .card, .management-grid > .card { padding: 16px; }
+.referral-chart { height: 220px; }
+.metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.metrics .metric { min-height: 0; }
+.metrics .metric:first-child { border-top: 1px solid #bbb; padding-top: 15px; }
+.referrals { gap: 8px; }
+.referral { padding: 16px; }
+.management-stack { gap: 12px; }
+.partner-card-list { gap: 0; }
+.card-row { align-items: start; }
+.qr-download img { border-radius: 0; }
+.report-heading h2, .section-heading h2, .management-grid h2 { font-size: 24px; }
+.billing-price strong { font-size: 28px; }
+.empty, .workspace-empty { border-style: solid; border-radius: 0; }
+.site-footer { max-width: 1000px; padding: 16px 20px; font-size: 12px; }
+.parent { display: block; max-width: 760px; padding: 24px 16px; }
+.patient-intro { padding: 0 0 18px; }
+.patient-intro h1 { font-size: 32px; margin: 12px 0; }
+.patient-intro .steps, .intro-signoff { display: none; }
+.consultation { padding: 20px; }
+.consultation h2, .success-card h2 { font-size: 24px; }
+.success-card { margin-top: 16px; padding: 20px; }
+.intake-header { background: #fff; border-bottom: 1px solid #ccc; }
+.intake-header-brand, .intake-label { color: #111; }
+.intake-brand-text { border: 0; border-radius: 0; }
+.landing-hero, .landing-workflow, .landing-presets, .landing-demo { display: block; min-height: 0; padding: 24px 16px; background: #fff; color: #111; }
+.product-preview, .landing-presets, .landing-workflow { display: none; }
+.landing-copy h1 { font-size: 32px; }
+.landing-lede, .landing-demo p, .landing-workflow p, .landing-presets p { color: #444; }
+.demo-form { margin-top: 20px; }
+.referral-chart .empty { text-align: left; }
+
+@media (max-width: 700px) {
+  .access-page, .dashboard, .dashboard-wide { width: calc(100% - 28px); padding: 20px 0; }
+  .access-options, .report-summary, .metrics, .form-grid { grid-template-columns: 1fr; }
+  .report-summary .summary-card:last-child { grid-column: auto; }
+  .dashboard-heading { flex-direction: column; }
+  .section-nav { width: 100%; }
+  .section-nav > a { flex: 1; text-align: center; }
+  .report-grid, .management-grid { grid-template-columns: 1fr; }
+  .parent { width: 100%; }
+  .name-fields { grid-template-columns: 1fr; }
+  .site-footer { padding: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}

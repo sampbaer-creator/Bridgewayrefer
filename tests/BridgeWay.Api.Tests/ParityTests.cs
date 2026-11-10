@@ -205,6 +205,25 @@ public class ParityTests
         request.Content = new StringContent("""{"etag":"test"}""", System.Text.Encoding.UTF8, "application/json");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.SendAsync(request)).StatusCode);
     }
+    [Fact] public async Task PlatformCardDirectoryRejectsAnonymousAndOrdinaryStaff()
+    {
+        await using var app = Factory(); using var client = app.CreateClient();
+        const string directory = "/api/admin/businesses";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(directory)).StatusCode);
+        client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:allowed");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(directory)).StatusCode);
+    }
+
+    [Fact] public async Task SignupRequiresAuthenticationAndAnEnabledCheckout()
+    {
+        await using var app = Factory(); using var client = app.CreateClient();
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+        static StringContent Business() => new("""{"name":"Fictional Business","preset":"trades"}""", System.Text.Encoding.UTF8, "application/json");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync("/api/signup", Business())).StatusCode);
+        client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:allowed");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/api/signup", Business())).StatusCode);
+    }
+
     sealed class TestKeyRepository : IXmlRepository
     {
         readonly List<XElement> elements = [];

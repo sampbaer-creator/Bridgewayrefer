@@ -1,0 +1,11 @@
+.git
+.azure
+.local
+**/node_modules
+**/.next
+**/bin
+**/obj
+**/test-results
+**/playwright-report
+**/.env*
+!**/.env.example

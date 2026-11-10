@@ -17,6 +17,7 @@ public sealed class Settings
     public string ClientSecret { get; set; } = "";
     /// <summary>Entra object IDs allowed into the platform admin console (/admin).</summary>
     public string[] PlatformAdminObjectIds { get; set; } = [];
+    public bool CustomerSignupEnabled { get; set; }
     public bool AlertsEnabled { get; set; }
     public string SmtpHost { get; set; } = "smtp.gmail.com";
     public int SmtpPort { get; set; } = 465;
@@ -54,6 +55,9 @@ public static class BusinessRules
         business.Value<bool?>("acceptReferrals") == true &&
         business.Value<bool?>("suspended") != true &&
         (business.Value<bool?>("billingExempt") == true || PaidStatuses.Contains(business.Value<string>("billingStatus")));
+
+    public static bool SignupPending(Newtonsoft.Json.Linq.JObject? business) =>
+        business?.Value<bool?>("customerSignup") == true && business.Value<bool?>("signupCompleted") != true;
 
     public static string AlertEmail(Settings settings, Newtonsoft.Json.Linq.JObject? business) =>
         settings.SmtpConfigured ? business?.Value<string>("alertEmail")?.Trim() ?? "" : "";

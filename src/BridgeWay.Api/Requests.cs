@@ -16,6 +16,7 @@ public sealed record Submission(string FirstName = "", string LastName = "", str
 public sealed record LinkOpen(string Code, string EventId);
 public sealed record StatusUpdate(string Status, string Etag);
 public sealed record CardUpdate(bool Active, string Etag);
+public sealed record CustomerSignup(string Name, string Preset);
 public sealed record BusinessCreate(string Name, string Preset, string AdminEmail, string? AlertEmail = null, bool BillingExempt = false);
 public sealed record PartnerCreate(string Name);
 public sealed record CardCreate(string? PartnerId = null, string? PartnerName = null, string? OfficeId = null, int Quantity = 1, string? Label = null);

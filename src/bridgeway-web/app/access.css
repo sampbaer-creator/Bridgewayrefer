@@ -1,0 +1,21 @@
+.access-page { width: min(100% - 40px, 880px); min-height: 64vh; margin-inline: auto; padding: clamp(48px, 9vw, 112px) 0; }
+.access-page-narrow { max-width: 660px; }
+.access-intro { margin-bottom: 34px; max-width: 640px; }
+.access-intro h1 { font-size: clamp(38px, 7vw, 68px); }
+.access-intro > p:not(.eyebrow) { color: var(--muted); font-size: 17px; max-width: 54ch; }
+.access-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.access-option { display: flex; align-items: flex-start; flex-direction: column; }
+.access-option h2, .issued-cards h2 { font-size: 28px; }
+.access-option p, .access-form > p { color: var(--muted); }
+.access-option .access-action { margin-top: auto; }
+.access-action { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 18px; border: 1px solid var(--navy); border-radius: 7px; background: var(--navy); color: white; text-decoration: none; font-weight: 650; }
+.access-action:hover { background: var(--navy-deep); color: white; }
+.access-action-secondary { background: transparent; color: var(--navy); }
+.access-form form > button { margin-top: 22px; }
+.access-form label:first-child { margin-top: 0; }
+.access-form form { margin-top: 18px; }
+.issued-cards { margin-top: 32px; }
+.issued-cards article { padding: 16px 0; border-top: 1px solid var(--line); }
+.issued-cards article a, .issued-cards code { overflow-wrap: anywhere; }
+.issued-cards article button { display: block; margin-top: 10px; min-height: 44px; }
+@media (max-width: 580px) { .access-options { grid-template-columns: 1fr; } }

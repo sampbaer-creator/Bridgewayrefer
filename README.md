@@ -45,7 +45,7 @@ Account `bridgeway-dev-nosql`, resource group `BridgeWay`, database `bridgeway-d
 
 Total provisioned throughput is **800 RU/s**, within the account's **1000 RU/s** cap and opted-in free tier. Initialization verifies the active subscription, inspects all account throughput, reuses existing resources and refuses incompatible partition keys or an over-budget creation. It does not change existing container throughput. No optional knowledge/AI container is created.
 
-Private queries and point reads always use the configured `BridgeWay:BusinessId`. The server chooses the business; request bodies cannot select another business. Public endpoints return only display fields. Referrals and email jobs share a partition and are created atomically. Status changes and audit records are atomic and require the caller's current ETag. Card administration writes audit intent before the cross-container change.
+Private staff queries use the workspace selected from the signed-in user’s active memberships. The platform console validates its separate administrator role before choosing a business. Public endpoints return only display fields. Referrals and email jobs share a partition and are created atomically. Status changes and audit records are atomic and require the caller's current ETag. Card administration writes audit intent before the cross-container change.
 
 The inbox shows the newest 500 records. Reporting reads all retained summaries and computes submission-month totals in `America/Denver`, including DST, inactive offices, historical office names, previous-month comparisons and a 12-month trend. At larger volumes, replace full summary scans with maintained aggregates and paginated inbox queries.
 
@@ -74,6 +74,12 @@ Stripe webhook events to send: `checkout.session.completed`, `customer.subscript
 Existing Data Protection keys written before Key Vault was configured remain unencrypted in the operations container (`type = data-protection-key`, partition `bridgeway-platform`). Delete them after switching; everyone signs in again once.
 
 Give the API managed identity *Cosmos DB Built-in Data Contributor* scoped to the database. Place the API behind the Next.js server or a restricted proxy; it trusts one forwarded hop.
+
+## Customer entry and card administration
+
+The homepage links to staff sign-in and /signup. Signup requires a verified Entra identity. With the current single-tenant setup, onboard outside customers as Entra guests before sending them to signup. Customer signup is opt-in. Configure Entra and Stripe test Checkout before setting `BridgeWay__CustomerSignupEnabled=true` for a pilot. The signed-in owner creates or resumes one workspace, pays through Stripe, and sees the dashboard after a verified active subscription is recorded. Existing staff workspaces keep their current access. Signup workspaces start with referral intake closed.
+
+The platform card desk is at /admin. Set `BridgeWay__PlatformAdminObjectIds__0` to the Entra object ID of a platform administrator. This role is separate from customer workspace Admin. Select the business and receiving office, then choose or create a referring partner and copy the generated /r/<code> URL to program the physical NFC card. Customer staff can see the cards and referral statistics for their own workspace. Existing cards keep their codes.
 
 ## Email alerts
 

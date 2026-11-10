@@ -146,7 +146,8 @@ public static class AdminEndpoints
 
         admin.MapPost("/businesses/{businessId}/cards", async (string businessId, CardCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            await RequireBusiness(store, businessId, ct);
+            var business = await RequireBusiness(store, businessId, ct);
+            if (BusinessRules.SignupPending(business)) throw new ApiError(409, "This business is still awaiting its first payment.");
             if (data.Quantity is < 1 or > MaxCardsPerRequest) throw new ApiError(400, $"Create between 1 and {MaxCardsPerRequest} cards at a time.");
             var label = data.Label?.Trim() ?? ""; if (label.Length > 80) throw new ApiError(400, "Keep the card label under 80 characters.");
             JObject partner;

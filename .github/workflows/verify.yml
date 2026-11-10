@@ -31,7 +31,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - name: Verify reporting-month races without Azure credentials
+      - name: Verify customer entry and reporting without Azure credentials
         run: |
           npm run start -- --hostname 127.0.0.1 > /tmp/bridgeway-web.log 2>&1 &
           web_pid=$!
@@ -40,7 +40,7 @@ jobs:
             if curl --fail --silent http://localhost:3000/staff > /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/staff-report-race.spec.ts
+          npx playwright test tests/customer-entry.spec.ts tests/staff-report-race.spec.ts
       - name: Assemble standalone frontend
         run: |
           cp -r public .next/standalone/public

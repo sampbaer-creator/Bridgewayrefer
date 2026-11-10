@@ -45,6 +45,13 @@ export default function StaffDashboard() {
         workspaceRef.current = auth.businessId; localStorage.setItem(WORKSPACE_KEY, auth.businessId); setWorkspace(auth.businessId);
       }
       if (!auth.businessId) { setReferrals([]); setReport(null); setError(""); return; }
+      if (available.find(b => b.businessId === auth.businessId)?.signupPending) {
+        setReferrals([]);
+        setReport(null);
+        const pendingBilling = await api<Billing>("/api/staff/billing", options);
+        if (current()) { setBilling(pendingBilling); setError(""); }
+        return;
+      }
       const admin = auth.role === "Admin";
       const inbox = await api<{ referrals: Referral[]; limited: boolean }>("/api/staff/referrals", options);
       if (!current()) return;
@@ -167,7 +174,15 @@ export default function StaffDashboard() {
       <div className="workspace-actions"><label className="business-switcher-light" htmlFor="workspace-select">Workspace<select id="workspace-select" value={workspace} onChange={e => selectWorkspace(e.target.value)}><option value="">Choose a workspace…</option>{businesses.map(b => <option value={b.businessId} key={b.businessId}>{b.name} · {b.role}</option>)}</select></label><nav className="section-nav" aria-label="Dashboard sections"><a href="#inbox">Follow-up</a><a href="#office-report">Analytics</a><a href="#management">Setup</a>{platformAdmin && <a href="/admin">Platform admin</a>}</nav></div>
     </div>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
-    {!workspace ? <section className="workspace-empty">Choose a workspace to view its private referrals.</section> : <>
+    {!workspace ? <section className="workspace-empty">Choose a workspace to view its private referrals.</section> : selectedBusiness?.signupPending ?
+      <section className="card access-form">
+        <h2>Finish setting up your subscription</h2>
+        <p>Once Stripe confirms your payment, your referral dashboard will open here.</p>
+        <div className="billing-actions">
+          {isAdmin && <button className="primary" disabled={!billing?.configured || busy === "billing"} onClick={() => void subscribe()}>Continue to Stripe</button>}
+          <button className="secondary" disabled={refreshing} onClick={() => void refresh()}>Check payment status</button>
+        </div>
+      </section> : <>
       {profile && !profile.accepting && <p className="notice">{profile.suspended ? "This workspace is paused by BridgeWay. Card taps show a closed form until it is reactivated." : !profile.acceptReferrals ? "Referral intake is turned off in the business profile below." : "Referral intake opens once the subscription is active. Use Subscribe in the Billing section."}</p>}
       <OfficeReport report={selectedReport} availableMonths={report?.availableMonths} month={month} onMonth={selectMonth}/>
       <section className="inbox-section" id="inbox" aria-labelledby="inbox-title"><div className="section-heading"><div><p className="eyebrow">FOLLOW-UP TODAY</p><h2 id="inbox-title">Referral inbox</h2><p className="muted">New, unassigned, and overdue requests first.</p></div><button className="secondary" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh inbox ↻"}</button></div>

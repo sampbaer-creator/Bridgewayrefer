@@ -1,17 +1,25 @@
-import DemoRequestForm from "./DemoRequestForm";
+import Link from "next/link";
 
 export default function LandingPage() {
-  return <main className="landing" id="main-content">
-    <section className="landing-hero">
-      <div className="landing-copy"><p className="eyebrow">REFERRALS, FOLLOWED THROUGH</p><h1>See where your referrals go.</h1><p className="landing-lede">A better handoff from the first tap to the next appointment or job. Give every referral a clear path, and your team one place to follow up.</p><div className="landing-actions"><a className="primary landing-cta" href="#book-a-demo">Book a demo <span aria-hidden="true">↗</span></a><a className="text-link" href="#how-it-works">How it works <span aria-hidden="true">→</span></a></div><p className="landing-price">$50 USD per business / month <span>· NFC cards sold separately</span></p></div>
-      <div className="product-preview" aria-label="Fictional referral workflow preview">
-        <div className="preview-phone"><div className="phone-top"><span>9:41</span><span>● ● ●</span></div><div className="phone-brand"><span className="preview-seal">B</span><span>Your Practice<small>ORTHODONTIC CARE</small></span></div><div className="phone-rule"/><p className="preview-eyebrow">A PERSONAL INTRODUCTION</p><h2>Your next chapter<br/><em>starts with a smile.</em></h2><p>Share a few details and our team will be in touch.</p><div className="preview-input">Your name</div><div className="preview-input">Email address</div><div className="preview-button">Request a consultation <span>↗</span></div><small className="preview-fictional">EXAMPLE</small></div>
-        <div className="preview-inbox"><div className="preview-inbox-head"><span>FOLLOW-UP TODAY</span><span>3 new</span></div><h3>Referral inbox</h3><div className="preview-item"><i className="dot-new"/><div><b>Sample family referral</b><small>Family dental partner · 9:24 AM</small></div><span className="preview-status">New</span></div><div className="preview-item"><i className="dot-open"/><div><b>Sample partner request</b><small>Builder network · 8:52 AM</small></div><span className="preview-status contacted">Contacted</span></div><div className="preview-foot">ILLUSTRATION</div></div>
-        <div className="preview-note"><span>01</span> One card. A clearer next step.</div>
+  return (
+    <main className="access-page" id="main-content">
+      <div className="access-intro">
+        <p className="eyebrow">BRIDGEWAY</p>
+        <h1>See where your referrals go.</h1>
+        <p>Manage new referrals, follow up with customers, and see which cards and partners send them your way.</p>
       </div>
-    </section>
-    <section className="landing-workflow" id="how-it-works" aria-label="How BridgeWay works"><div><span>01</span><h2>Make the handoff easy</h2><p>Give each partner a trackable NFC and QR link to a short, branded form.</p></div><div><span>02</span><h2>Keep follow-up visible</h2><p>See new, unassigned, and overdue requests alongside their next action.</p></div><div><span>03</span><h2>Learn what works</h2><p>Compare partner referrals with appointments or won jobs, not link opens alone.</p></div></section>
-    <section className="landing-presets"><div><p className="eyebrow">ONE WORKFLOW, TWO STARTING POINTS</p><h2>Built for the introductions that grow a business.</h2></div><article><span className="preset-number">01</span><h3>Dental &amp; orthodontic</h3><p>Parent-friendly requests, partner attribution, and appointment outcomes.</p></article><article><span className="preset-number">02</span><h3>Home services</h3><p>Service type, ZIP code, builder partners, and job outcomes.</p></article></section>
-    <section className="landing-demo" id="book-a-demo"><div><p className="eyebrow">BOOK A DEMO</p><h2>Make every introduction count.</h2><p>Tell us about your business. We’ll show you the referral flow and staff workspace.</p><p className="landing-price">$50 USD per business / month</p></div><DemoRequestForm /></section>
-  </main>;
+      <div className="access-options">
+        <section className="card access-option">
+          <h2>Open your dashboard</h2>
+          <p>Sign in to your business workspace to manage referrals and see your results.</p>
+          <a className="access-action" href="/staff/login">Sign in</a>
+        </section>
+        <section className="card access-option">
+          <h2>Set up your business</h2>
+          <p>$50 USD per business, per month. NFC cards are sold separately.</p>
+          <Link className="access-action access-action-secondary" href="/signup">Sign up</Link>
+        </section>
+      </div>
+    </main>
+  );
 }
