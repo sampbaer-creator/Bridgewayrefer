@@ -215,6 +215,15 @@ public class ParityTests
 
     [Fact] public async Task SignupRequiresAuthenticationAndAnEnabledCheckout()
     {
+        var signup = System.Text.Json.JsonSerializer.Deserialize<CustomerSignup>("""{"name":"Fictional Business","officeName":"Main office","alertEmail":"team@example.com"}""", new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.NotNull(signup);
+        Assert.Equal("Fictional Business", signup.Name);
+        Assert.Equal("Main office", signup.OfficeName);
+        Assert.Equal("team@example.com", signup.AlertEmail);
+        var businessOnly = System.Text.Json.JsonSerializer.Deserialize<CustomerSignup>("""{"name":"Fictional Business"}""", new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.NotNull(businessOnly);
+        Assert.Null(businessOnly.OfficeName);
+        Assert.Null(businessOnly.AlertEmail);
         await using var app = Factory(); using var client = app.CreateClient();
         client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
         static StringContent Business() => new("""{"name":"Fictional Business"}""", System.Text.Encoding.UTF8, "application/json");

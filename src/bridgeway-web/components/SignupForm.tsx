@@ -25,7 +25,7 @@ export default function SignupForm() {
     setError("");
     try {
       const signup = await api<{ businessId: string; signupPending: boolean }>("/api/signup", {
-        method: "POST", body: JSON.stringify({ name: data.get("name") }),
+        method: "POST", body: JSON.stringify({ name: data.get("name"), officeName: String(data.get("officeName") || "").trim() || undefined, alertEmail: String(data.get("alertEmail") || "").trim() || undefined }),
       });
       window.localStorage.setItem(WORKSPACE_KEY, signup.businessId);
       if (!signup.signupPending) {
@@ -49,11 +49,13 @@ export default function SignupForm() {
       {state && !state.enabled && <p>Online subscriptions are currently unavailable.</p>}
       {state?.enabled && !state.signedIn && <>
         <p>Sign in with the account you’ll use to manage your business.</p>
-        <a className="access-action" href="/staff/login?flow=signup">Continue to sign in</a>
+        <a className="access-action" href="/staff/login?flow=signup">Continue with Microsoft (Entra)</a>
       </>}
       {state?.enabled && state.signedIn && <form onSubmit={startCheckout}>
         <label>Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
-        <button className="primary access-action" disabled={busy}>{busy ? "Opening Stripe…" : "Continue to Stripe"}</button>
+        <label>Main office name<span>Optional</span><input name="officeName" autoComplete="organization-title" maxLength={120} /></label>
+        <label>Alert email<span>Optional</span><input name="alertEmail" type="email" autoComplete="email" maxLength={254} /></label>
+        <button className="primary access-action" disabled={busy}>{busy ? "Opening Stripe…" : "Continue to Stripe checkout →"}</button>
       </form>}
     </section>
   );
