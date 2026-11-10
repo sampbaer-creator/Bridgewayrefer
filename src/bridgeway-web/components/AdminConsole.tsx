@@ -20,6 +20,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 }
 
 export default function AdminConsole() {
+  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "leads">("businesses");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
   const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null);
   const [selected, setSelected] = useState(""), [detail, setDetail] = useState<Detail | null>(null), [requests, setRequests] = useState<DemoRequest[]>([]);
@@ -55,7 +56,7 @@ export default function AdminConsole() {
     event.preventDefault(); const form = event.currentTarget; const data = new FormData(form);
     void run("business", async () => {
       const created = await api<{ businessId: string; name: string; inviteUrl: string }>("/api/admin/businesses", { method: "POST", body: JSON.stringify({ name: data.get("name"), adminEmail: data.get("adminEmail"), alertEmail: data.get("alertEmail") || null, billingExempt: data.get("billingExempt") === "on" }) });
-      form.reset(); setNotice(`${created.name} created. Send the business admin this sign-in link: ${created.inviteUrl}`); await loadList(); setSelected(created.businessId);
+      form.reset(); setNotice(`${created.name} created. Send the business admin this sign-in link: ${created.inviteUrl}`); await loadList(); setSelected(created.businessId); setTab("cards");
     });
   }
   function updateBusiness(changes: { suspended?: boolean; billingExempt?: boolean; alertEmail?: string }) {
@@ -91,22 +92,24 @@ export default function AdminConsole() {
   if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>Access denied</h1><p>This account is not a BridgeWay platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a></section></main>;
 
   const b = detail?.business;
-  return <main className="dashboard dashboard-wide" id="main-content" aria-busy={state === "loading"}>
-    <div className="dashboard-heading"><div><p className="eyebrow">BRIDGEWAY PLATFORM ADMIN</p><h1>Businesses &amp; cards</h1><p className="muted">{session?.email}</p></div>
-      <nav className="section-nav" aria-label="Admin sections"><a href="#businesses">Businesses</a><a href="#new-business">New business</a><a href="#leads">Demo requests</a><a href="/staff">Staff dashboard</a></nav></div>
+  return <main className="dashboard dashboard-wide admin-workspace" id="main-content" aria-busy={state === "loading"}>
+    <div className="dashboard-heading"><div><p className="eyebrow">BRIDGEWAY PLATFORM WORKSPACE</p><h1>Businesses and NFC cards.</h1><p className="muted">Create workspaces, connect cards, and track partner outcomes.</p></div>
+      <div className="workspace-actions"><label className="business-switcher-light" htmlFor="admin-workspace">Workspace<select id="admin-workspace" value={selected} onChange={event => setSelected(event.target.value)}><option value="">Choose a workspace…</option>{businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}</option>)}</select></label><a className="text-link" href="/staff">Open staff dashboard →</a></div></div>
+    <nav className="section-nav admin-tabs" aria-label="Admin sections">{([["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"], ["leads", "Demo requests"]] as const).map(([key, label]) => <button type="button" key={key} aria-current={tab === key ? "page" : undefined} aria-controls={`admin-${key}`} onClick={() => setTab(key)}>{label}</button>)}</nav>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {session && (!session.acceptingGlobally || !session.smtpConfigured || !session.stripeConfigured) && <p className="notice">{!session.acceptingGlobally && "Global intake is off (BridgeWay__AcceptReferrals). "}{!session.smtpConfigured && "Email alerts are not configured (SMTP). "}{!session.stripeConfigured && "Stripe billing is not configured."}</p>}
 
     {totals && <div className="report-summary"><div className="summary-card summary-primary"><p>Businesses</p><strong>{totals.businesses}</strong><small>{businesses.filter(x => liveState(x, session) === "Live").length} live</small></div><div className="summary-card"><p>Card taps</p><strong>{totals.taps}</strong><small>{totals.cards} cards issued</small></div><div className="summary-card"><p>Referrals submitted</p><strong>{totals.referrals}</strong><small>{totals.taps ? Math.round(totals.referrals / totals.taps * 100) : 0}% of taps</small></div></div>}
 
-    <section className="card" id="businesses"><p className="eyebrow">ALL BUSINESSES</p><h2>Businesses</h2>
+    <section className="card" id="admin-businesses" hidden={tab !== "businesses"}><p className="eyebrow">ALL BUSINESSES</p><h2>Businesses</h2>
       <div className="table-scroll"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Taps</th><th>Referrals</th></tr></thead><tbody>
-        {businesses.map(x => <tr key={x.businessId} onClick={() => setSelected(x.businessId)} style={{ cursor: "pointer", background: x.businessId === selected ? "#edf1f5" : undefined }}><td><button className="secondary" style={{ padding: "4px 8px" }} onClick={() => setSelected(x.businessId)}>{x.name}</button></td><td>{liveState(x, session)}</td><td>{x.billingExempt ? "Exempt" : x.billingStatus}</td><td>{x.cards}</td><td>{x.taps}</td><td>{x.referrals}</td></tr>)}
+        {businesses.map(x => <tr key={x.businessId} onClick={() => { setSelected(x.businessId); setTab("cards"); }} style={{ cursor: "pointer", background: x.businessId === selected ? "#edf1f5" : undefined }}><td><button className="secondary" style={{ padding: "4px 8px" }} onClick={() => { setSelected(x.businessId); setTab("cards"); }}>{x.name}</button></td><td>{liveState(x, session)}</td><td>{x.billingExempt ? "Exempt" : x.billingStatus}</td><td>{x.cards}</td><td>{x.taps}</td><td>{x.referrals}</td></tr>)}
         {!businesses.length && <tr><td colSpan={6}>{state === "loading" ? "Loading…" : "No businesses yet. Create the first one below."}</td></tr>}
       </tbody></table></div>
     </section>
 
-    {b && detail && <div className="management-grid">
+    {tab === "cards" && !b && <section className="card workspace-empty" id="admin-cards"><h2>Connect NFC cards</h2><p>Choose a workspace above to create referral links and connect them to NFC cards.</p><button type="button" onClick={() => setTab("create")}>Create a business</button></section>}
+    {b && detail && <div className="management-grid" id="admin-cards" hidden={tab !== "cards"}>
       <section className="card"><p className="eyebrow">NFC CARDS</p><h2>{b.name}</h2><p className="muted">{liveState(b, session)} · {b.cards} cards · {b.taps} taps · {b.referrals} referrals</p>
         <form className="form-grid" onSubmit={issueCards}>
           <label htmlFor="card-partner">Referring partner<select id="card-partner" name="partnerId" required defaultValue=""><option value="" disabled>Choose partner</option>{detail.partners.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}<option value="__new">+ New partner…</option></select></label>
@@ -133,8 +136,8 @@ export default function AdminConsole() {
       </div>
     </div>}
 
-    <div className="management-grid">
-      <section className="card" id="new-business"><p className="eyebrow">ONBOARD</p><h2>New business</h2><p className="muted">Creates the workspace and its main office, and invites the business admin.</p>
+    <div className="admin-onboarding">
+      <section className="card" id="admin-create" hidden={tab !== "create"}><p className="eyebrow">ONBOARD</p><h2>Create a business</h2><p className="muted">Creates the workspace and its main office, and invites the business admin.</p>
         <form className="form-grid" onSubmit={createBusiness}>
           <label htmlFor="new-name">Business name<input id="new-name" name="name" required maxLength={120}/></label>
           <label htmlFor="new-admin">Business admin email<input id="new-admin" name="adminEmail" type="email" required maxLength={254}/></label>
@@ -143,7 +146,7 @@ export default function AdminConsole() {
           <button className="primary span-two" disabled={busy === "business"}>Create business</button>
         </form>
       </section>
-      <section className="card" id="leads"><p className="eyebrow">LEADS</p><h2>Demo requests</h2><div className="partner-card-list">{requests.map(r => <div className="card-row" key={r.email + r.createdAt}><div><strong>{r.businessName}</strong><small>{r.name} · <a href={"mailto:" + r.email}>{r.email}</a> · {new Date(r.createdAt).toLocaleDateString()}</small></div></div>)}{!requests.length && <p className="empty">No demo requests yet.</p>}</div></section>
+      <section className="card" id="admin-leads" hidden={tab !== "leads"}><p className="eyebrow">LEADS</p><h2>Demo requests</h2><div className="partner-card-list">{requests.map(r => <div className="card-row" key={r.email + r.createdAt}><div><strong>{r.businessName}</strong><small>{r.name} · <a href={"mailto:" + r.email}>{r.email}</a> · {new Date(r.createdAt).toLocaleDateString()}</small></div></div>)}{!requests.length && <p className="empty">No demo requests yet.</p>}</div></section>
     </div>
   </main>;
 }

@@ -64,7 +64,15 @@ test("platform admin issues a card for the selected office", async ({ page }) =>
     await route.fulfill({ status: 201, json: { partnerName: partner.name, cards: [{ id: "test-card", url: "/r/test-card" }] } });
   });
   await page.goto("/admin");
+  const sections = page.getByRole("navigation", { name: "Admin sections" });
+  await sections.getByRole("button", { name: "NFC cards", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Connect NFC cards" })).toBeVisible();
+  await sections.getByRole("button", { name: "Create business", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Create a business", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Businesses", exact: true })).toBeHidden();
+  await sections.getByRole("button", { name: "Businesses", exact: true }).click();
   await page.getByRole("button", { name: "Test Practice" }).click();
+  await expect(sections.getByRole("button", { name: "NFC cards", exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByLabel("Referring partner").selectOption(partner.id);
   await page.getByLabel("Receiving office").selectOption(office.id);
   await page.getByRole("button", { name: "Issue card links" }).click();
