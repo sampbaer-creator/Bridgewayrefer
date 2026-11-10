@@ -29,9 +29,9 @@ public static class StripeBillingEndpoints
 
     public static bool IsTerminal(string? status) => status is "canceled" or "incomplete_expired";
 
-    public static bool MatchesReplacementCheckout(JObject session, string sessionId, string businessId, string customerId, string subscriptionId) =>
+    public static bool MatchesReplacementCheckout(JObject session, string sessionId, string businessId, string customerId, string subscriptionId, bool liveMode = false) =>
         session.Value<string>("id") == sessionId &&
-        session.Value<bool?>("livemode") == false &&
+        session.Value<bool?>("livemode") == liveMode &&
         session.Value<string>("mode") == "subscription" &&
         session.Value<string>("status") == "complete" &&
         session.Value<string>("client_reference_id") == businessId &&
@@ -42,7 +42,7 @@ public static class StripeBillingEndpoints
     {
         app.MapPost("/api/stripe/webhook", async (HttpRequest request, CosmosStore store, StripeBillingService stripe, Settings settings, CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(settings.StripeWebhookSecret) || !stripe.TestCredentialsReady) return Results.StatusCode(503);
+            if (!settings.StripeConfigured || !stripe.KeyReady) return Results.StatusCode(503);
             if (request.ContentLength is > 524288) return Results.StatusCode(413);
             await using var buffer = new MemoryStream(); await request.Body.CopyToAsync(buffer, ct); var rawBody = buffer.ToArray();
             if (!StripeWebhookSignature.Verify(rawBody, request.Headers["Stripe-Signature"].FirstOrDefault(), settings.StripeWebhookSecret)) return Results.Unauthorized();
@@ -61,7 +61,7 @@ public static class StripeBillingEndpoints
 
             var subscription = await stripe.GetSubscription(subscriptionId, ct);
             var subscriptionBusinessId = subscription["metadata"]?.Value<string>("businessId");
-            if (subscription.Value<bool>("livemode") || subscription.Value<string>("id") != subscriptionId || string.IsNullOrWhiteSpace(subscriptionBusinessId) || (businessId is not null && subscriptionBusinessId != businessId) || !System.Text.RegularExpressions.Regex.IsMatch(subscriptionBusinessId, @"\A[A-Za-z0-9_-]{1,80}\z")) return Results.Ok(new { received = true });
+            if (subscription.Value<bool>("livemode") != stripe.LiveMode || payload.Value<bool?>("livemode") is bool eventLive && eventLive != stripe.LiveMode || subscription.Value<string>("id") != subscriptionId || string.IsNullOrWhiteSpace(subscriptionBusinessId) || (businessId is not null && subscriptionBusinessId != businessId) || !System.Text.RegularExpressions.Regex.IsMatch(subscriptionBusinessId, @"\A[A-Za-z0-9_-]{1,80}\z")) return Results.Ok(new { received = true });
             businessId = subscriptionBusinessId;
             var customerToken = subscription["customer"];
             var customerId = customerToken?.Type == JTokenType.String ? customerToken.Value<string>() : customerToken?.Value<string>("id");
@@ -84,7 +84,7 @@ public static class StripeBillingEndpoints
                         return Results.Ok(new { received = true });
 
                     var session = await stripe.GetCheckout(sessionId, ct);
-                    if (!MatchesReplacementCheckout(session, sessionId, businessId, customerId, subscriptionId))
+                    if (!MatchesReplacementCheckout(session, sessionId, businessId, customerId, subscriptionId, stripe.LiveMode))
                         return Results.Ok(new { received = true });
                 }
                 business["stripeCustomerId"] = customerId; business["stripeSubscriptionId"] = subscriptionId;

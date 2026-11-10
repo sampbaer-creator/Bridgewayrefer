@@ -14,10 +14,12 @@ public class CosmosLiveTests
 {
     [LiveFact] public async Task CosmosIsolationTransactionsRateLimitsAndOutboxLeases()
     {
-        using var client = new CosmosClient("https://bridgeway-dev-nosql.documents.azure.com:443/", new AzureCliCredential(), new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway });
+        var endpoint = Environment.GetEnvironmentVariable("BRIDGEWAY_LIVE_COSMOS_ENDPOINT") ?? "https://bridgeway-dev-nosql.documents.azure.com:443/";
+        using var client = new CosmosClient(endpoint, new AzureCliCredential(), new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway });
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Cosmos:Database"] = Environment.GetEnvironmentVariable("BRIDGEWAY_LIVE_COSMOS_DATABASE") ?? "bridgeway-dev" }).Build();
         var settings = new Settings { BusinessId = "verification-" + Guid.NewGuid().ToString("N") };
-        var store = new CosmosStore(client, new ConfigurationBuilder().Build(), settings);
-        var foreignStore = new CosmosStore(client, new ConfigurationBuilder().Build(), new Settings { BusinessId = settings.BusinessId + "-other" });
+        var store = new CosmosStore(client, config, settings); store.UseBusiness(settings.BusinessId);
+        var foreignStore = new CosmosStore(client, config, new Settings()); foreignStore.UseBusiness(settings.BusinessId + "-other");
         var cardId = "verification-" + Guid.NewGuid().ToString("N");
         try
         {

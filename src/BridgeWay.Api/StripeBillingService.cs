@@ -10,15 +10,19 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
 {
     const string Api = "https://api.stripe.com/v1/";
 
-    public bool TestCredentialsReady => settings.StripeSecretKey.StartsWith("sk_test_", StringComparison.Ordinal) ||
-        settings.StripeSecretKey.StartsWith("sk_org_test_", StringComparison.Ordinal);
+    static readonly string[] TestPrefixes = ["sk_test_", "rk_test_", "sk_org_test_"];
+    static readonly string[] LivePrefixes = ["sk_live_", "rk_live_", "sk_org_live_"];
+    public bool TestMode => TestPrefixes.Any(p => settings.StripeSecretKey.StartsWith(p, StringComparison.Ordinal));
+    public bool LiveMode => LivePrefixes.Any(p => settings.StripeSecretKey.StartsWith(p, StringComparison.Ordinal));
+    /// <summary>True when a Stripe secret or restricted key of a known mode is configured. Every object read back must match this mode.</summary>
+    public bool KeyReady => TestMode || LiveMode;
 
     void Configure(HttpRequestMessage request, string? idempotencyKey = null)
     {
-        if (!TestCredentialsReady) throw new ApiError(503, "Billing is not configured for Stripe test mode.");
-        var isOrganizationKey = settings.StripeSecretKey.StartsWith("sk_org_test_", StringComparison.Ordinal);
+        if (!KeyReady) throw new ApiError(503, "Billing is not configured yet.");
+        var isOrganizationKey = settings.StripeSecretKey.StartsWith("sk_org_", StringComparison.Ordinal);
         if (isOrganizationKey && (!System.Text.RegularExpressions.Regex.IsMatch(settings.StripeContext, @"\Aacct_[A-Za-z0-9]+\z") || string.IsNullOrWhiteSpace(settings.StripeApiVersion)))
-            throw new ApiError(503, "Set the Stripe test account context and API version for the organization key.");
+            throw new ApiError(503, "Set the Stripe account context and API version for the organization key.");
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(settings.StripeSecretKey + ":"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", encoded);
         if (isOrganizationKey)
@@ -34,18 +38,18 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         Configure(request);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode) throw new ApiError(503, "Stripe test mode could not complete this billing request. Check the test Price ID, account context, and API key permissions.");
+        if (!response.IsSuccessStatusCode) throw new ApiError(503, "Stripe could not complete this billing request. Check the Price ID, account context, and API key permissions.");
         try { return JObject.Parse(body); } catch (Newtonsoft.Json.JsonException) { throw new ApiError(503, "Stripe returned an invalid billing response."); }
     }
 
-    public async Task ValidateTestPrice(CancellationToken ct)
+    public async Task ValidatePrice(CancellationToken ct)
     {
-        if (!TestCredentialsReady || !settings.StripePriceId.StartsWith("price_", StringComparison.Ordinal)) throw new ApiError(503, "Configure a Stripe test-mode key and recurring Price ID.");
+        if (!KeyReady || !settings.StripePriceId.StartsWith("price_", StringComparison.Ordinal)) throw new ApiError(503, "Configure a Stripe key and recurring Price ID.");
         using var request = new HttpRequestMessage(HttpMethod.Get, Api + "prices/" + Uri.EscapeDataString(settings.StripePriceId));
         var price = await Send(request, ct);
-        if (price.Value<bool>("livemode") || price.Value<int?>("unit_amount") != 5000 || price.Value<string>("currency") != "usd" ||
+        if (price.Value<bool>("livemode") != LiveMode || price.Value<int?>("unit_amount") != settings.MonthlyPriceUsd * 100 || price.Value<string>("currency") != "usd" ||
             price["recurring"]?.Value<string>("interval") != "month" || price.Value<bool?>("active") != true)
-            throw new ApiError(503, "The configured Stripe Price must be an active $50 USD monthly test Price.");
+            throw new ApiError(503, $"The configured Stripe Price must be an active ${settings.MonthlyPriceUsd} USD monthly Price in the same mode as the API key.");
     }
 
     public async Task<string> CreateCustomer(string businessId, string businessName, string idempotencyKey, CancellationToken ct)
@@ -55,7 +59,7 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         Configure(request, idempotencyKey);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode) throw new ApiError(503, "Stripe could not create a test customer. Check the test key permissions.");
+        if (!response.IsSuccessStatusCode) throw new ApiError(503, "Stripe could not create a customer. Check the key permissions.");
         return JObject.Parse(body).Value<string>("id") ?? throw new ApiError(503, "Stripe did not return a customer ID.");
     }
 
@@ -73,7 +77,7 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         Configure(request, idempotencyKey);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode) throw new ApiError(503, "Stripe could not create a test Checkout Session.");
+        if (!response.IsSuccessStatusCode) throw new ApiError(503, "Stripe could not create a Checkout Session.");
         return JObject.Parse(body);
     }
 
