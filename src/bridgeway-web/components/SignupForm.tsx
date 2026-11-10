@@ -33,7 +33,7 @@ export default function SignupForm() {
         return;
       }
       const checkout = await api<{ url: string }>("/api/staff/billing/checkout", {
-        method: "POST", headers: { "X-BridgeWay-Business": signup.businessId }, body: "{}",
+        method: "POST", headers: { "X-Bridgewayrefer-Business": signup.businessId }, body: "{}",
       });
       window.location.assign(checkout.url);
     } catch (failure) {

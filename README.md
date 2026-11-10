@@ -64,10 +64,10 @@ Stripe settings are needed to test signup and checkout. SMTP settings are needed
 3. Add your Entra app settings and your Entra user Object ID as the platform admin. These values are stored in .NET user secrets, not in the repository:
 
    ```powershell
-   dotnet user-secrets set "BridgeWay:TenantId" "YOUR-TENANT-ID" --project src/BridgeWay.Api
-   dotnet user-secrets set "BridgeWay:ClientId" "YOUR-APP-ID" --project src/BridgeWay.Api
-   dotnet user-secrets set "BridgeWay:ClientSecret" "YOUR-APP-SECRET" --project src/BridgeWay.Api
-   dotnet user-secrets set "BridgeWay:PlatformAdminObjectIds:0" "YOUR-ENTRA-USER-OBJECT-ID" --project src/BridgeWay.Api
+   dotnet user-secrets set "Bridgewayrefer:TenantId" "YOUR-TENANT-ID" --project src/BridgeWay.Api
+   dotnet user-secrets set "Bridgewayrefer:ClientId" "YOUR-APP-ID" --project src/BridgeWay.Api
+   dotnet user-secrets set "Bridgewayrefer:ClientSecret" "YOUR-APP-SECRET" --project src/BridgeWay.Api
+   dotnet user-secrets set "Bridgewayrefer:PlatformAdminObjectIds:0" "YOUR-ENTRA-USER-OBJECT-ID" --project src/BridgeWay.Api
    ```
 
 4. Start the API and website:
@@ -96,7 +96,7 @@ When a customer opens an active card link, the form displays that business's inf
 
 All of these conditions must be met before a form accepts requests:
 
-- The platform setting `BridgeWay__AcceptReferrals` is `true`.
+- The platform setting `Bridgewayrefer__AcceptReferrals` is `true`.
 - Intake is enabled in the business profile.
 - The business is not suspended.
 - The subscription is active, trialing, or past due, or the platform admin marked the business billing-exempt.
@@ -107,7 +107,7 @@ New signup workspaces start with intake off. Email alerts require SMTP configura
 
 Configure settings in the Azure API Container App, using Azure secrets for credentials. The intended public origin is `https://bridgewayrefer.com`; verify its DNS, custom-domain binding, and HTTPS certificate before launch. The Entra app's redirect URI and Stripe webhook must use that same origin.
 
-The main settings are `BridgeWay__PublicOrigin`, `BridgeWay__AcceptReferrals`, `BridgeWay__TenantId`, `BridgeWay__ClientId`, `BridgeWay__ClientSecret`, `BridgeWay__PlatformAdminObjectIds__0`, `Cosmos__Endpoint`, `Cosmos__Database`, Stripe settings, and optional SMTP settings. Keep credentials in Azure secrets and make sure the Entra redirect URI and Stripe webhook use the public origin above.
+The main settings are `Bridgewayrefer__PublicOrigin`, `Bridgewayrefer__AcceptReferrals`, `Bridgewayrefer__TenantId`, `Bridgewayrefer__ClientId`, `Bridgewayrefer__ClientSecret`, `Bridgewayrefer__PlatformAdminObjectIds__0`, `Cosmos__Endpoint`, `Cosmos__Database`, Stripe settings, and optional SMTP settings. The web app uses `BRIDGEWAYREFER_API_ORIGIN` for its API origin. Keep credentials in Azure secrets and make sure the Entra redirect URI and Stripe webhook use the public origin above. Existing `BridgeWay__...`, `BRIDGEWAY_API_ORIGIN`, and `X-BridgeWay-Business` names remain accepted by the API for compatibility; the `Bridgewayrefer` names take precedence when both config prefixes are present.
 
 ## Roadmap
 

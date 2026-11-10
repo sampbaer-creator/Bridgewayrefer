@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-const origin = process.env.BRIDGEWAY_API_ORIGIN || "http://127.0.0.1:5180";
+const origin = process.env.BRIDGEWAYREFER_API_ORIGIN || process.env.BRIDGEWAY_API_ORIGIN || "http://127.0.0.1:5180";
 const config: NextConfig = {
   output: "standalone",
   async rewrites() {

@@ -21,7 +21,7 @@ public static class Endpoints
     }
     internal static bool ValidEmail(string? email) => email is not null && email.Length <= 254 && Regex.IsMatch(email, @"\A[^\s@]+@[^\s@]+\.[^\s@]+\z");
     static bool IsSession(HttpContext ctx) => ctx.Request.Path.Equals("/api/staff/session", StringComparison.OrdinalIgnoreCase);
-    static string? RequestedBusiness(HttpContext ctx) => ctx.Request.Headers["X-BridgeWay-Business"].FirstOrDefault();
+    static string? RequestedBusiness(HttpContext ctx) => ctx.Request.Headers["X-Bridgewayrefer-Business"].FirstOrDefault() ?? ctx.Request.Headers["X-BridgeWay-Business"].FirstOrDefault();
 
     static async Task<JObject?> AcceptInvite(CosmosStore store, string businessId, string oid, string tenant, string email, CancellationToken ct)
     {

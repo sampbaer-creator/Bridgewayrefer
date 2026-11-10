@@ -9,7 +9,7 @@ namespace BridgeWay.Api;
 
 /// <summary>
 /// Platform owner console: create businesses, invite their first admin, issue and assign NFC card links,
-/// and see usage across every business. Restricted to BridgeWay:PlatformAdminObjectIds.
+/// and see usage across every business. Restricted to Bridgewayrefer:PlatformAdminObjectIds.
 /// </summary>
 public static class AdminEndpoints
 {
