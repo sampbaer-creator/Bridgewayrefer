@@ -1,25 +1,9 @@
 import Link from "next/link";
 
 export default function LandingPage() {
-  return (
-    <main className="access-page" id="main-content">
-      <div className="access-intro">
-        <p className="eyebrow">BRIDGEWAY</p>
-        <h1>See where your referrals go.</h1>
-        <p>Manage new referrals, follow up with customers, and see which cards and partners send them your way.</p>
-      </div>
-      <div className="access-options">
-        <section className="card access-option">
-          <h2>Open your dashboard</h2>
-          <p>Sign in to your business workspace to manage referrals and see your results.</p>
-          <a className="access-action" href="/staff/login">Sign in</a>
-        </section>
-        <section className="card access-option">
-          <h2>Set up your business</h2>
-          <p>$50 USD per business, per month. NFC cards are sold separately.</p>
-          <Link className="access-action access-action-secondary" href="/signup">Sign up</Link>
-        </section>
-      </div>
-    </main>
-  );
+  return <main className="access-page refreshed-home" id="main-content">
+    <section className="home-hero"><div className="home-copy"><p className="eyebrow">REFERRALS, FOLLOWED THROUGH</p><h1>See where your referrals go.</h1><p>BridgeWay gives your business one private place to receive, follow up on, and close partner referrals.</p><div className="home-actions"><Link className="access-action" href="/signup">Set up your business <span aria-hidden="true">→</span></Link><a className="home-secondary" href="/staff/login">Sign in <span aria-hidden="true">→</span></a></div><small>$50 USD per business, per month · NFC cards sold separately</small></div>
+      <div className="home-preview"><div className="preview-head"><span>YOUR REFERRALS</span><span>PRIVATE</span></div><h2>Referral follow-up</h2><div className="preview-row"><i/> <span><b>New referral</b><small>Ready for your next action</small></span><em>New</em></div><div className="preview-row muted-row"><i/> <span><b>Partner referral</b><small>Follow-up status visible</small></span><em>Contacted</em></div><footer>YOUR BUSINESS DATA ONLY</footer></div></section>
+    <section className="home-steps"><article><span>01</span><h2>Connect once</h2><p>Sign in and complete one secure Stripe checkout.</p></article><article><span>02</span><h2>Stay signed in</h2><p>Your protected session keeps your business close at hand.</p></article><article><span>03</span><h2>Follow through</h2><p>See your referrals and their next steps in one place.</p></article></section>
+  </main>;
 }
