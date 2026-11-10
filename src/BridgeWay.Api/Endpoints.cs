@@ -131,6 +131,10 @@ public static class Endpoints
             var name = data.Name?.Trim() ?? "";
             if (name.Length is < 2 or > 120)
                 throw new ApiError(400, "Enter a valid business name.");
+            var officeName = data.OfficeName?.Trim() ?? "";
+            var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant() ?? "";
+            if (officeName.Length > 120 || (alertEmail.Length > 0 && !ValidEmail(alertEmail)))
+                throw new ApiError(400, "Please check the optional workspace details.");
 
             // Retrying signup for the same verified identity resumes its original workspace.
             var memberId = CosmosStore.MembershipId(tenant, objectId);
@@ -140,11 +144,12 @@ public static class Endpoints
             {
                 var email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "";
                 var business = store.Document("business", "business");
-                business["name"] = name; business["officeName"] = name; business["welcomeText"] = "Share a few details and our team will be in touch.";
+                business["name"] = name; business["officeName"] = officeName.Length > 0 ? officeName : name; business["welcomeText"] = "Share a few details and our team will be in touch.";
                 business["acceptReferrals"] = false; business["customerSignup"] = true;
+                if (alertEmail.Length > 0) business["alertEmail"] = alertEmail;
                 business["monthlyPriceUsd"] = settings.MonthlyPriceUsd; business["billingStatus"] = "not_configured";
                 var office = store.Document("office", "office-main");
-                office["name"] = name; office["active"] = true;
+                office["name"] = officeName.Length > 0 ? officeName : name; office["active"] = true;
                 var member = store.Membership(businessId, tenant, objectId, email, "Admin", businessName: name);
                 using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
                     .CreateItem(business).CreateItem(office).CreateItem(member)
