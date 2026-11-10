@@ -28,7 +28,7 @@ The old SQLite database used one `entities(p,k,data)` table, and Azure Table Sto
 | `traffic` / `open-*` | `business-operations` / `link-open` | Office attribution and event timestamp |
 | `rate` / hourly bucket | `business-operations` / `rate` for new traffic | Old expired buckets are omitted; new buckets expire after two hours |
 
-All private records receive the operator-selected `BridgeWay:BusinessId`. Migrate one business per export. Keep exports private and outside the repository; the importer prints counts only. Existing IDs are skipped, so rerunning does not overwrite records or duplicate referrals. Historical card codes and `/r/{code}` links stay the same when the public hostname is retained.
+All private records receive the operator-selected `Bridgewayrefer:BusinessId`. Migrate one business per export. Keep exports private and outside the repository; the importer prints counts only. Existing IDs are skipped, so rerunning does not overwrite records or duplicate referrals. Historical card codes and `/r/{code}` links stay the same when the public hostname is retained.
 
 ## Import an existing export
 
@@ -39,7 +39,7 @@ If old data exists, export it privately as a JSON array of the old entities (wit
 ```powershell
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
 $env:Cosmos__Endpoint = 'https://bridgeway-dev-nosql.documents.azure.com:443/'
-$env:BridgeWay__BusinessId = 'YOUR-BUSINESS-ID'
+$env:Bridgewayrefer__BusinessId = 'YOUR-BUSINESS-ID'
 dotnet run --project src/BridgeWay.Api -- --import 'C:\private\legacy-export.json'
 ```
 

@@ -7,14 +7,14 @@ if (Test-Path -LiteralPath $azureCli) { $env:PATH = $azureCli + ';' + $env:PATH 
 if ($Service -eq 'api') {
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:Cosmos__Endpoint = 'https://bridgeway-dev-nosql.documents.azure.com:443/'
-    $env:BridgeWay__PublicOrigin = 'http://localhost:3000'
-    $env:BridgeWay__AcceptReferrals = 'true'
+    $env:Bridgewayrefer__PublicOrigin = 'http://localhost:3000'
+    $env:Bridgewayrefer__AcceptReferrals = 'true'
     Remove-Item Env:Cosmos__Key -ErrorAction SilentlyContinue
     dotnet run --no-build --project src/BridgeWay.Api --urls http://127.0.0.1:5180
     exit $LASTEXITCODE
 }
 if ($Service -eq 'web') {
-    $env:BRIDGEWAY_API_ORIGIN = 'http://127.0.0.1:5180'
+    $env:BRIDGEWAYREFER_API_ORIGIN = 'http://127.0.0.1:5180'
     Set-Location -LiteralPath (Join-Path $repo 'src\bridgeway-web')
     npm.cmd run dev -- --hostname 127.0.0.1
     exit $LASTEXITCODE

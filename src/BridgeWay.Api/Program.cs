@@ -14,13 +14,14 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 var settings = new Settings();
-builder.Configuration.GetSection("BridgeWay").Bind(settings);
+builder.Configuration.GetSection("BridgeWay").Bind(settings); // Preserve existing deployment settings.
+builder.Configuration.GetSection("Bridgewayrefer").Bind(settings);
 var production = !builder.Environment.IsDevelopment();
 if (settings.BusinessId.Length > 0 && !Regex.IsMatch(settings.BusinessId, @"\A[A-Za-z0-9_-]{1,80}\z")) throw new InvalidOperationException("BusinessId contains invalid characters.");
 if (!Uri.TryCreate(settings.PublicOrigin, UriKind.Absolute, out var origin) || origin.AbsolutePath != "/" || origin.Query.Length > 0 || origin.Fragment.Length > 0 || origin.UserInfo.Length > 0) throw new InvalidOperationException("PublicOrigin must be an origin without a path.");
 if (production && origin.Scheme != "https") throw new InvalidOperationException("Production requires an HTTPS PublicOrigin.");
-if (production && !settings.IdentityConfigured) throw new InvalidOperationException("Production requires BridgeWay:TenantId, ClientId and ClientSecret for staff sign-in.");
-if (production && settings.PlatformAdminObjectIds.Length == 0) throw new InvalidOperationException("Set BridgeWay:PlatformAdminObjectIds:0 to your Entra object ID so someone can reach /admin.");
+if (production && !settings.IdentityConfigured) throw new InvalidOperationException("Production requires Bridgewayrefer:TenantId, ClientId and ClientSecret for staff sign-in.");
+if (production && settings.PlatformAdminObjectIds.Length == 0) throw new InvalidOperationException("Set Bridgewayrefer:PlatformAdminObjectIds:0 to your Entra object ID so someone can reach /admin.");
 var cosmosDatabase = builder.Configuration["Cosmos:Database"];
 if (string.IsNullOrWhiteSpace(cosmosDatabase))
 {
@@ -86,7 +87,7 @@ var importIndex = Array.IndexOf(args, "--import");
 if (importIndex >= 0)
 {
     if (importIndex + 1 >= args.Length) throw new InvalidOperationException("Supply a local JSON export path after --import.");
-    if (settings.BusinessId.Length == 0) throw new InvalidOperationException("Set BridgeWay:BusinessId to the business that should receive the import.");
+    if (settings.BusinessId.Length == 0) throw new InvalidOperationException("Set Bridgewayrefer:BusinessId to the business that should receive the import.");
     await using var scope = app.Services.CreateAsyncScope(); var importStore = scope.ServiceProvider.GetRequiredService<CosmosStore>(); importStore.UseBusiness(settings.BusinessId); await LegacyImport.Run(importStore, settings, args[importIndex + 1]); return;
 }
 app.UseForwardedHeaders();
