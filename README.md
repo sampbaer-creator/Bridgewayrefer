@@ -1,107 +1,135 @@
-# BridgeWay — C#, React and Azure Cosmos DB
+# Bridgewayrefer
 
-Referral intake and an office dashboard, migrated from Flask/Jinja to ASP.NET Core 10 and React/Next.js. The original navy, off-white, serif headings, practice logo, patient form and dashboard layout are preserved in React. Python and Jinja are no longer runtime dependencies.
+Referral follow-up for businesses, from a partner's NFC card to a completed next step.
 
-## How the product works
+> **Public site:** [bridgewayrefer.com](https://bridgewayrefer.com/)
 
-1. **You (platform admin)** sign in at `/admin`. Create a business (this also creates its main office and emails nothing; you send the invite link shown), then issue NFC card links for a referring partner. Write each `https://YOUR-SITE/r/<code>` URL to an NFC tag.
-2. **Someone taps a card.** `/r/<code>` records a tap and shows that business's branded referral form.
-3. **The business** signs in at `/staff` with the invited email: referral inbox, taps vs. referrals by partner, staff invites, profile, alert email and Stripe billing.
+## Table of Contents
 
-A business accepts referrals only when all of these are true: `BridgeWay__AcceptReferrals=true` globally, intake is on in its profile, you have not suspended it, and its Stripe subscription is `active`, `trialing` or `past_due` **or** you marked it billing-exempt in `/admin`.
+- [About the Project](#about-the-project)
+  - [Built With](#built-with)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+- [Usage](#usage)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
+- [Acknowledgments](#acknowledgments)
 
-## Run locally
+## About The Project
 
-Requires .NET 10 SDK, Node 24, Azure CLI and a Cosmos DB data-plane role for your identity. Put the Entra settings below in .NET user secrets (`dotnet user-secrets set ... --project src/BridgeWay.Api`) including `BridgeWay:PlatformAdminObjectIds:0` = your Entra object ID.
+Bridgewayrefer helps a business see where referrals come from and follow up with each customer. A partner shares an NFC card or QR code; the customer opens a short referral form; the request goes to the business's private dashboard with the referring partner and receiving office attached.
 
-```powershell
-az login
-./scripts/Initialize-Cosmos.ps1
-./scripts/Start-Local.ps1
-```
+Every business uses the same workflow and dashboard, whatever its industry. Businesses can manage partners, offices, NFC links, staff access, referral status, and subscription settings in one place.
 
-Then open http://localhost:3000/admin, create a business, issue a card, and open its URL.
+### Built With
 
-### Removing old demo data
+- ASP.NET Core 10 and C# for the API
+- Next.js 16 and React 19 for the website and dashboards
+- Azure Cosmos DB for business and referral data
+- Microsoft Entra for sign-in and access control
+- Stripe for subscriptions
 
-Earlier versions seeded fictional records (`demo-business`, `demo-trades`, cards `demo-west-office` / `demo-hvac-referral`, `test-e2e-*` partitions). Remove them once from any database that has them:
+## Getting Started
 
-```powershell
-$env:Cosmos__Endpoint = 'https://YOUR-ACCOUNT.documents.azure.com:443/'
-$env:Cosmos__Database = 'bridgeway-dev'
-dotnet run --project src/BridgeWay.Api -- --purge-demo-data
-```
+Use these steps to run Bridgewayrefer locally. Local development connects to the configured development Cosmos DB; it does not create a database automatically.
 
-For production, use a new database (for example `bridgeway-prod`) rather than reusing the development one.
+### Prerequisites
 
-## Cosmos data model
+- .NET 10 SDK
+- Node.js 24 and npm
+- Azure CLI, signed in to an account with access to the development Cosmos DB
+- A Microsoft Entra app registration for sign-in
 
-Account `bridgeway-dev-nosql`, resource group `BridgeWay`, database `bridgeway-dev`.
+Stripe settings are needed to test signup and checkout. SMTP settings are needed to test referral email alerts.
 
-| Container | Partition key | Manual throughput | Records |
-|---|---|---|---|
-| `card-directory` | `/id` | 400 RU/s | Public office cards, active flag, business/office/partner routing IDs |
-| `business-operations` | `/businessId` | 400 RU/s | Business settings, referrals, audit history, link-open events, email outbox and rate buckets |
+### Installation
 
-Total provisioned throughput is **800 RU/s**, within the account's **1000 RU/s** cap and opted-in free tier. Initialization verifies the active subscription, inspects all account throughput, reuses existing resources and refuses incompatible partition keys or an over-budget creation. It does not change existing container throughput. No optional knowledge/AI container is created.
+1. Clone the repository:
 
-Private staff queries use the workspace selected from the signed-in user’s active memberships. The platform console validates its separate administrator role before choosing a business. Public endpoints return only display fields. Referrals and email jobs share a partition and are created atomically. Status changes and audit records are atomic and require the caller's current ETag. Card administration writes audit intent before the cross-container change.
+   ```powershell
+   git clone https://github.com/sampbaer-creator/BridgeWay.git
+   cd BridgeWay
+   ```
 
-The inbox shows the newest 500 records. Reporting reads all retained summaries and computes submission-month totals in `America/Denver`, including DST, inactive offices, historical office names, previous-month comparisons and a 12-month trend. At larger volumes, replace full summary scans with maintained aggregates and paginated inbox queries.
+2. Sign in to Azure and install the web dependencies:
 
-## Production configuration
+   ```powershell
+   az login
+   npm.cmd ci --prefix src/bridgeway-web
+   ```
 
-The API refuses to start in production unless HTTPS origin, Entra sign-in, at least one platform admin, `Cosmos:Database` and a Key Vault key for Data Protection are configured. Keep secrets in App Service settings / Key Vault, never in tracked JSON.
+3. Add your Entra app settings and your Entra user Object ID as the platform admin. These values are stored in .NET user secrets, not in the repository:
 
-| Setting | Purpose |
-|---|---|
-| `Cosmos__Endpoint` | Cosmos HTTPS endpoint (managed identity, no key) |
-| `Cosmos__Database` | e.g. `bridgeway-prod`. Required; no fallback outside Development |
-| `DataProtection__KeyVaultKeyUri` | Key Vault key ID used to encrypt the cookie key ring stored in Cosmos. Grant the API identity *Key Vault Crypto User* |
-| `BridgeWay__PublicOrigin` | Exact browser origin, `https://...` |
-| `BridgeWay__AcceptReferrals` | Global intake switch (`true` to go live) |
-| `BridgeWay__TenantId` / `ClientId` / `ClientSecret` | Entra app registration (redirect URI `https://YOUR-SITE/signin-oidc`) |
-| `BridgeWay__Authority` | Optional. For customer staff outside your Microsoft tenant, use an **Entra External ID** tenant: `https://TENANT.ciamlogin.com/TENANT-ID/v2.0` (and that tenant's ID/app) |
-| `BridgeWay__PlatformAdminObjectIds__0` | Your Entra object ID; add `__1`, `__2` for more platform admins |
-| `BridgeWay__StripeSecretKey` | `sk_live_...` (or `rk_live_...`). Test keys still work for staging |
-| `BridgeWay__StripePriceId` | Recurring monthly USD price in the same mode as the key |
-| `BridgeWay__StripeWebhookSecret` | `whsec_...` for `https://YOUR-SITE/api/stripe/webhook` |
-| `BridgeWay__MonthlyPriceUsd` | Must equal the Stripe price (default 50) |
-| `BRIDGEWAY_API_ORIGIN` | Frontend server's API origin, set at build and runtime |
+   ```powershell
+   dotnet user-secrets set "BridgeWay:TenantId" "YOUR-TENANT-ID" --project src/BridgeWay.Api
+   dotnet user-secrets set "BridgeWay:ClientId" "YOUR-APP-ID" --project src/BridgeWay.Api
+   dotnet user-secrets set "BridgeWay:ClientSecret" "YOUR-APP-SECRET" --project src/BridgeWay.Api
+   dotnet user-secrets set "BridgeWay:PlatformAdminObjectIds:0" "YOUR-ENTRA-USER-OBJECT-ID" --project src/BridgeWay.Api
+   ```
 
-Stripe webhook events to send: `checkout.session.completed`, `customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`. Enable the Customer Portal in Stripe.
+4. Start the API and website:
 
-Existing Data Protection keys written before Key Vault was configured remain unencrypted in the operations container (`type = data-protection-key`, partition `bridgeway-platform`). Delete them after switching; everyone signs in again once.
+   ```powershell
+   ./scripts/Start-Local.ps1
+   ```
 
-Give the API managed identity *Cosmos DB Built-in Data Contributor* scoped to the database. Place the API behind the Next.js server or a restricted proxy; it trusts one forwarded hop.
+5. Open [http://localhost:3000](http://localhost:3000). Use `/admin` to create a business and issue a card link. Open the generated link in a browser to preview the customer form; no physical NFC card is needed.
 
-## Customer entry and card administration
+## Usage
 
-The homepage links to staff sign-in and /signup. Signup requires a verified Entra identity. With the current single-tenant setup, onboard outside customers as Entra guests before sending them to signup. Customer signup is opt-in. Configure Entra and Stripe test Checkout before setting `BridgeWay__CustomerSignupEnabled=true` for a pilot. The signed-in owner creates or resumes one workspace, pays through Stripe, and sees the dashboard after a verified active subscription is recorded. Existing staff workspaces keep their current access. Signup workspaces start with referral intake closed.
+### Platform admin
 
-The platform card desk is at /admin. Set `BridgeWay__PlatformAdminObjectIds__0` to the Entra object ID of a platform administrator. This role is separate from customer workspace Admin. Select the business and receiving office, then choose or create a referring partner and copy the generated /r/<code> URL to program the physical NFC card. Customer staff can see the cards and referral statistics for their own workspace. Existing cards keep their codes.
+Sign in at `/admin` with an approved Entra account. Create a business, invite its administrator, and issue links for a partner and receiving office. Each link can be copied or shown as a QR code and written to an NFC card.
 
-## Email alerts
+### Business admin and staff
 
-The C# background worker replaces `notifications.py`. It sends generic dashboard links without patient details, uses Cosmos ETag leases, resumes pending work after restart, and retries with capped exponential delays. Delivery is at least once: a crash after SMTP acceptance can produce a duplicate; stable message IDs help mail clients group retries.
+Business staff sign in at `/staff` using an invited email address. They review incoming referrals, follow up, and update statuses. Business admins can also manage their workspace settings, partners, offices, cards, team access, and billing.
 
-Configure `BridgeWay__AlertsEnabled=true`, `BridgeWay__SmtpHost`, `BridgeWay__SmtpPort` (465 for implicit TLS, otherwise STARTTLS), `BridgeWay__SmtpUsername` and `BridgeWay__SmtpPassword` through secret storage. Each business's recipient is its **alert email**, set in `/admin` or by the business admin in their profile; the worker picks up changes without a restart. Business admins can send a test alert. No external email was sent during migration verification. Actual SMTP delivery needs the authorized sender configuration and a mailbox test. Keep a hosted worker running continuously if alerts must send without site traffic.
+### Customer referral
 
-## Verification and packaging
+When a customer opens an active card link, the form displays that business's information. A submitted request appears in that business's private inbox, attributed to the link's partner and office. Opening the link lets you preview the form; submitting it creates a real referral record, so use test details when checking the workflow.
 
-```powershell
-dotnet test tests/BridgeWay.Api.Tests
-npm.cmd ci --prefix src/bridgeway-web
-npm.cmd run build --prefix src/bridgeway-web
-# Mocked dashboard race test (no Azure needed):
-npx --prefix src/bridgeway-web playwright test tests/staff-report-race.spec.ts
-# Optional Cosmos transaction/isolation/lease test, using CLI identity:
-$env:BRIDGEWAY_LIVE_TESTS = '1'
-dotnet test tests/BridgeWay.Api.Tests
-```
+### When referral intake is open
 
-The browser test mocks the API. The separate live storage test uses its own temporary business partition and removes its test records afterward. CI builds the API and frontend, runs offline C# parity/authorization tests, and publishes build artifacts. It does not deploy or use Azure credentials. The copied Python/Azure Table deployment workflow and infrastructure were removed.
+All of these conditions must be met before a form accepts requests:
 
-To package manually: `dotnet publish src/BridgeWay.Api -c Release -o artifacts/api`, then `npm run build` in `src/bridgeway-web`. For Next standalone hosting, copy `public` and `.next/static` into `.next/standalone` as shown in the CI workflow, then run `node server.js`. Set `BRIDGEWAY_API_ORIGIN` consistently during build and runtime because rewrites are included in the build. No App Service or frontend cloud deployment is created by these commands.
+- The platform setting `BridgeWay__AcceptReferrals` is `true`.
+- Intake is enabled in the business profile.
+- The business is not suspended.
+- The subscription is active, trialing, or past due, or the platform admin marked the business billing-exempt.
 
-See [migration and record mapping](docs/migration.md). Backups, retention/deletion policies, production identity, actual mail delivery and hosting still require deployment-specific configuration before real patient data is accepted. Existing local data files and Azure Table data have not been deleted.
+New signup workspaces start with intake off. Email alerts require SMTP configuration; alert emails contain a dashboard link, not patient details.
+
+### Production settings
+
+Configure settings in the Azure API Container App, using Azure secrets for credentials. The public origin is currently `https://bridgewayrefer.com`; Azure Container Apps must also have that custom domain and HTTPS certificate bound to the web app. The Entra app's redirect URI and Stripe webhook must use that same origin.
+
+The main settings are `BridgeWay__PublicOrigin`, `BridgeWay__AcceptReferrals`, `BridgeWay__TenantId`, `BridgeWay__ClientId`, `BridgeWay__ClientSecret`, `BridgeWay__PlatformAdminObjectIds__0`, `Cosmos__Endpoint`, `Cosmos__Database`, Stripe settings, and optional SMTP settings. Keep credentials in Azure secrets and make sure the Entra redirect URI and Stripe webhook use the public origin above.
+
+## Roadmap
+
+- Finish and verify the `bridgewayrefer.com` custom domain, HTTPS binding, and Microsoft sign-in redirect.
+- Configure live Stripe checkout and webhook events before enabling public signup.
+- Configure SMTP and test referral alerts before relying on email notifications.
+- Keep improving the shared referral workflow and dashboard for businesses across industries.
+
+## Contributing
+
+The repository is private. For changes, create a feature branch, make a focused commit, and open a pull request for review. Do not commit secrets, customer records, or production exports.
+
+## License
+
+No license has been added to this repository yet. All rights are reserved unless the repository owner publishes a license.
+
+## Contact
+
+Open an issue or pull request in the [Bridgewayrefer repository](https://github.com/sampbaer-creator/BridgeWay).
+
+## Acknowledgments
+
+- [Best-README-Template](https://github.com/othneildrew/Best-README-Template) for the README structure.
+- The Bridgewayrefer Figma references in `UiDesign` for the product screens and workflow.
+

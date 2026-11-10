@@ -1,6 +1,6 @@
 import SignupForm from "../../components/SignupForm";
 
-export const metadata = { title: "Sign up · BridgeWay" };
+export const metadata = { title: "Sign up · Bridgewayrefer" };
 
 export default function SignupPage() {
   return (

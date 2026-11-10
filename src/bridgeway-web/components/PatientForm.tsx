@@ -28,7 +28,7 @@ export default function PatientForm({ config, code = "" }: { config: PublicConfi
   }
   const callback = config.phone ? <a href={"tel:" + config.phone.replace(/[^+\d]/g, "")}>{config.phone}</a> : null;
   return <>
-    <header className="intake-header"><a className="intake-header-brand" href="/" aria-label="BridgeWay home">{config.logoUrl ? <img src={config.logoUrl} alt={config.businessName || config.officeName} /> : <span className="intake-brand-text" aria-hidden="true">B</span>}<span>{config.logoUrl ? "" : config.businessName || config.officeName}</span></a><span className="intake-label">SECURE REFERRAL REQUEST</span></header>
+    <header className="intake-header"><a className="intake-header-brand" href="/" aria-label="Bridgewayrefer home">{config.logoUrl ? <img src={config.logoUrl} alt={config.businessName || config.officeName} /> : <span className="intake-brand-text" aria-hidden="true">B</span>}<span>{config.logoUrl ? "" : config.businessName || config.officeName}</span></a><span className="intake-label">SECURE REFERRAL REQUEST</span></header>
     <main className="parent" id="main-content">
       <aside className="patient-intro"><p className="eyebrow">A CLEARER WAY TO GET STARTED</p>
         <h1>Your next step<br/>starts with<br/><em>a conversation.</em></h1>

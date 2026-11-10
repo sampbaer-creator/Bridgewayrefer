@@ -85,15 +85,15 @@ export default function AdminConsole() {
     if (!detail) return;
     const rows = [["label", "partner", "office", "url", "active"], ...detail.cards.map(c => [c.label, c.partnerName, c.officeName, c.url, String(c.active)])];
     const csv = rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""')}"`).join(",")).join("\n");
-    const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); link.download = `bridgeway-cards-${detail.business.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`; link.click(); URL.revokeObjectURL(link.href);
+    const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); link.download = `bridgewayrefer-cards-${detail.business.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`; link.click(); URL.revokeObjectURL(link.href);
   }
 
-  if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><h1>Platform admin sign-in</h1><p>Sign in with your BridgeWay owner account.</p><a className="session-sign-in" href="/admin/login">Sign in</a></section></main>;
-  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>Access denied</h1><p>This account is not a BridgeWay platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a></section></main>;
+  if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><h1>Platform admin sign-in</h1><p>Sign in with your Bridgewayrefer owner account.</p><a className="session-sign-in" href="/admin/login">Sign in</a></section></main>;
+  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>Access denied</h1><p>This account is not a Bridgewayrefer platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a></section></main>;
 
   const b = detail?.business;
   return <main className="dashboard dashboard-wide admin-workspace" id="main-content" aria-busy={state === "loading"}>
-    <div className="dashboard-heading"><div><p className="eyebrow">BRIDGEWAY PLATFORM WORKSPACE</p><h1>Businesses and NFC cards.</h1><p className="muted">Create workspaces, connect cards, and track partner outcomes.</p></div>
+    <div className="dashboard-heading"><div><p className="eyebrow">BRIDGEWAYREFER PLATFORM WORKSPACE</p><h1>Businesses and NFC cards.</h1><p className="muted">Create workspaces, connect cards, and track partner outcomes.</p></div>
       <div className="workspace-actions"><label className="business-switcher-light" htmlFor="admin-workspace">Workspace<select id="admin-workspace" value={selected} onChange={event => setSelected(event.target.value)}><option value="">Choose a workspace…</option>{businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}</option>)}</select></label><a className="text-link" href="/staff">Open staff dashboard →</a></div></div>
     <nav className="section-nav admin-tabs" aria-label="Admin sections">{([["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"], ["leads", "Demo requests"]] as const).map(([key, label]) => <button type="button" key={key} aria-current={tab === key ? "page" : undefined} aria-controls={`admin-${key}`} onClick={() => setTab(key)}>{label}</button>)}</nav>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
