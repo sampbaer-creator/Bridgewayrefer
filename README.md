@@ -2,7 +2,7 @@
 
 Referral follow-up for businesses, from a partner's NFC card to a completed next step.
 
-> **Public site:** [bridgewayrefer.com](https://bridgewayrefer.com/)
+> **Target public site:** [bridgewayrefer.com](https://bridgewayrefer.com/)
 
 ## Table of Contents
 
@@ -105,7 +105,7 @@ New signup workspaces start with intake off. Email alerts require SMTP configura
 
 ### Production settings
 
-Configure settings in the Azure API Container App, using Azure secrets for credentials. The public origin is currently `https://bridgewayrefer.com`; Azure Container Apps must also have that custom domain and HTTPS certificate bound to the web app. The Entra app's redirect URI and Stripe webhook must use that same origin.
+Configure settings in the Azure API Container App, using Azure secrets for credentials. The intended public origin is `https://bridgewayrefer.com`; verify its DNS, custom-domain binding, and HTTPS certificate before launch. The Entra app's redirect URI and Stripe webhook must use that same origin.
 
 The main settings are `BridgeWay__PublicOrigin`, `BridgeWay__AcceptReferrals`, `BridgeWay__TenantId`, `BridgeWay__ClientId`, `BridgeWay__ClientSecret`, `BridgeWay__PlatformAdminObjectIds__0`, `Cosmos__Endpoint`, `Cosmos__Database`, Stripe settings, and optional SMTP settings. Keep credentials in Azure secrets and make sure the Entra redirect URI and Stripe webhook use the public origin above.
 
