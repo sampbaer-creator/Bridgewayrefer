@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import { api, ApiError } from "../lib/api";
 
 type AdminSession = { email: string; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number };
-type BusinessSummary = { businessId: string; name: string; preset: "dental" | "trades"; createdAt: string; suspended: boolean; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
+type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; active: boolean }[]; members: { email: string; role: string }[]; invitations: { email: string; role: string; expiresAt: string }[] };
@@ -54,7 +54,7 @@ export default function AdminConsole() {
   function createBusiness(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const data = new FormData(form);
     void run("business", async () => {
-      const created = await api<{ businessId: string; name: string; inviteUrl: string }>("/api/admin/businesses", { method: "POST", body: JSON.stringify({ name: data.get("name"), preset: data.get("preset"), adminEmail: data.get("adminEmail"), alertEmail: data.get("alertEmail") || null, billingExempt: data.get("billingExempt") === "on" }) });
+      const created = await api<{ businessId: string; name: string; inviteUrl: string }>("/api/admin/businesses", { method: "POST", body: JSON.stringify({ name: data.get("name"), adminEmail: data.get("adminEmail"), alertEmail: data.get("alertEmail") || null, billingExempt: data.get("billingExempt") === "on" }) });
       form.reset(); setNotice(`${created.name} created. Send the business admin this sign-in link: ${created.inviteUrl}`); await loadList(); setSelected(created.businessId);
     });
   }
@@ -101,7 +101,7 @@ export default function AdminConsole() {
 
     <section className="card" id="businesses"><p className="eyebrow">ALL BUSINESSES</p><h2>Businesses</h2>
       <div className="table-scroll"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Taps</th><th>Referrals</th></tr></thead><tbody>
-        {businesses.map(x => <tr key={x.businessId} onClick={() => setSelected(x.businessId)} style={{ cursor: "pointer", background: x.businessId === selected ? "#edf1f5" : undefined }}><td><button className="secondary" style={{ padding: "4px 8px" }} onClick={() => setSelected(x.businessId)}>{x.name}</button><small>{x.preset === "trades" ? "Home services" : "Dental & orthodontic"}</small></td><td>{liveState(x, session)}</td><td>{x.billingExempt ? "Exempt" : x.billingStatus}</td><td>{x.cards}</td><td>{x.taps}</td><td>{x.referrals}</td></tr>)}
+        {businesses.map(x => <tr key={x.businessId} onClick={() => setSelected(x.businessId)} style={{ cursor: "pointer", background: x.businessId === selected ? "#edf1f5" : undefined }}><td><button className="secondary" style={{ padding: "4px 8px" }} onClick={() => setSelected(x.businessId)}>{x.name}</button></td><td>{liveState(x, session)}</td><td>{x.billingExempt ? "Exempt" : x.billingStatus}</td><td>{x.cards}</td><td>{x.taps}</td><td>{x.referrals}</td></tr>)}
         {!businesses.length && <tr><td colSpan={6}>{state === "loading" ? "Loading…" : "No businesses yet. Create the first one below."}</td></tr>}
       </tbody></table></div>
     </section>
@@ -137,7 +137,6 @@ export default function AdminConsole() {
       <section className="card" id="new-business"><p className="eyebrow">ONBOARD</p><h2>New business</h2><p className="muted">Creates the workspace and its main office, and invites the business admin.</p>
         <form className="form-grid" onSubmit={createBusiness}>
           <label htmlFor="new-name">Business name<input id="new-name" name="name" required maxLength={120}/></label>
-          <label htmlFor="new-preset">Type<select id="new-preset" name="preset"><option value="dental">Dental &amp; orthodontic</option><option value="trades">Home services</option></select></label>
           <label htmlFor="new-admin">Business admin email<input id="new-admin" name="adminEmail" type="email" required maxLength={254}/></label>
           <label htmlFor="new-alert">Alert email (optional)<input id="new-alert" name="alertEmail" type="email" maxLength={254} placeholder="Defaults to admin email"/></label>
           <label className="check span-two"><input type="checkbox" name="billingExempt"/><span>Billing exempt (pilot or comped account). Otherwise intake opens after they subscribe.</span></label>

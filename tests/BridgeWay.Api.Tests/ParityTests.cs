@@ -43,13 +43,12 @@ public class ParityTests
             new() { ["id"] = "ref-c", ["partnerId"] = "partner-b", ["partnerName"] = "Builder Two", ["status"] = "Closed", ["createdAt"] = "2026-11-07T12:00:00Z" },
         };
         var partners = new List<JObject> { new() { ["id"] = "partner-a", ["type"] = "partner", ["name"] = "Builder One", ["active"] = true }, new() { ["id"] = "partner-b", ["type"] = "partner", ["name"] = "Builder Two", ["active"] = true } };
-        var history = new List<JObject> { new() { ["referralId"] = "ref-a", ["status"] = "Scheduled" }, new() { ["referralId"] = "ref-c", ["status"] = "Completed" } };
+        var history = new List<JObject> { new() { ["referralId"] = "ref-a", ["status"] = "Completed" }, new() { ["referralId"] = "ref-c", ["status"] = "Completed" } };
         var report = JObject.FromObject(MonthlyReport.Build(referrals, partners, [], "2026-11", DateTimeOffset.Parse("2026-11-10T12:00:00Z"), history));
         Assert.Equal(3, report.Value<int>("total")); Assert.Equal(2, report.Value<int>("outcomes")); Assert.True(report.Value<bool>("hasSubmissions"));
         var a = ((JArray)report["offices"]!).Single(x => x.Value<string>("officeId") == "partner-a");
         Assert.Equal(2, a.Value<int>("count")); Assert.Equal(1, a.Value<int>("outcomes")); Assert.Equal(50d, a.Value<double>("outcomeRate"));
-        var trades = JObject.FromObject(MonthlyReport.Build(referrals, partners, [], "2026-11", DateTimeOffset.Parse("2026-11-10T12:00:00Z"), history, "trades"));
-        Assert.Equal(0, trades.Value<int>("outcomes"));
+        Assert.Equal("Completed requests", report.Value<string>("outcomeLabel"));
     }
     [Fact] public void MembershipSelectionNeverFallsBackToAnotherBusiness()
     {
@@ -218,7 +217,7 @@ public class ParityTests
     {
         await using var app = Factory(); using var client = app.CreateClient();
         client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
-        static StringContent Business() => new("""{"name":"Fictional Business","preset":"trades"}""", System.Text.Encoding.UTF8, "application/json");
+        static StringContent Business() => new("""{"name":"Fictional Business"}""", System.Text.Encoding.UTF8, "application/json");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync("/api/signup", Business())).StatusCode);
         client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:allowed");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/api/signup", Business())).StatusCode);
