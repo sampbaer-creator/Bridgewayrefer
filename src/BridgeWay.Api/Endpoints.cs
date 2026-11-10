@@ -30,7 +30,7 @@ public static class Endpoints
         if (!Regex.IsMatch(businessId, @"\A[A-Za-z0-9_-]{1,80}\z")) return null;
         var business = await store.Business(businessId, ct);
         if (business is null) return null;
-        var member = store.Membership(businessId, tenant, oid, email, invite.Value<string>("role") ?? "Staff", businessName: business?.Value<string>("name") ?? businessId, preset: business?.Value<string>("preset") ?? "dental");
+        var member = store.Membership(businessId, tenant, oid, email, invite.Value<string>("role") ?? "Staff", businessName: business?.Value<string>("name") ?? businessId);
         invite["state"] = "Accepted"; invite["acceptedAt"] = DateTimeOffset.UtcNow.ToString("O"); invite["acceptedBy"] = oid;
         using var batch = await store.Operations.CreateTransactionalBatch(new Microsoft.Azure.Cosmos.PartitionKey(businessId))
             .CreateItem(member).ReplaceItem(invite.Value<string>("id")!, invite, new Microsoft.Azure.Cosmos.TransactionalBatchItemRequestOptions { IfMatchEtag = invite.Value<string>("_etag") }).ExecuteAsync(ct);
@@ -56,7 +56,7 @@ public static class Endpoints
 
     public static void MapBridgeWay(this WebApplication app, Settings settings)
     {
-        object PublicCard(JObject card, JObject? business) => new { officeName = card.Value<string>("resolvedOfficeName") ?? card.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? "", partnerName = card.Value<string>("resolvedPartnerName") ?? card.Value<string>("partnerName") ?? "", welcomeText = business?.Value<string>("welcomeText") is { Length: > 0 } welcome ? welcome : card.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = BusinessRules.AcceptsReferrals(settings, business), preset = business?.Value<string>("preset") ?? "dental", businessName = business?.Value<string>("name") ?? "", logoUrl = business?.Value<string>("logoUrl") ?? "", phone = business?.Value<string>("phone") ?? "" };
+        object PublicCard(JObject card, JObject? business) => new { officeName = card.Value<string>("resolvedOfficeName") ?? card.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? "", partnerName = card.Value<string>("resolvedPartnerName") ?? card.Value<string>("partnerName") ?? "", welcomeText = business?.Value<string>("welcomeText") is { Length: > 0 } welcome ? welcome : card.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = BusinessRules.AcceptsReferrals(settings, business), businessName = business?.Value<string>("name") ?? "", logoUrl = business?.Value<string>("logoUrl") ?? "", phone = business?.Value<string>("phone") ?? "" };
         app.MapPost("/api/demo-requests", async (DemoRequest data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             var name = data.Name?.Trim() ?? ""; var email = data.Email?.Trim() ?? ""; var businessName = data.BusinessName?.Trim() ?? "";
@@ -129,9 +129,8 @@ public static class Endpoints
             if (!settings.CustomerSignupEnabled || !settings.StripeConfigured || !stripe.KeyReady)
                 throw new ApiError(503, "Subscription signup is currently unavailable.");
             var name = data.Name?.Trim() ?? "";
-            var preset = data.Preset?.Trim().ToLowerInvariant() ?? "";
-            if (name.Length is < 2 or > 120 || preset is not ("dental" or "trades"))
-                throw new ApiError(400, "Choose a business name and a business type.");
+            if (name.Length is < 2 or > 120)
+                throw new ApiError(400, "Enter a valid business name.");
 
             // Retrying signup for the same verified identity resumes its original workspace.
             var memberId = CosmosStore.MembershipId(tenant, objectId);
@@ -141,12 +140,12 @@ public static class Endpoints
             {
                 var email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "";
                 var business = store.Document("business", "business");
-                business["name"] = name; business["officeName"] = name; business["preset"] = preset;
+                business["name"] = name; business["officeName"] = name; business["welcomeText"] = "Share a few details and our team will be in touch.";
                 business["acceptReferrals"] = false; business["customerSignup"] = true;
                 business["monthlyPriceUsd"] = settings.MonthlyPriceUsd; business["billingStatus"] = "not_configured";
                 var office = store.Document("office", "office-main");
                 office["name"] = name; office["active"] = true;
-                var member = store.Membership(businessId, tenant, objectId, email, "Admin", businessName: name, preset: preset);
+                var member = store.Membership(businessId, tenant, objectId, email, "Admin", businessName: name);
                 using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
                     .CreateItem(business).CreateItem(office).CreateItem(member)
                     .CreateItem(store.Audit(objectId, "customer-signup", businessId)).ExecuteAsync(ct);
@@ -228,7 +227,6 @@ public static class Endpoints
                 {
                     businessId,
                     name = profile?.Value<string>("name") ?? row.Value<string>("businessName") ?? businessId,
-                    preset = profile is null ? row.Value<string>("preset") ?? "dental" : profile.Value<string>("preset") ?? "dental",
                     role = row.Value<string>("role") ?? "Staff",
                     signupPending = BusinessRules.SignupPending(profile)
                 };
@@ -238,16 +236,16 @@ public static class Endpoints
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>
         {
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
-            return Results.Ok(new { name = business.Value<string>("name"), officeName = business.Value<string>("officeName"), preset = business.Value<string>("preset") ?? "dental", welcomeText = business.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", phone = business.Value<string>("phone") ?? "", logoUrl = business.Value<string>("logoUrl") ?? "", acceptReferrals = business.Value<bool?>("acceptReferrals") ?? false, accepting = BusinessRules.AcceptsReferrals(settings, business), suspended = business.Value<bool?>("suspended") ?? false, alertEmail = business.Value<string>("alertEmail") ?? "", billingStatus = business.Value<string>("billingStatus") ?? business.Value<string>("subscriptionStatus") ?? "not_configured", monthlyPriceUsd = settings.MonthlyPriceUsd, etag = business.Value<string>("_etag") });
+            return Results.Ok(new { name = business.Value<string>("name"), officeName = business.Value<string>("officeName"), welcomeText = business.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", phone = business.Value<string>("phone") ?? "", logoUrl = business.Value<string>("logoUrl") ?? "", acceptReferrals = business.Value<bool?>("acceptReferrals") ?? false, accepting = BusinessRules.AcceptsReferrals(settings, business), suspended = business.Value<bool?>("suspended") ?? false, alertEmail = business.Value<string>("alertEmail") ?? "", billingStatus = business.Value<string>("billingStatus") ?? business.Value<string>("subscriptionStatus") ?? "not_configured", monthlyPriceUsd = settings.MonthlyPriceUsd, etag = business.Value<string>("_etag") });
         });
         staff.MapPatch("/business/profile", async (BusinessProfileUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             RequireAdmin(ctx);
-            var name = data.Name?.Trim() ?? ""; var preset = data.Preset?.Trim().ToLowerInvariant() ?? ""; var welcome = data.WelcomeText?.Trim() ?? ""; var phone = data.Phone?.Trim() ?? ""; var logo = data.LogoUrl?.Trim() ?? ""; var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant() ?? "";
+            var name = data.Name?.Trim() ?? ""; var welcome = data.WelcomeText?.Trim() ?? ""; var phone = data.Phone?.Trim() ?? ""; var logo = data.LogoUrl?.Trim() ?? ""; var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant() ?? "";
             var logoValid = logo.Length == 0 || (logo.StartsWith("/", StringComparison.Ordinal) && !logo.StartsWith("//", StringComparison.Ordinal) && !logo.Contains("..", StringComparison.Ordinal)) || (Uri.TryCreate(logo, UriKind.Absolute, out var logoUri) && logoUri.Scheme == Uri.UriSchemeHttps);
-            if (name.Length is < 2 or > 120 || preset is not ("dental" or "trades") || welcome.Length > 500 || phone.Length > 40 || !logoValid || (alertEmail.Length > 0 && !ValidEmail(alertEmail)) || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the business settings.");
+            if (name.Length is < 2 or > 120 || welcome.Length > 500 || phone.Length > 40 || !logoValid || (alertEmail.Length > 0 && !ValidEmail(alertEmail)) || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the business settings.");
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
-            business["name"] = name; business["officeName"] = name; business["preset"] = preset; business["welcomeText"] = welcome; business["phone"] = phone; business["logoUrl"] = logo; business["acceptReferrals"] = data.AcceptReferrals; business["alertEmail"] = alertEmail;
+            business["name"] = name; business["officeName"] = name; business["welcomeText"] = welcome; business["phone"] = phone; business["logoUrl"] = logo; business["acceptReferrals"] = data.AcceptReferrals; business["alertEmail"] = alertEmail;
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem("business", business, new Microsoft.Azure.Cosmos.TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "update-business-profile", store.BusinessId)).ExecuteAsync(ct);
             CosmosStore.Check(batch); return Results.Ok(new { ok = true });
         });
@@ -323,8 +321,7 @@ public static class Endpoints
             if (!id.StartsWith("ref-") || !Submission.Statuses.Contains(data.Status) || string.IsNullOrEmpty(data.Etag)) throw new ApiError(400, "Please check the update.");
             var doc = await store.Read(id, ct);
             if (doc?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
-            var business = await store.Business(store.BusinessId, ct); var allowedStatuses = business?.Value<string>("preset") == "trades" ? new[] { "New", "Contacted", "Quoted", "Won", "Closed" } : new[] { "New", "Contacted", "Scheduled", "Completed", "Closed" };
-            if (!allowedStatuses.Contains(data.Status)) throw new ApiError(400, "Choose a status for this business type.");
+            if (!Submission.Statuses.Contains(data.Status)) throw new ApiError(400, "Choose a valid referral status.");
             doc["status"] = data.Status; doc["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
             var history = store.Document("status-history", "history-" + Guid.NewGuid()); history["referralId"] = id; history["status"] = data.Status; history["actor"] = Actor(ctx); history["changedAt"] = doc["updatedAt"]!.DeepClone(); history["partnerId"] = doc["partnerId"]?.DeepClone() ?? doc["doctorCode"]?.DeepClone();
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(id, doc, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "status:" + data.Status, id)).CreateItem(history).ExecuteAsync(ct);
@@ -357,9 +354,9 @@ public static class Endpoints
         {
             if (month is not null) MonthlyReport.ParseMonth(month);
             await store.AuditRead(Actor(ctx), "monthly-referral-counts", ct);
-            var forms = store.Query("referral", summaries: true, ct: ct); var cards = store.BusinessCards(ct: ct); var partners = store.Partners(ct); var opens = store.Query("link-open", summaries: true, ct: ct); var histories = store.Query("status-history", summaries: true, ct: ct); var business = store.Business(store.BusinessId, ct);
-            await Task.WhenAll(forms, cards, partners, opens, histories, business);
-            return Json(MonthlyReport.Build(await forms, (await partners).Concat(await cards).ToList(), await opens, month, histories: await histories, preset: (await business)?.Value<string>("preset") ?? "dental"));
+            var forms = store.Query("referral", summaries: true, ct: ct); var cards = store.BusinessCards(ct: ct); var partners = store.Partners(ct); var opens = store.Query("link-open", summaries: true, ct: ct); var histories = store.Query("status-history", summaries: true, ct: ct);
+            await Task.WhenAll(forms, cards, partners, opens, histories);
+            return Json(MonthlyReport.Build(await forms, (await partners).Concat(await cards).ToList(), await opens, month, histories: await histories));
         });
         staff.MapGet("/alerts", async (CosmosStore store, CancellationToken ct) =>
         {

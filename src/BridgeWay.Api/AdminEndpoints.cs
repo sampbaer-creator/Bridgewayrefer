@@ -34,7 +34,7 @@ public static class AdminEndpoints
         long Count(string type) => counts.TryGetValue((id, type), out var n) ? n : 0;
         return new
         {
-            businessId = id, name = b.Value<string>("name"), preset = b.Value<string>("preset") ?? "dental",
+            businessId = id, name = b.Value<string>("name"),
             createdAt = b.Value<string>("createdAt"), suspended = b.Value<bool?>("suspended") ?? false,
             acceptReferrals = b.Value<bool?>("acceptReferrals") ?? false, billingExempt = b.Value<bool?>("billingExempt") ?? false,
             billingStatus = b.Value<string>("billingStatus") ?? "not_configured", alertEmail = b.Value<string>("alertEmail") ?? "",
@@ -74,14 +74,14 @@ public static class AdminEndpoints
 
         admin.MapPost("/businesses", async (BusinessCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            var name = data.Name?.Trim() ?? ""; var preset = data.Preset?.Trim().ToLowerInvariant() ?? "";
+            var name = data.Name?.Trim() ?? "";
             var adminEmail = data.AdminEmail?.Trim().ToLowerInvariant() ?? ""; var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant() ?? "";
-            if (name.Length is < 2 or > 120 || preset is not ("dental" or "trades")) throw new ApiError(400, "Enter a business name and choose dental or trades.");
+            if (name.Length is < 2 or > 120) throw new ApiError(400, "Enter a valid business name.");
             if (!Endpoints.ValidEmail(adminEmail)) throw new ApiError(400, "Enter the email of the business's first administrator.");
             if (alertEmail.Length > 0 && !Endpoints.ValidEmail(alertEmail)) throw new ApiError(400, "Enter a valid alert email or leave it blank.");
             var businessId = "biz-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(12)).ToLowerInvariant();
             store.UseBusiness(businessId);
-            var business = store.Document("business", "business"); business["name"] = name; business["officeName"] = name; business["preset"] = preset;
+            var business = store.Document("business", "business"); business["name"] = name; business["officeName"] = name; business["welcomeText"] = "Share a few details and our team will be in touch.";
             business["acceptReferrals"] = true; business["suspended"] = false; business["billingExempt"] = data.BillingExempt; business["billingStatus"] = "not_configured";
             business["alertEmail"] = alertEmail.Length > 0 ? alertEmail : adminEmail; business["createdBy"] = Actor(ctx);
             var office = store.Document("office", "office-main"); office["name"] = name; office["active"] = true;
@@ -89,7 +89,7 @@ public static class AdminEndpoints
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
                 .CreateItem(business).CreateItem(office).CreateItem(invite).CreateItem(store.Audit(Actor(ctx), "platform-create-business", businessId)).ExecuteAsync(ct);
             CosmosStore.Check(batch);
-            return Results.Json(new { businessId, name, preset, inviteUrl = settings.PublicOrigin + "/staff/login?workspace=" + Uri.EscapeDataString(businessId) }, statusCode: 201);
+            return Results.Json(new { businessId, name, inviteUrl = settings.PublicOrigin + "/staff/login?workspace=" + Uri.EscapeDataString(businessId) }, statusCode: 201);
         });
 
         admin.MapGet("/businesses/{businessId}", async (string businessId, CosmosStore store, CancellationToken ct) =>

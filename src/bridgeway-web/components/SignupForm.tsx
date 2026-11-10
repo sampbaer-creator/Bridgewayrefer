@@ -25,7 +25,7 @@ export default function SignupForm() {
     setError("");
     try {
       const signup = await api<{ businessId: string; signupPending: boolean }>("/api/signup", {
-        method: "POST", body: JSON.stringify({ name: data.get("name"), preset: data.get("preset") }),
+        method: "POST", body: JSON.stringify({ name: data.get("name") }),
       });
       window.localStorage.setItem(WORKSPACE_KEY, signup.businessId);
       if (!signup.signupPending) {
@@ -53,11 +53,6 @@ export default function SignupForm() {
       </>}
       {state?.enabled && state.signedIn && <form onSubmit={startCheckout}>
         <label>Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
-        <label>Business type<select name="preset" required defaultValue="">
-          <option value="" disabled>Choose a business type</option>
-          <option value="dental">Dental or orthodontic</option>
-          <option value="trades">Home services</option>
-        </select></label>
         <button className="primary access-action" disabled={busy}>{busy ? "Opening Stripe…" : "Continue to Stripe"}</button>
       </form>}
     </section>

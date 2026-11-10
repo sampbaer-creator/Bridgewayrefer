@@ -6,7 +6,7 @@ namespace BridgeWay.Api;
 public static class MonthlyReport
 {
     static readonly TimeZoneInfo Mountain = TimeZoneInfo.FindSystemTimeZoneById("America/Denver");
-    public static object Build(List<JObject> referrals, List<JObject> doctors, List<JObject> opens, string? month, DateTimeOffset? clock = null, List<JObject>? histories = null, string preset = "dental")
+    public static object Build(List<JObject> referrals, List<JObject> doctors, List<JObject> opens, string? month, DateTimeOffset? clock = null, List<JObject>? histories = null)
     {
         var today = TimeZoneInfo.ConvertTime(clock ?? DateTimeOffset.UtcNow, Mountain);
         var selected = month is null ? new DateTime(today.Year, today.Month, 1) : ParseMonth(month);
@@ -36,7 +36,7 @@ public static class MonthlyReport
             destination.Add((stamp.ToString("yyyy-MM"), office, stamp.Day));
             if (ReferenceEquals(source, referrals) && !string.IsNullOrWhiteSpace(doc.Value<string>("id"))) referralCohorts[doc.Value<string>("id")!] = (stamp.ToString("yyyy-MM"), office);
         }
-        var outcomeStatuses = preset == "trades" ? new HashSet<string>(["Won"], StringComparer.OrdinalIgnoreCase) : new HashSet<string>(["Scheduled", "Completed"], StringComparer.OrdinalIgnoreCase);
+        var outcomeStatuses = new HashSet<string>(["Completed", "Won"], StringComparer.OrdinalIgnoreCase);
         var reachedOutcomes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var history in histories ?? [])
             if (outcomeStatuses.Contains(history.Value<string>("status") ?? "") && history.Value<string>("referralId") is string referralId) reachedOutcomes.Add(referralId);
@@ -54,7 +54,7 @@ public static class MonthlyReport
         foreach (var key in forms.Select(x => x.Month).Concat(visits.Select(x => x.Month))) if (ParseMonth(key) > latest) latest = ParseMonth(key);
         var months = new List<string>(); for (var date = earliest; date <= latest; date = date.AddMonths(1)) months.Add(Key(date));
         months.Add(selectedKey);
-        return new { month = selectedKey, monthLabel = selected.ToString("MMMM yyyy", CultureInfo.InvariantCulture), timezone = "America/Denver", availableMonths = months.Distinct().OrderDescending().ToArray(), days = Enumerable.Range(1, days), calendarDays, isCurrentMonth = selectedKey == today.ToString("yyyy-MM"), total = rows.Sum(r => r.count), outcomes = rows.Sum(r => r.outcomes), outcomeLabel = preset == "trades" ? "Jobs won" : "Appointments reached", hasSubmissions = rows.Sum(r => r.count) > 0, linkOpens = rows.Sum(r => r.opens), referringOffices = rows.Count(r => r.officeId != "direct" && r.count > 0), offices = rows, invalidDates = invalid, previousTotal = Count(forms, Key(selected.AddMonths(-1))), trend };
+        return new { month = selectedKey, monthLabel = selected.ToString("MMMM yyyy", CultureInfo.InvariantCulture), timezone = "America/Denver", availableMonths = months.Distinct().OrderDescending().ToArray(), days = Enumerable.Range(1, days), calendarDays, isCurrentMonth = selectedKey == today.ToString("yyyy-MM"), total = rows.Sum(r => r.count), outcomes = rows.Sum(r => r.outcomes), outcomeLabel = "Completed requests", hasSubmissions = rows.Sum(r => r.count) > 0, linkOpens = rows.Sum(r => r.opens), referringOffices = rows.Count(r => r.officeId != "direct" && r.count > 0), offices = rows, invalidDates = invalid, previousTotal = Count(forms, Key(selected.AddMonths(-1))), trend };
     }
     public static DateTime ParseMonth(string month)
     {

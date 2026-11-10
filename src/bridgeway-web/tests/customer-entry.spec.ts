@@ -14,7 +14,7 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
     if (route.request().method() === "GET") {
       await route.fulfill({ json: { signedIn: true, enabled: true } });
     } else {
-      expect(route.request().postDataJSON()).toEqual({ name: "Test Practice", preset: "dental" });
+      expect(route.request().postDataJSON()).toEqual({ name: "Test Practice" });
       await route.fulfill({ json: { businessId: "signup-test", signupPending: true } });
     }
   });
@@ -24,13 +24,28 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
   });
   await page.goto("/signup");
   await page.getByLabel("Business name").fill("Test Practice");
-  await page.getByLabel("Business type").selectOption("dental");
+  await page.getByRole("button", { name: "Continue to Stripe" }).click();
+  await expect(page).toHaveURL(/checkout=verified/);
+});
+
+test("resuming signup reuses its pending workspace and opens Checkout without a preset", async ({ page }) => {
+  await page.route("**/api/signup", async route => {
+    if (route.request().method() === "GET") return route.fulfill({ json: { signedIn: true, enabled: true } });
+    expect(route.request().postDataJSON()).toEqual({ name: "Another Business" });
+    await route.fulfill({ json: { businessId: "signup-resumed", signupPending: true } });
+  });
+  await page.route("**/api/staff/billing/checkout", async route => {
+    expect(route.request().headers()["x-bridgeway-business"]).toBe("signup-resumed");
+    await route.fulfill({ json: { url: "/signup?checkout=verified" } });
+  });
+  await page.goto("/signup");
+  await page.getByLabel("Business name").fill("Another Business");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page).toHaveURL(/checkout=verified/);
 });
 
 test("platform admin issues a card for the selected office", async ({ page }) => {
-  const business = { businessId: "business-test", name: "Test Practice", preset: "dental", cards: 0, taps: 0, referrals: 0 };
+  const business = { businessId: "business-test", name: "Test Practice", cards: 0, taps: 0, referrals: 0 };
   const office = { id: "office-main", name: "Test Office", active: true };
   const partner = { id: "partner-test", name: "Test Partner", active: true };
   await page.route("**/api/admin/session", route => route.fulfill({ json: { acceptingGlobally: true, smtpConfigured: true, stripeConfigured: true } }));

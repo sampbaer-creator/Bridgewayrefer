@@ -70,9 +70,9 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         return Collect(Operations, query, null, null, ct);
     }
     public static string MembershipId(string tenantId, string oid) => "member-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(tenantId + ":" + oid))).ToLowerInvariant();
-    public JObject Membership(string businessId, string tenantId, string oid, string email, string role, bool active = true, string businessName = "", string preset = "dental")
+    public JObject Membership(string businessId, string tenantId, string oid, string email, string role, bool active = true, string businessName = "")
     {
-        var doc = new JObject { ["id"] = MembershipId(tenantId, oid), ["businessId"] = businessId, ["type"] = "membership", ["tenantId"] = tenantId, ["oid"] = oid, ["email"] = email, ["role"] = role, ["active"] = active, ["businessName"] = businessName, ["preset"] = preset, ["createdAt"] = DateTimeOffset.UtcNow.ToString("O") };
+        var doc = new JObject { ["id"] = MembershipId(tenantId, oid), ["businessId"] = businessId, ["type"] = "membership", ["tenantId"] = tenantId, ["oid"] = oid, ["email"] = email, ["role"] = role, ["active"] = active, ["businessName"] = businessName, ["createdAt"] = DateTimeOffset.UtcNow.ToString("O") };
         return doc;
     }
     public async Task<List<JObject>> Query(string type, int? limit = null, bool summaries = false, CancellationToken ct = default)
