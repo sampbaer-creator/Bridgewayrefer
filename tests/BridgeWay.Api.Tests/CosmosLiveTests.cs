@@ -47,7 +47,7 @@ public class CosmosLiveTests
             await store.Cards.CreateItemAsync(card, new PartitionKey(cardId));
             var legacy = await store.Card(cardId);
             Assert.Equal("Legacy office", legacy?.Value<string>("resolvedOfficeName"));
-            Assert.Empty(await foreignStore.Doctors());
+            Assert.Empty(await foreignStore.BusinessCards());
             var inactivePartner = store.Document("partner", cardId);
             inactivePartner["active"] = false;
             await store.Create(inactivePartner);
