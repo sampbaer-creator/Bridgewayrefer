@@ -4,7 +4,7 @@ test("the homepage has two customer actions", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/staff/login");
-  await expect(page.getByRole("link", { name: "Sign up", exact: true })).toHaveAttribute("href", "/signup");
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Sign up", exact: true })).toHaveAttribute("href", "/signup");
   await expect(page.getByText("Book a demo", { exact: false })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
@@ -24,6 +24,9 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
   });
   await page.goto("/signup");
   await page.getByLabel("Business name").fill("Test Practice");
+  const primary = page.getByRole("button", { name: "Continue to Stripe" });
+  await expect(primary).toHaveCSS("background-color", "rgb(135, 206, 235)");
+  await expect(primary).toHaveCSS("color", "rgb(16, 36, 60)");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page).toHaveURL(/checkout=verified/);
 });

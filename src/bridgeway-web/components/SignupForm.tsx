@@ -25,7 +25,7 @@ export default function SignupForm() {
     setError("");
     try {
       const signup = await api<{ businessId: string; signupPending: boolean }>("/api/signup", {
-        method: "POST", body: JSON.stringify({ name: data.get("name"), officeName: data.get("officeName"), alertEmail: data.get("alertEmail") }),
+        method: "POST", body: JSON.stringify({ name: data.get("name"), officeName: String(data.get("officeName") || "").trim() || undefined, alertEmail: String(data.get("alertEmail") || "").trim() || undefined }),
       });
       window.localStorage.setItem(WORKSPACE_KEY, signup.businessId);
       if (!signup.signupPending) {
