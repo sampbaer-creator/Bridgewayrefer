@@ -24,27 +24,38 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var businesses = settings.AlertRecipients.Keys.Append(settings.BusinessId).Distinct()
-            .Where(settings.AlertsConfiguredFor).ToArray();
         while (!stoppingToken.IsCancellationRequested)
         {
-            foreach (var businessId in businesses)
+            // Re-read each pass so a business configured in the admin console starts receiving alerts without a restart.
+            var businesses = Array.Empty<(string Id, string Recipient)>();
+            if (settings.SmtpConfigured)
+            {
+                try
+                {
+                    await using var scope = scopes.CreateAsyncScope();
+                    businesses = (await scope.ServiceProvider.GetRequiredService<CosmosStore>().AllBusinesses(stoppingToken))
+                        .Select(b => (Id: b.Value<string>("businessId") ?? "", Recipient: BusinessRules.AlertEmail(settings, b)))
+                        .Where(b => b.Id.Length > 0 && b.Recipient.Length > 0).ToArray();
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+                catch { logger.LogWarning("Email worker could not list workspaces; will retry."); }
+            }
+            foreach (var (businessId, recipient) in businesses)
             {
                 if (stoppingToken.IsCancellationRequested) break;
-                try { await SendPending(businessId, stoppingToken); }
+                try { await SendPending(businessId, recipient, stoppingToken); }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
                 catch { logger.LogWarning("Email worker paused for a workspace; sensitive details suppressed."); }
             }
             try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); } catch (OperationCanceledException) { break; }
         }
     }
-    async Task SendPending(string businessId, CancellationToken ct)
+    async Task SendPending(string businessId, string recipient, CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<CosmosStore>();
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var partitionKey = new PartitionKey(businessId);
-        var recipient = settings.AlertRecipientFor(businessId);
         var candidates = await store.DueAlerts(businessId, now, ct);
         foreach (var doc in candidates)
         {
@@ -72,8 +83,14 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 logger.LogWarning("Email delivery failed ({State}); sensitive details suppressed.", disposition.State);
                 doc["state"] = disposition.State; doc["readyAt"] = disposition.ReadyAt;
             }
-            try { await store.Operations.ReplaceItemAsync(doc, id, partitionKey, new ItemRequestOptions { IfMatchEtag = claim.ETag }, ct); }
-            catch (CosmosException e) when (e.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound) { }
+            // Delivery is at-least-once: retry the final write briefly so a transient Cosmos error after SMTP acceptance does not cause a re-send.
+            for (var write = 0; write < 3; write++)
+            {
+                try { await store.Operations.ReplaceItemAsync(doc, id, partitionKey, new ItemRequestOptions { IfMatchEtag = claim.ETag }, ct); break; }
+                catch (CosmosException e) when (e.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound) { break; }
+                catch (CosmosException) when (write < 2) { await Task.Delay(TimeSpan.FromSeconds(1 << write), ct); }
+                catch (CosmosException) { logger.LogWarning("Email state write failed after delivery; the alert may be re-sent."); }
+            }
         }
     }
 }

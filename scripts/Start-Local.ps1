@@ -1,4 +1,4 @@
-param([ValidateSet('all','api','web')][string]$Service = 'all', [switch]$Demo)
+param([ValidateSet('all','api','web')][string]$Service = 'all')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 Set-Location -LiteralPath $repo
@@ -8,8 +8,7 @@ if ($Service -eq 'api') {
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:Cosmos__Endpoint = 'https://bridgeway-dev-nosql.documents.azure.com:443/'
     $env:BridgeWay__PublicOrigin = 'http://localhost:3000'
-    $env:BridgeWay__LocalDemoStaff = $Demo.IsPresent.ToString()
-    $env:BridgeWay__AcceptReferrals = $Demo.IsPresent.ToString()
+    $env:BridgeWay__AcceptReferrals = 'true'
     Remove-Item Env:Cosmos__Key -ErrorAction SilentlyContinue
     dotnet run --no-build --project src/BridgeWay.Api --urls http://127.0.0.1:5180
     exit $LASTEXITCODE
@@ -34,11 +33,10 @@ foreach ($name in @('api','web')) {
     $port = if ($name -eq 'api') { 5180 } else { 3000 }
     if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) { Write-Host "$name already listens on $port; left running."; continue }
     $launchArgs = @('-NoProfile','-File',('"' + $PSCommandPath + '"'),'-Service',$name)
-    if ($Demo) { $launchArgs += '-Demo' }
     $child = Start-Process powershell.exe -ArgumentList $launchArgs -WorkingDirectory $repo -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logs "$name.log") -RedirectStandardError (Join-Path $logs "$name.error.log")
     $child.Id | Set-Content -LiteralPath (Join-Path $logs "$name.pid")
 }
 Write-Host 'API: http://127.0.0.1:5180/health/cosmos'
-Write-Host 'Form: http://localhost:3000/r/demo-west-office'
+Write-Host 'Admin: http://localhost:3000/admin (create a business and issue a card there)'
 Write-Host 'Dashboard: http://localhost:3000/staff'
-Write-Host 'Logs: .local (ignored by Git). Demo mode is loopback-only and fictional-data-only.'
+Write-Host 'Logs: .local (ignored by Git). Staff sign-in uses the Entra settings in user secrets.'

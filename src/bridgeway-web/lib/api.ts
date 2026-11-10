@@ -8,12 +8,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (!response.ok) throw new ApiError(body.error || `Could not complete the request (HTTP ${response.status}).`, response.status);
   return body as T;
 }
-export type PublicConfig = { officeName: string; welcomeText: string; accepting: boolean; demo: boolean; preset?: "dental" | "trades"; businessName?: string; logoUrl?: string; phone?: string };
+export type PublicConfig = { officeName: string; partnerName?: string; welcomeText: string; accepting: boolean; preset?: "dental" | "trades"; businessName?: string; logoUrl?: string; phone?: string };
 export const statuses = ["New", "Contacted", "Scheduled", "Completed", "Quoted", "Won", "Closed"] as const;
 export type Referral = { id: string; name: string; firstName?: string; lastName?: string; email: string; phone: string; notes: string; doctorCode: string; doctorName: string; partnerId?: string; partnerName?: string; officeId?: string; cardId?: string; ownerId?: string; ownerName?: string; serviceType?: string; postalCode?: string; status: string; createdAt: string; updatedAt?: string; etag: string };
 export type Doctor = { id: string; name: string; active: boolean; etag: string; url: string };
 export type Partner = { id: string; name: string; active: boolean; etag?: string };
-export type Business = { businessId: string; name: string; preset: "dental" | "trades"; role: "Admin" | "Staff"; signupPending?: boolean; customerSignup?: boolean };
+export type Business = { businessId: string; name: string; preset: "dental" | "trades"; role: "Admin" | "Staff"; signupPending?: boolean };
 export type Alerts = { enabled: boolean; recipient: string; waiting: number; retrying: number };
 export type ReferralHistory = { status: string; actor: string; changedAt: string };
 export type Report = { month: string; monthLabel: string; availableMonths: string[]; total: number; linkOpens: number; referringOffices: number; previousTotal: number; invalidDates: number;
