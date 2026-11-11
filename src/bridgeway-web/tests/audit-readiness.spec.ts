@@ -68,8 +68,10 @@ test("server search and continuation pages retrieve historical referrals", async
   await page.getByRole("button", { name: "Load more referrals" }).click();
   await expect(page.getByRole("heading", { name: old.name })).toBeVisible();
   await expect(page.getByText("Overdue", { exact: true })).toHaveCount(0);
+  const searched = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && new URL(response.url()).searchParams.get("q") === "Historical");
   await page.getByRole("searchbox", { name: "Search" }).fill("Historical");
-  await expect.poll(() => page.getByRole("heading", { name: old.name }).count()).toBe(1);
+  await searched;
+  await expect(page.getByRole("heading", { name: old.name })).toBeVisible();
   await page.getByRole("button", { name: "Contact & history" }).click();
   await page.getByLabel("Next action", { exact: true }).fill("Call patient");
   await page.getByRole("button", { name: "Save follow-up" }).click();

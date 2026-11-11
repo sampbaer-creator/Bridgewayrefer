@@ -207,7 +207,7 @@ export default function StaffDashboard() {
   const selectedReport = report && (report.month === month || !month) ? report : null;
   const filtered = useMemo(() => referrals.filter(r => (!filter || r.status === filter) && (!partnerFilter || (r.partnerId || r.doctorCode) === partnerFilter) && (!query || `${r.name} ${r.partnerName || r.doctorName} ${r.email} ${r.phone}`.toLowerCase().includes(query.toLowerCase())) && (!fromDate || r.createdAt.slice(0, 10) >= fromDate) && (!toDate || r.createdAt.slice(0, 10) <= toDate)).sort((a, b) => {
     const overdue = overdueReferral;
-    const priority = (r: Referral) => r.status === "New" ? 0 : !r.ownerId ? 1 : overdue(r) ? 2 : 3;
+    const priority = (r: Referral) => ["Completed", "Won", "Closed"].includes(r.status) ? 3 : r.status === "New" ? 0 : !r.ownerId ? 1 : overdue(r) ? 2 : 3;
     return priority(a) - priority(b) || (priority(a) < 3 ? Date.parse(a.createdAt) - Date.parse(b.createdAt) : Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }), [referrals, filter, partnerFilter, query, fromDate, toDate]);
 
@@ -236,8 +236,8 @@ export default function StaffDashboard() {
         {limited && <p className="notice">More records match this search. Load more below. Filters search all retained referrals; counts describe loaded records.</p>}
         <div className="referrals" id="referrals">{!filtered.length && <p className="empty">{session === "loading" ? "Loading requests…" : "No requests match these filters."}</p>}{filtered.map(r => {
           const isOverdue = overdueReferral(r);
-          const needsFollowup = r.status === "New" || !r.ownerId || isOverdue;
-          const nextAction = r.nextAction || (r.status === "New" ? "Contact within one business day" : r.status === "Contacted" ? "Agree on a next step" : r.status === "Scheduled" ? "Confirm the next step" : r.status);
+          const needsFollowup = !["Completed", "Won", "Closed"].includes(r.status) && (r.status === "New" || !r.ownerId || isOverdue);
+          const nextAction = ["Completed", "Won", "Closed"].includes(r.status) ? r.status : r.nextAction || (r.status === "New" ? "Contact within one business day" : r.status === "Contacted" ? "Agree on a next step" : r.status === "Scheduled" ? "Confirm the next step" : r.status);
           const displayName = r.firstName || r.lastName ? [r.firstName, r.lastName].filter(Boolean).join(" ") : r.name;
           return <article className="referral" key={r.id}><div className="title-row"><h2>{displayName}</h2><label>Status<select className="status" aria-label={`Status for ${displayName}`} value={r.status} disabled={busy === r.id} onChange={e => void changeStatus(r, e.target.value)}>{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></label></div>
             <p className="muted">Receiving site: {r.doctorName || "Direct request"} · Referring partner: {r.partnerName || "Direct request"} · Card: {r.cardId || r.doctorCode || "Direct request"} · Received {new Date(r.createdAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT{r.updatedAt ? ` · Updated ${new Date(r.updatedAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT` : ""}{r.serviceType ? ` · ${r.serviceType}` : ""}{r.postalCode ? ` · ${r.postalCode}` : ""}</p>
