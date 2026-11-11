@@ -109,6 +109,8 @@ Configure settings in the Azure API Container App, using Azure secrets for crede
 
 The main settings are `Bridgewayrefer__PublicOrigin`, `Bridgewayrefer__AcceptReferrals`, `Bridgewayrefer__TenantId`, `Bridgewayrefer__ClientId`, `Bridgewayrefer__ClientSecret`, `Bridgewayrefer__PlatformAdminObjectIds__0`, `Cosmos__Endpoint`, `Cosmos__Database`, Stripe settings, and optional SMTP settings. The web app uses `BRIDGEWAYREFER_API_ORIGIN` for its API origin. Keep credentials in Azure secrets and make sure the Entra redirect URI and Stripe webhook use the public origin above. Existing `BridgeWay__...`, `BRIDGEWAY_API_ORIGIN`, and `X-BridgeWay-Business` names remain accepted by the API for compatibility; the `Bridgewayrefer` names take precedence when both config prefixes are present.
 
+Stripe uses `Bridgewayrefer__StripePriceId` for the $50/month Referral Workspace. Managed Calling is an optional $400/month plan that includes the workspace; configure its active recurring monthly Stripe Price ID as `Bridgewayrefer__ManagedCallingStripePriceId`. The API checks that each selected Price is active, monthly, USD, at the expected amount, and in the same Stripe mode as its key. Until the Managed Calling Price ID is configured, its signup option stays unavailable. Store the ID as app configuration and keep Stripe keys and webhook secrets in Azure secrets.
+
 ## Roadmap
 
 - Finish and verify the `bridgewayrefer.com` custom domain, HTTPS binding, and Microsoft sign-in redirect.

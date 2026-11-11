@@ -113,7 +113,7 @@ Configure the chosen SMTP provider, secret references, per-business recipient, s
 
 **Priority:** high. **Owner:** engineering and founder.
 
-The branch allows `trialing` to complete customer signup. It does not create a free trial or change the advertised $50 plan.
+The branch allows `trialing` to complete customer signup. It does not create a free trial. This follow-up adds a $50/month Referral Workspace and a $400/month Managed Calling tier that includes the workspace. The optional second Stripe Price is validated for the $400 amount, USD currency, monthly interval, active status, and Stripe key mode before Checkout. Signup saves the selected plan and allows a matching Checkout to be resumed. Stripe metadata/webhooks carry the plan. Mocked Checkout tests do not prove hosted payment or an operational calling service.
 
 Decide trial duration, whether a payment method is required, when the trial starts, card fulfillment during trial, reminders, cancellation, grace period, and expired-account data access. Keep trial timing useful if cards are shipped. Then configure Checkout trial parameters and subscription reconciliation consistently. Confirm the actual Price currency, monthly interval, quantity, tax behavior, and test/live mode.
 
@@ -212,7 +212,7 @@ Inspected PR 14 at bc88dfc066467da56d373cce938ef664e4d32c7a and main at a6a0c253
 | 4 Search | Parameterized filtering and continuation pages implemented. | PR browser search/pagination coverage. | Isolated Cosmos dataset over 500 rows unverified. | Explicit disposable database required before live-writing integration validation. |
 | 5 Follow-up | Deadlines, UTC normalization, ETags and terminal clearing implemented. | PR deadline tests. | Persisted production edits unverified. | Contact attempts, appointment timing, My work/Today views remain. Business timezone decision required. |
 | 6 Alerts | Failed/stalled visibility, retries and deterministic missing-alert recovery implemented. | PR API/browser coverage. | SMTP acceptance and inbox receipt unverified. | Authorized test recipient/provider and operator monitoring required. |
-| 7 Billing | Trialing reconciliation implemented. | Existing webhook tests. | Stripe test-hosted lifecycle unverified. | Trial offer policy required. Managed Calling price/product and inclusion decision remain pending. |
+| 7 Billing | Trialing reconciliation plus $50 Workspace/$400 Managed Calling plan selection and Stripe price routing implemented. | API and web tests, production web build and API publish pass. | Managed Calling Stripe Price, hosted test checkout/webhook and operational calling unverified. | Configure `Bridgewayrefer__ManagedCallingStripePriceId`; confirm call-service hours/scope; exercise Stripe test mode. Trial policy is still undecided. |
 | 8 Intake | Existing consent and submission-id idempotency retained. | Existing validation tests. | Real mobile handoff unverified. | Guardian/contact model and possible-duplicate review remain. Contact requirement decision needed. |
 | 9 Workflow | Shared business model retained. | Existing status validation. | Pilot workflow suitability unverified. | Earlier product requirement prohibits industry assignment. Use explicit shared workflow customization only after owner resolves the ledger's businessType proposal. |
 | 10 Reports | Cohort/open-event labels and throttled refresh implemented. | PR report/race tests. | RU/latency and per-business timezone unverified. | Timezones, event-month metrics and measured query costs remain. |
@@ -241,10 +241,17 @@ If a candidate rollout fails, first route traffic to the recorded healthy revisi
 
 Restore the matching recorded PublicOrigin and callback registration if those were changed. Check revision health, public requests and login callback before declaring rollback verified. The existing generated-host PublicOrigin remains the recorded baseline. Its value is public configuration, not a credential.
 
-Owner inputs still required are an external test identity/provisioning choice, a distinct disposable integration database, an authorized SMTP test recipient, card fulfillment facts, trial/commercial policy, operator/legal facts, and the Managed Calling recurring Stripe price plus confirmation whether 400 dollars includes the workspace.
+Owner inputs still required are an external test identity/provisioning choice, a distinct disposable integration database, an authorized SMTP test recipient, card fulfillment facts, trial policy, operator/legal facts, the $400 monthly Managed Calling recurring Stripe Price ID, and approved call-service hours/scope.
 
 ### Concurrent source reconciliation
 
 During this execution main advanced to 8cd610e6aece0b1305309434d8c72c85f8d13a68 through PR 15. PR 14 advanced to bf13b77e9f822b400692aee699dec890f82a6a7c to preserve that Managed Calling work. The follow-up branch merged bf13b77 successfully, retaining both implementations and the configuration regression fix. Earlier matrix baseline entries describe the initial inspection time.
 
 Local npm ci produced no completion output, including an offline retry, and both attempts were stopped. A fresh local web build is therefore unresolved. PR 14's earlier successful GitHub browser/build job remains historical evidence at bc88dfc, not evidence for the newly merged source. Full CI is required on the reconciled revision.
+
+## Managed Calling plan follow-up (2026-11-10)
+
+- **Code:** public pricing, signup, and inactive-workspace billing offer $50/month Referral Workspace and $400/month Managed Calling, total and including the workspace. Signup persists its choice; a pending Checkout resumes only when the same plan is selected. Existing records without plan metadata default to Workspace. Webhook updates retain plan and amount.
+- **Stripe safety:** `Bridgewayrefer__ManagedCallingStripePriceId` is optional and unset by default. The option remains unavailable until a Price ID is supplied. Checkout validates the Price ID, amount, USD currency, monthly interval, active status, and key mode. Stripe keys and webhook secrets are unchanged.
+- **Code evidence:** `BillingPlanTests` covers default/managed mapping, a missing Price ID, the $400 Checkout line item and metadata, recurring Price validation, and signup/resume request DTOs. Playwright covers normal signup, resumed signup, and Managed Calling retry/resume. API suite: 40 passed, 1 opt-in Cosmos test skipped; web suite: 14 passed; API publish and web production build succeeded.
+- **Production evidence:** unverified. No Stripe Price was created, Azure configuration was not changed, and no Stripe-hosted test customer completed Checkout. Call volume, service hours, and fulfillment workflow need owner agreement before selling. Create a $400 USD monthly Price in the correct Stripe account/mode, configure Azure, and verify the Stripe test-mode Checkout/webhook lifecycle before enabling the tier.

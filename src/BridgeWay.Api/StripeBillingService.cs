@@ -42,15 +42,19 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         try { return JObject.Parse(body); } catch (Newtonsoft.Json.JsonException) { throw new ApiError(503, "Stripe returned an invalid billing response."); }
     }
 
-    public async Task ValidatePrice(CancellationToken ct)
+    public async Task ValidatePrice(string plan, CancellationToken ct)
     {
-        if (!KeyReady || !settings.StripePriceId.StartsWith("price_", StringComparison.Ordinal)) throw new ApiError(503, "Configure a Stripe key and recurring Price ID.");
-        using var request = new HttpRequestMessage(HttpMethod.Get, Api + "prices/" + Uri.EscapeDataString(settings.StripePriceId));
+        var priceId = settings.StripePriceFor(plan);
+        if (!KeyReady || !priceId.StartsWith("price_", StringComparison.Ordinal)) throw new ApiError(503, "Configure a Stripe key and recurring Price ID.");
+        using var request = new HttpRequestMessage(HttpMethod.Get, Api + "prices/" + Uri.EscapeDataString(priceId));
         var price = await Send(request, ct);
-        if (price.Value<bool>("livemode") != LiveMode || price.Value<int?>("unit_amount") != settings.MonthlyPriceUsd * 100 || price.Value<string>("currency") != "usd" ||
+        var monthlyAmount = settings.MonthlyPriceFor(plan);
+        if (price.Value<string>("id") != priceId || price.Value<bool>("livemode") != LiveMode || price.Value<int?>("unit_amount") != monthlyAmount * 100 || price.Value<string>("currency") != "usd" ||
             price["recurring"]?.Value<string>("interval") != "month" || price.Value<bool?>("active") != true)
-            throw new ApiError(503, $"The configured Stripe Price must be an active ${settings.MonthlyPriceUsd} USD monthly Price in the same mode as the API key.");
+            throw new ApiError(503, $"The configured Stripe Price for {PlanLabel(plan)} must be an active ${monthlyAmount} USD monthly Price in the same mode as the API key.");
     }
+
+    static string PlanLabel(string plan) => plan == BillingPlans.ManagedCalling ? "Managed Calling" : "Workspace";
 
     public async Task<string> CreateCustomer(string businessId, string businessName, string idempotencyKey, CancellationToken ct)
     {
@@ -63,16 +67,16 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         return JObject.Parse(body).Value<string>("id") ?? throw new ApiError(503, "Stripe did not return a customer ID.");
     }
 
-    public async Task<JObject> CreateCheckout(string businessId, string businessName, string customerId, string successUrl, string cancelUrl, string idempotencyKey, CancellationToken ct)
+    public async Task<JObject> CreateCheckout(string businessId, string businessName, string customerId, string plan, string successUrl, string cancelUrl, string idempotencyKey, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, Api + "checkout/sessions");
         request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["mode"] = "subscription", ["customer"] = customerId, ["client_reference_id"] = businessId,
-            ["line_items[0][price]"] = settings.StripePriceId, ["line_items[0][quantity]"] = "1",
+            ["line_items[0][price]"] = settings.StripePriceFor(plan), ["line_items[0][quantity]"] = "1",
             ["success_url"] = successUrl, ["cancel_url"] = cancelUrl,
-            ["metadata[businessId]"] = businessId, ["metadata[businessName]"] = businessName,
-            ["subscription_data[metadata][businessId]"] = businessId,
+            ["metadata[businessId]"] = businessId, ["metadata[businessName]"] = businessName, ["metadata[plan]"] = plan,
+            ["subscription_data[metadata][businessId]"] = businessId, ["subscription_data[metadata][plan]"] = plan,
         });
         Configure(request, idempotencyKey);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);

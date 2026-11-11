@@ -6,20 +6,23 @@ test("the homepage has two customer actions", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/staff/login");
   await expect(page.getByRole("navigation").getByRole("link", { name: "Sign up", exact: true })).toHaveAttribute("href", "/signup");
   await expect(page.getByText("Book a demo", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Managed Calling", exact: true })).toBeVisible();
+  await expect(page.getByText("$400", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test("signup sends the verified workspace to Checkout", async ({ page }) => {
   await page.route("**/api/signup", async route => {
     if (route.request().method() === "GET") {
-      await route.fulfill({ json: { signedIn: true, enabled: true } });
+      await route.fulfill({ json: { signedIn: true, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: true } } } });
     } else {
-      expect(route.request().postDataJSON()).toEqual({ name: "Test Practice" });
+      expect(route.request().postDataJSON()).toEqual({ name: "Test Practice", plan: "workspace" });
       await route.fulfill({ json: { businessId: "signup-test", signupPending: true } });
     }
   });
   await page.route("**/api/staff/billing/checkout", async route => {
     expect(route.request().headers()["x-bridgewayrefer-business"]).toBe("signup-test");
+    expect(route.request().postDataJSON()).toEqual({ plan: "workspace" });
     await route.fulfill({ json: { url: "/signup?checkout=verified" } });
   });
   await page.goto("/signup");
@@ -33,18 +36,45 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
 
 test("resuming signup reuses its pending workspace and opens Checkout without a preset", async ({ page }) => {
   await page.route("**/api/signup", async route => {
-    if (route.request().method() === "GET") return route.fulfill({ json: { signedIn: true, enabled: true } });
-    expect(route.request().postDataJSON()).toEqual({ name: "Another Business" });
+    if (route.request().method() === "GET") return route.fulfill({ json: { signedIn: true, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: true } } } });
+    expect(route.request().postDataJSON()).toEqual({ name: "Another Business", plan: "workspace" });
     await route.fulfill({ json: { businessId: "signup-resumed", signupPending: true } });
   });
   await page.route("**/api/staff/billing/checkout", async route => {
     expect(route.request().headers()["x-bridgewayrefer-business"]).toBe("signup-resumed");
+    expect(route.request().postDataJSON()).toEqual({ plan: "workspace" });
     await route.fulfill({ json: { url: "/signup?checkout=verified" } });
   });
   await page.goto("/signup");
   await page.getByLabel("Business name").fill("Another Business");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page).toHaveURL(/checkout=verified/);
+});
+
+test("Managed Calling signup carries the $400 plan through resumed Stripe Checkout", async ({ page }) => {
+  let signupCalls = 0;
+  let checkoutCalls = 0;
+  await page.route("**/api/signup", async route => {
+    if (route.request().method() === "GET") return route.fulfill({ json: { signedIn: true, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: true } } } });
+    expect(route.request().postDataJSON()).toEqual({ name: "Calling Practice", plan: "managed-calling" });
+    signupCalls++;
+    await route.fulfill({ json: { businessId: "signup-calling", signupPending: true } });
+  });
+  await page.route("**/api/staff/billing/checkout", async route => {
+    expect(route.request().headers()["x-bridgewayrefer-business"]).toBe("signup-calling");
+    expect(route.request().postDataJSON()).toEqual({ plan: "managed-calling" });
+    checkoutCalls++;
+    await route.fulfill(checkoutCalls === 1 ? { status: 503, json: { error: "Temporary Checkout issue" } } : { json: { url: "/signup?checkout=managed-calling" } });
+  });
+  await page.goto("/signup?plan=managed-calling");
+  await expect(page.getByRole("radio", { name: /Managed Calling.*\$400\/month/ })).toBeChecked();
+  await page.getByLabel("Business name").fill("Calling Practice");
+  await page.getByRole("button", { name: "Continue to Stripe" }).click();
+  await expect(page.getByText("Temporary Checkout issue", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Continue to Stripe" }).click();
+  await expect(page).toHaveURL(/checkout=managed-calling/);
+  expect(signupCalls).toBe(2);
+  expect(checkoutCalls).toBe(2);
 });
 
 test("platform admin issues a card for the selected office", async ({ page }) => {

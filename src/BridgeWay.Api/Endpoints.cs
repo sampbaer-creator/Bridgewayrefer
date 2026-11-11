@@ -121,7 +121,8 @@ public static class Endpoints
             return Results.Json(new { ok = true }, statusCode: 201);
         });
         app.MapGet("/api/signup", (HttpContext ctx, StripeBillingService stripe) =>
-            Results.Ok(new { signedIn = ctx.User.Identity?.IsAuthenticated == true, enabled = settings.CustomerSignupEnabled && settings.IdentityConfigured && settings.StripeConfigured && stripe.KeyReady }));
+            Results.Ok(new { signedIn = ctx.User.Identity?.IsAuthenticated == true, enabled = settings.CustomerSignupEnabled && settings.IdentityConfigured && settings.StripeConfigured && stripe.KeyReady,
+                plans = new { workspace = new { amountUsd = settings.MonthlyPriceUsd, available = true }, managedCalling = new { amountUsd = BillingPlans.ManagedCallingMonthlyPriceUsd, available = settings.ManagedCallingConfigured } } }));
 
         app.MapPost("/api/signup", async (CustomerSignup data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
         {
@@ -129,6 +130,9 @@ public static class Endpoints
             if (!settings.CustomerSignupEnabled || !settings.StripeConfigured || !stripe.KeyReady)
                 throw new ApiError(503, "Subscription signup is currently unavailable.");
             var name = data.Name?.Trim() ?? "";
+            var plan = BillingPlans.Normalize(data.Plan);
+            if (plan == BillingPlans.ManagedCalling && !settings.ManagedCallingConfigured)
+                throw new ApiError(503, "Managed Calling checkout is not configured yet. Contact Bridgewayrefer.");
             if (name.Length is < 2 or > 120)
                 throw new ApiError(400, "Enter a valid business name.");
             var officeName = data.OfficeName?.Trim() ?? "";
@@ -147,7 +151,7 @@ public static class Endpoints
                 business["name"] = name; business["officeName"] = officeName.Length > 0 ? officeName : name; business["welcomeText"] = "Share a few details and our team will be in touch.";
                 business["acceptReferrals"] = false; business["customerSignup"] = true;
                 if (alertEmail.Length > 0) business["alertEmail"] = alertEmail;
-                business["monthlyPriceUsd"] = settings.MonthlyPriceUsd; business["billingStatus"] = "not_configured";
+                business["selectedPlan"] = plan; business["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan); business["billingStatus"] = "not_configured";
                 var office = store.Document("office", "office-main");
                 office["name"] = officeName.Length > 0 ? officeName : name; office["active"] = true;
                 var member = store.Membership(businessId, tenant, objectId, email, "Admin", businessName: name);
@@ -161,6 +165,14 @@ public static class Endpoints
             if (existing?.Value<bool?>("customerSignup") != true || !TenantAuthorization.IsActiveMembershipFor(membership, businessId, tenant, objectId) ||
                 !TenantAuthorization.HasRole(membership, "Admin"))
                 throw new ApiError(403, "This signup workspace is unavailable.");
+            if (BusinessRules.SignupPending(existing))
+            {
+                if (existing.Value<string>("checkoutSessionUrl") is not null && DateTimeOffset.TryParse(existing.Value<string>("checkoutSessionExpiresAt"), out var checkoutExpires) && checkoutExpires > DateTimeOffset.UtcNow &&
+                    !BillingPlans.MatchesCheckout(existing.Value<string>("checkoutSessionPlan"), plan))
+                    throw new ApiError(409, "A Stripe Checkout for another plan is already open. Finish or cancel that Checkout before choosing a different plan.");
+                existing["selectedPlan"] = plan; existing["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan);
+                await store.Operations.ReplaceItemAsync(existing, "business", store.BusinessKey, new ItemRequestOptions { IfMatchEtag = existing.Value<string>("_etag") }, ct);
+            }
             return Results.Ok(new { businessId, signupPending = BusinessRules.SignupPending(existing) });
         });
 
@@ -241,7 +253,7 @@ public static class Endpoints
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>
         {
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
-            return Results.Ok(new { name = business.Value<string>("name"), officeName = business.Value<string>("officeName"), welcomeText = business.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", phone = business.Value<string>("phone") ?? "", logoUrl = business.Value<string>("logoUrl") ?? "", acceptReferrals = business.Value<bool?>("acceptReferrals") ?? false, accepting = BusinessRules.AcceptsReferrals(settings, business), suspended = business.Value<bool?>("suspended") ?? false, alertEmail = business.Value<string>("alertEmail") ?? "", billingStatus = business.Value<string>("billingStatus") ?? business.Value<string>("subscriptionStatus") ?? "not_configured", monthlyPriceUsd = settings.MonthlyPriceUsd, etag = business.Value<string>("_etag") });
+            return Results.Ok(new { name = business.Value<string>("name"), officeName = business.Value<string>("officeName"), welcomeText = business.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", phone = business.Value<string>("phone") ?? "", logoUrl = business.Value<string>("logoUrl") ?? "", acceptReferrals = business.Value<bool?>("acceptReferrals") ?? false, accepting = BusinessRules.AcceptsReferrals(settings, business), suspended = business.Value<bool?>("suspended") ?? false, alertEmail = business.Value<string>("alertEmail") ?? "", billingStatus = business.Value<string>("billingStatus") ?? business.Value<string>("subscriptionStatus") ?? "not_configured", monthlyPriceUsd = business.Value<int?>("monthlyPriceUsd") ?? settings.MonthlyPriceUsd, etag = business.Value<string>("_etag") });
         });
         staff.MapPatch("/business/profile", async (BusinessProfileUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
@@ -443,21 +455,27 @@ public static class Endpoints
         staff.MapGet("/billing", async (CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
         {
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
-            return Results.Ok(new { amountUsd = settings.MonthlyPriceUsd, interval = "month", status = business.Value<string>("billingStatus") ?? "not_configured", billingExempt = business.Value<bool?>("billingExempt") ?? false, renewalAt = business.Value<string>("billingRenewalAt"), cancelAtPeriodEnd = business.Value<bool?>("billingCancelAtPeriodEnd") ?? false, configured = settings.StripeConfigured && stripe.KeyReady, testMode = stripe.TestMode, customerLinked = !string.IsNullOrWhiteSpace(business.Value<string>("stripeCustomerId")) });
+            var plan = business.Value<string>("subscriptionPlan") ?? business.Value<string>("selectedPlan") ?? BillingPlans.Workspace;
+            return Results.Ok(new { plan, amountUsd = business.Value<int?>("monthlyPriceUsd") ?? settings.MonthlyPriceFor(BillingPlans.Normalize(plan)), interval = "month", status = business.Value<string>("billingStatus") ?? "not_configured", billingExempt = business.Value<bool?>("billingExempt") ?? false, renewalAt = business.Value<string>("billingRenewalAt"), cancelAtPeriodEnd = business.Value<bool?>("billingCancelAtPeriodEnd") ?? false, configured = settings.StripeConfigured && stripe.KeyReady, managedCallingConfigured = settings.ManagedCallingConfigured, testMode = stripe.TestMode, customerLinked = !string.IsNullOrWhiteSpace(business.Value<string>("stripeCustomerId")) });
         });
-        staff.MapPost("/billing/checkout", async (HttpContext ctx, CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
+        staff.MapPost("/billing/checkout", async (BillingCheckout data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
         {
             RequireAdmin(ctx);
             if (!settings.StripeConfigured || !stripe.KeyReady) throw new ApiError(503, "Billing is not configured yet.");
-            await stripe.ValidatePrice(ct);
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
+            var plan = BillingPlans.Normalize(data.Plan ?? business.Value<string>("selectedPlan") ?? BillingPlans.Workspace);
+            await stripe.ValidatePrice(plan, ct);
             var billingStatus = business.Value<string>("billingStatus");
             if (billingStatus is "active" or "trialing" ||
                 (business.Value<string>("stripeSubscriptionId") is { Length: > 0 } && !StripeBillingEndpoints.IsTerminal(billingStatus)))
                 throw new ApiError(409, "This business already has a subscription. Use Manage Billing.");
             var now = DateTimeOffset.UtcNow;
             if (business.Value<string>("checkoutSessionUrl") is string existingUrl && DateTimeOffset.TryParse(business.Value<string>("checkoutSessionExpiresAt"), out var expires) && expires > now)
+            {
+                if (!BillingPlans.MatchesCheckout(business.Value<string>("checkoutSessionPlan"), plan))
+                    throw new ApiError(409, "A Stripe Checkout for another plan is already open. Finish or cancel that Checkout before choosing a different plan.");
                 return Results.Ok(new { url = existingUrl });
+            }
 
             var lockId = "billing-checkout-lock"; var lockDoc = await store.Read(lockId, ct); var lockUntil = lockDoc?.Value<long?>("lockedUntil") ?? 0;
             var attempts = (lockDoc?.Value<int>("attempts") ?? 0) + 1;
@@ -477,12 +495,13 @@ public static class Endpoints
                 {
                     customerId = await stripe.CreateCustomer(store.BusinessId, business.Value<string>("name") ?? store.BusinessId, "bridgeway-customer-" + store.BusinessId, ct);
                     business["stripeCustomerId"] = customerId;
-                    var savedCustomer = await store.Operations.ReplaceItemAsync(business, "business", store.BusinessKey, new ItemRequestOptions { IfMatchEtag = business.Value<string>("_etag") }, ct); business["_etag"] = savedCustomer.ETag;
                 }
-                var session = await stripe.CreateCheckout(store.BusinessId, business.Value<string>("name") ?? store.BusinessId, customerId, settings.PublicOrigin + "/staff?billing=pending", settings.PublicOrigin + "/staff?billing=cancelled", "bridgeway-checkout-" + store.BusinessId + "-" + attempts, ct);
+                business["selectedPlan"] = plan; business["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan);
+                var savedCustomer = await store.Operations.ReplaceItemAsync(business, "business", store.BusinessKey, new ItemRequestOptions { IfMatchEtag = business.Value<string>("_etag") }, ct); business["_etag"] = savedCustomer.ETag;
+                var session = await stripe.CreateCheckout(store.BusinessId, business.Value<string>("name") ?? store.BusinessId, customerId!, plan, settings.PublicOrigin + "/staff?billing=pending", settings.PublicOrigin + "/staff?billing=cancelled", "bridgeway-checkout-" + store.BusinessId + "-" + attempts, ct);
                 var checkoutUrl = session.Value<string>("url") ?? throw new ApiError(503, "Stripe did not return a Checkout URL.");
                 var expiresAt = DateTimeOffset.FromUnixTimeSeconds(session.Value<long>("expires_at")).ToString("O");
-                business["checkoutSessionId"] = session.Value<string>("id"); business["checkoutSessionUrl"] = checkoutUrl; business["checkoutSessionExpiresAt"] = expiresAt;
+                business["checkoutSessionId"] = session.Value<string>("id"); business["checkoutSessionPlan"] = plan; business["checkoutSessionUrl"] = checkoutUrl; business["checkoutSessionExpiresAt"] = expiresAt;
                 await store.Operations.ReplaceItemAsync(business, "business", store.BusinessKey, new ItemRequestOptions { IfMatchEtag = business.Value<string>("_etag") }, ct);
                 var finalLock = await store.Read(lockId, ct); if (finalLock is not null) { finalLock["state"] = "Completed"; finalLock["lockedUntil"] = 0; await store.Operations.ReplaceItemAsync(finalLock, lockId, store.BusinessKey, new ItemRequestOptions { IfMatchEtag = finalLock.Value<string>("_etag") }, ct); }
                 return Results.Ok(new { url = checkoutUrl });

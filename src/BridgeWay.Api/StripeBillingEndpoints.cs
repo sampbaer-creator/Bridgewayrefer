@@ -90,6 +90,14 @@ public static class StripeBillingEndpoints
                 business["stripeCustomerId"] = customerId; business["stripeSubscriptionId"] = subscriptionId;
                 var status = subscription.Value<string>("status") ?? "unknown";
                 business["billingStatus"] = status;
+                var priceId = (subscription["items"]?["data"] as JArray)?.OfType<JObject>().Select(item => item["price"]?.Value<string>("id")).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
+                var subscriptionPlan = settings.PlanForPrice(priceId) ?? subscription["metadata"]?.Value<string>("plan");
+                if (subscriptionPlan is BillingPlans.Workspace or BillingPlans.ManagedCalling)
+                {
+                    business["subscriptionPlan"] = subscriptionPlan; business["selectedPlan"] = subscriptionPlan;
+                    business["monthlyPriceUsd"] = settings.MonthlyPriceFor(subscriptionPlan);
+                    if (!string.IsNullOrWhiteSpace(priceId)) business["subscriptionPriceId"] = priceId;
+                }
                 if (business.Value<bool?>("customerSignup") == true && (status is "active" or "trialing"))
                     business["signupCompleted"] = true;
                 business["billingCancelAtPeriodEnd"] = subscription.Value<bool?>("cancel_at_period_end") ?? false;
@@ -100,6 +108,7 @@ public static class StripeBillingEndpoints
                 if (newSubscription)
                 {
                     business.Remove("checkoutSessionId");
+                    business.Remove("checkoutSessionPlan");
                     business.Remove("checkoutSessionUrl");
                     business.Remove("checkoutSessionExpiresAt");
                 }
