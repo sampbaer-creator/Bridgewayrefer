@@ -13,6 +13,7 @@ public sealed record Submission(string FirstName = "", string LastName = "", str
         if (ServiceType is null || PostalCode is null || ServiceType.Length > 80 || PostalCode.Length > 20) throw new ApiError(400, "Please check the form.");
     }
 }
+public sealed record TestReferralCreate(string CardCode, string SubmissionId);
 public sealed record LinkOpen(string Code, string EventId);
 public sealed record StatusUpdate(string Status, string Etag, string? NextActionAt = null, string? NextAction = null);
 public sealed record CardUpdate(bool Active, string Etag);

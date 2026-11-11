@@ -18,8 +18,8 @@ export type Alerts = { enabled: boolean; recipient: string; waiting: number; ret
 export type ReferralHistory = { status: string; actor: string; changedAt: string };
 export type Report = { month: string; monthLabel: string; availableMonths: string[]; total: number; linkOpens: number; referringOffices: number; previousTotal: number; invalidDates: number;
   hasSubmissions: boolean; outcomes: number; outcomeLabel: string;
-  offices: { officeId: string; name: string; active: boolean; count: number; opens: number; outcomes: number; outcomeRate: number | null }[];
-  trend: { month: string; total: number; opens: number; offices: Record<string, number>; officeOpens: Record<string, number> }[];
+  offices: { officeId: string; name: string; active: boolean; count: number; opens: number; outcomes: number }[];
+  trend: { month: string; total: number; opens: number; outcomes: number; offices: Record<string, number>; officeOpens: Record<string, number> }[];
 };
 
 

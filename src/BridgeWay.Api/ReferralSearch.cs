@@ -7,7 +7,7 @@ public static class ReferralSearch
 {
     public static QueryDefinition Build(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved)
     {
-        var text = "SELECT * FROM c WHERE c.businessId = @business AND c.type = 'referral'";
+        var text = "SELECT * FROM c WHERE c.businessId = @business AND c.type = 'referral' AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false)";
         var parameters = new Dictionary<string, object> { ["@business"] = businessId };
         if (!string.IsNullOrWhiteSpace(search))
         {
