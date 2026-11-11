@@ -10,11 +10,11 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 }
 export type PublicConfig = { officeName: string; partnerName?: string; welcomeText: string; accepting: boolean; businessName?: string; logoUrl?: string; phone?: string };
 export const statuses = ["New", "Contacted", "Scheduled", "Completed", "Quoted", "Won", "Closed"] as const;
-export type Referral = { id: string; name: string; firstName?: string; lastName?: string; email: string; phone: string; notes: string; doctorCode: string; doctorName: string; partnerId?: string; partnerName?: string; officeId?: string; cardId?: string; ownerId?: string; ownerName?: string; serviceType?: string; postalCode?: string; status: string; createdAt: string; updatedAt?: string; etag: string };
+export type Referral = { nextActionAt?: string; nextAction?: string; id: string; name: string; firstName?: string; lastName?: string; email: string; phone: string; notes: string; doctorCode: string; doctorName: string; partnerId?: string; partnerName?: string; officeId?: string; cardId?: string; ownerId?: string; ownerName?: string; serviceType?: string; postalCode?: string; status: string; createdAt: string; updatedAt?: string; etag: string };
 export type Doctor = { id: string; name: string; active: boolean; etag: string; url: string };
 export type Partner = { id: string; name: string; active: boolean; etag?: string };
 export type Business = { businessId: string; name: string; role: "Admin" | "Staff"; signupPending?: boolean };
-export type Alerts = { enabled: boolean; recipient: string; waiting: number; retrying: number };
+export type Alerts = { enabled: boolean; recipient: string; waiting: number; retrying: number; failed?: number; stalled?: number };
 export type ReferralHistory = { status: string; actor: string; changedAt: string };
 export type Report = { month: string; monthLabel: string; availableMonths: string[]; total: number; linkOpens: number; referringOffices: number; previousTotal: number; invalidDates: number;
   hasSubmissions: boolean; outcomes: number; outcomeLabel: string;
