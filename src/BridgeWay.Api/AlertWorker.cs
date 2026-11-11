@@ -28,7 +28,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
         {
             // Re-read each pass so a business configured in the admin console starts receiving alerts without a restart.
             var businesses = Array.Empty<(string Id, string Recipient)>();
-            if (settings.SmtpConfigured)
+            if (settings.AlertWorkerEnabled && settings.SmtpConfigured)
             {
                 try
                 {

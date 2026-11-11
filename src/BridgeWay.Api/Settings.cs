@@ -19,6 +19,11 @@ public sealed class Settings
     public string[] PlatformAdminObjectIds { get; set; } = [];
     public bool CustomerSignupEnabled { get; set; }
     public bool AlertsEnabled { get; set; }
+    /// <summary>
+    /// Set to false on candidate or rollback API revisions so only one revision sends alerts during a rollout.
+    /// Defaults to true so existing deployments are unchanged.
+    /// </summary>
+    public bool AlertWorkerEnabled { get; set; } = true;
     public string SmtpHost { get; set; } = "smtp.gmail.com";
     public int SmtpPort { get; set; } = 465;
     public string SmtpUsername { get; set; } = "";
