@@ -10,9 +10,9 @@ import "./uidesign.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
-  title: { default: "Dental referral tracking | BridgeWay", template: "%s | BridgeWay" },
+  title: { default: "Business referral tracking | BridgeWay", template: "%s | BridgeWay" },
   description: siteDescription,
-  openGraph: { type: "website", siteName: "BridgeWay", title: "Dental referral tracking | BridgeWay", description: siteDescription, images: [{ url: "/share.png", width: 1200, height: 630, alt: "BridgeWay referral tracking for dental specialists" }] },
+  openGraph: { type: "website", siteName: "BridgeWay", title: "Business referral tracking | BridgeWay", description: siteDescription, images: [{ url: "/share.png", width: 1200, height: 630, alt: "BridgeWay referral tracking for businesses" }] },
   twitter: { card: "summary_large_image", images: ["/share.png"] },
 };
 

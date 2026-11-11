@@ -13,8 +13,8 @@ test("a scheduled referral only becomes overdue when its action deadline is miss
 test("marketing routes expose metadata and private routes are excluded from indexing", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("scheduled visits");
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /dental specialists/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("introduction to follow-up");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /businesses/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const robots = await request.get("/robots.txt"); expect(robots.status()).toBe(200);
@@ -38,7 +38,7 @@ test("a walkthrough request needs no login and keeps its idempotency key after a
   await page.goto("/contact");
   await page.getByLabel("Your name").fill("Fictional User");
   await page.getByLabel("Work email").fill("fictional@example.invalid");
-  await page.getByLabel("Practice or business").fill("Fictional Practice");
+  await page.getByLabel("Business name").fill("Fictional Practice");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Request a walkthrough" }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText("Please retry");

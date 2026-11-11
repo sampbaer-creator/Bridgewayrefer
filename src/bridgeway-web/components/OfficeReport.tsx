@@ -15,7 +15,7 @@ export default function OfficeReport({ report, month, onMonth, availableMonths =
       <label htmlFor="report-month" className="sr-only">Reporting month</label><select id="report-month" value={month || report?.month || ""} onChange={e => onMonth(e.target.value)}>{!availableMonths.length && <option>Loading months…</option>}{availableMonths.map(m => <option key={m} value={m}>{new Date(m + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select>
       <button className="icon-button" aria-label="Next month" disabled={selectedIndex <= 0} onClick={() => onMonth(availableMonths[selectedIndex - 1])}>→</button>
     </div></div>
-    <p className="hint">Outcomes describe referrals received in the selected month that later reached completion. Link opens include NFC, QR, and shared-link visits; they are not unique patients.</p>
+    <p className="hint">Outcomes describe referrals received in the selected month that later reached completion. Link opens include NFC, QR, and shared-link visits; they are not unique people.</p>
     <div className="report-summary" aria-live="polite">
       <div className="summary-card summary-primary"><p>Submitted referrals</p><strong>{report?.total ?? "—"}</strong><small>{report ? report.hasSubmissions ? `${report.previousTotal} in the previous month` : "No submissions this month" : "Loading monthly totals"}</small></div>
       <div className="summary-card"><p>{report?.outcomeLabel || "Reached outcome"}</p><strong>{report?.outcomes ?? "—"}</strong><small>{report?.hasSubmissions ? `of ${report.total} submissions` : "No outcome data yet"}</small></div>
