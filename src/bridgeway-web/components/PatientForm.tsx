@@ -45,10 +45,11 @@ export default function PatientForm({ config, code = "" }: { config: PublicConfi
             <label htmlFor="serviceType">Request type<span>Optional</span></label><input id="serviceType" name="serviceType" maxLength={80} placeholder="What kind of help do you need?" />
             <label htmlFor="postalCode">ZIP or postal code<span>Optional</span></label><input id="postalCode" name="postalCode" autoComplete="postal-code" maxLength={20} placeholder="ZIP or postal code" />
             <label htmlFor="notes">Anything you’d like us to know?<span>Optional</span></label><textarea id="notes" name="notes" rows={3} maxLength={2000} placeholder="Questions, preferences, or a good time to call"/>
-            <p className="hint">Please leave out sensitive payment or personal information.</p><div className="trap" aria-hidden="true"><label htmlFor="website">Website</label><input id="website" name="website" tabIndex={-1} autoComplete="off"/></div>
-            <label className="check"><input type="checkbox" name="consent" required/><span>I agree that {config.businessName || config.officeName} may contact me by phone or email about this request. A parent or guardian may submit for a child.</span></label>
+            <p className="hint">Please leave out payment details, clinical records, and other sensitive information.</p><div className="trap" aria-hidden="true"><label htmlFor="website">Website</label><input id="website" name="website" tabIndex={-1} autoComplete="off"/></div>
+            <label className="check"><input type="checkbox" name="consent" required/><span>I agree that {config.businessName || config.officeName} may contact me by phone or email about this request. A parent or guardian may submit for a child. <a href="/privacy">Privacy notice</a>.</span></label>
             <button type="submit" className="primary" disabled={busy}>{busy ? "Sending your request…" : "Send my request"}<span aria-hidden="true">→</span></button><p id="form-error" role="alert">{error}</p>
           </form>}
         </section>}
     </main></>;
 }
+

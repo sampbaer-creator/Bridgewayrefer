@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import { api, ApiError } from "../lib/api";
 
-type AdminSession = { email: string; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number };
+type AdminSession = { email: string; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number; publicOrigin?: string; canonicalOriginReady?: boolean };
 type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
@@ -97,6 +97,7 @@ export default function AdminConsole() {
       <div className="workspace-actions"><label className="business-switcher-light" htmlFor="admin-workspace">Workspace<select id="admin-workspace" value={selected} onChange={event => setSelected(event.target.value)}><option value="">Choose a workspace…</option>{businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}</option>)}</select></label><a className="text-link" href="/staff">Open staff dashboard →</a></div></div>
     <nav className="section-nav admin-tabs" aria-label="Admin sections">{([["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"], ["leads", "Demo requests"]] as const).map(([key, label]) => <button type="button" key={key} aria-current={tab === key ? "page" : undefined} aria-controls={`admin-${key}`} onClick={() => setTab(key)}>{label}</button>)}</nav>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
+    {session?.canonicalOriginReady === false && <p className="notice">Public URLs currently use {session.publicOrigin}. Coordinate the API PublicOrigin and Microsoft callback registration for https://bridgewayrefer.com before customer onboarding.</p>}
     {session && (!session.acceptingGlobally || !session.smtpConfigured || !session.stripeConfigured) && <p className="notice">{!session.acceptingGlobally && "Global intake is off (Bridgewayrefer__AcceptReferrals). "}{!session.smtpConfigured && "Email alerts are not configured (SMTP). "}{!session.stripeConfigured && "Stripe billing is not configured."}</p>}
 
     {totals && <div className="report-summary"><div className="summary-card summary-primary"><p>Businesses</p><strong>{totals.businesses}</strong><small>{businesses.filter(x => liveState(x, session) === "Live").length} live</small></div><div className="summary-card"><p>Card taps</p><strong>{totals.taps}</strong><small>{totals.cards} cards issued</small></div><div className="summary-card"><p>Referrals submitted</p><strong>{totals.referrals}</strong><small>{totals.taps ? Math.round(totals.referrals / totals.taps * 100) : 0}% of taps</small></div></div>}
@@ -150,3 +151,4 @@ export default function AdminConsole() {
     </div>
   </main>;
 }
+

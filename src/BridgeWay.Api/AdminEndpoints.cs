@@ -58,6 +58,7 @@ public static class AdminEndpoints
             ok = true, email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "",
             acceptingGlobally = settings.AcceptReferrals, smtpConfigured = settings.SmtpConfigured,
             stripeConfigured = settings.StripeConfigured, monthlyPriceUsd = settings.MonthlyPriceUsd,
+            publicOrigin = settings.PublicOrigin, canonicalOriginReady = new Uri(settings.PublicOrigin).Host == "bridgewayrefer.com",
         }));
 
         admin.MapGet("/businesses", async (CosmosStore store, CancellationToken ct) =>
@@ -205,3 +206,4 @@ public static class AdminEndpoints
         });
     }
 }
+

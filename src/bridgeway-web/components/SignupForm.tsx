@@ -49,7 +49,7 @@ export default function SignupForm() {
       {state && !state.enabled && <p>Online subscriptions are currently unavailable.</p>}
       {state?.enabled && !state.signedIn && <>
         <p>Sign in with the account you’ll use to manage your business.</p>
-        <a className="access-action" href="/staff/login?flow=signup">Continue with Microsoft (Entra)</a>
+        <a className="access-action" href="/staff/login?flow=signup">Continue with Microsoft</a>
       </>}
       {state?.enabled && state.signedIn && <form onSubmit={startCheckout}>
         <label>Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
@@ -60,3 +60,4 @@ export default function SignupForm() {
     </section>
   );
 }
+

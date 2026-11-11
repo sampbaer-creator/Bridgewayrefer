@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
 import Header from "../components/Header";
 import "./globals.css";
@@ -6,8 +8,15 @@ import "./launch-extra.css";
 import "./access.css";
 import "./uidesign.css";
 
-export const metadata = { title: "Bridgewayrefer · Referral follow-up" };
+export const metadata: Metadata = {
+  metadataBase: new URL(siteOrigin),
+  title: { default: "Dental referral tracking | BridgeWay", template: "%s | BridgeWay" },
+  description: siteDescription,
+  openGraph: { type: "website", siteName: "BridgeWay", title: "Dental referral tracking | BridgeWay", description: siteDescription, images: [{ url: "/share.png", width: 1200, height: 630, alt: "BridgeWay referral tracking for dental specialists" }] },
+  twitter: { card: "summary_large_image", images: ["/share.png"] },
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body><a className="skip-link" href="#main-content">Skip to content</a><Header />{children}<footer className="site-footer"><span>Bridgewayrefer · Private referrals, clearer follow-up.</span></footer></body></html>;
+  return <html lang="en"><body><a className="skip-link" href="#main-content">Skip to content</a><Header />{children}<footer className="site-footer"><span>BridgeWay · Referrals, followed through.</span><nav aria-label="Footer"><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/security">Security</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav></footer></body></html>;
 }
+

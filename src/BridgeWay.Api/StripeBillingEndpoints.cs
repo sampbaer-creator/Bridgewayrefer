@@ -90,7 +90,7 @@ public static class StripeBillingEndpoints
                 business["stripeCustomerId"] = customerId; business["stripeSubscriptionId"] = subscriptionId;
                 var status = subscription.Value<string>("status") ?? "unknown";
                 business["billingStatus"] = status;
-                if (business.Value<bool?>("customerSignup") == true && status == "active")
+                if (business.Value<bool?>("customerSignup") == true && (status is "active" or "trialing"))
                     business["signupCompleted"] = true;
                 business["billingCancelAtPeriodEnd"] = subscription.Value<bool?>("cancel_at_period_end") ?? false;
                 var periodEnd = RenewalAt(subscription);
@@ -117,3 +117,4 @@ public static class StripeBillingEndpoints
         });
     }
 }
+

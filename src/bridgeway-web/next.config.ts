@@ -7,12 +7,14 @@ const config: NextConfig = {
   },
   async headers() {
     return [{ source: "/:path*", headers: [
+      { key: "Strict-Transport-Security", value: "max-age=31536000" },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Referrer-Policy", value: "same-origin" },
       { key: "Cache-Control", value: "no-store" },
       { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com https://*.ciamlogin.com; object-src 'none'" },
-    ] }];
+    ] }, { source: "/(staff|admin|r|signup|sign-in)/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }];
   },
 };
 export default config;
+
