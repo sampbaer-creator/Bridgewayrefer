@@ -29,3 +29,21 @@ button,.access-action{background:#87ceeb;color:#10243c;border-color:#87ceeb;bord
 
 .signup-plans{border:0;padding:0;margin:8px 0 20px}.signup-plans legend{font-size:12px;font-weight:700;margin-bottom:8px}.signup-plan{display:flex;align-items:flex-start;gap:10px;border:1px solid #bfbfbf;border-radius:7px;padding:12px;margin:8px 0;cursor:pointer}.signup-plan.selected{border-color:#10243c;background:#f6fbfe}.signup-plan input[type=radio]{width:16px;min-width:16px;height:16px;margin:2px 0;accent-color:#10243c}.signup-plan span{float:none;color:#262626}.signup-plan b,.signup-plan small{display:block}.signup-plan small{font-size:11px;line-height:1.5;color:#737373;margin-top:4px}.signup-plan:has(input:disabled){opacity:.65;cursor:not-allowed}
 .signup-plans{border:0;padding:0;margin:8px 0 20px}.signup-plans legend{font-size:12px;font-weight:700;margin-bottom:8px}.signup-plan{display:flex;align-items:flex-start;gap:10px;border:1px solid #bfbfbf;border-radius:7px;padding:12px;margin:8px 0;cursor:pointer}.signup-plan.selected{border-color:#10243c;background:#f6fbfe}.signup-plan input[type=radio]{width:16px;min-width:16px;height:16px;margin:2px 0;accent-color:#10243c}.signup-plan span{float:none;color:#262626}.signup-plan b,.signup-plan small{display:block}.signup-plan small{font-size:11px;line-height:1.5;color:#737373;margin-top:4px}.signup-plan:has(input:disabled){opacity:.65;cursor:not-allowed}
+
+/* Product landing page */
+body:has(.bridgeway-product) .site-header{background:#fff;border-bottom:1px solid #e5e7eb}
+body:has(.bridgeway-product) .header-inner.launch-header{min-height:68px}
+body:has(.bridgeway-product) .site-footer{background:#f5f5f7}
+.bridgeway-product .home-hero{align-items:center;gap:clamp(24px,5vw,72px)}
+.bridgeway-product .home-copy h1{font-size:clamp(2.65rem,5.4vw,4.6rem);letter-spacing:-.055em;line-height:1.02;color:#10243c}
+.bridgeway-product .access-action{background:#10243c;color:#fff;border-color:#10243c;border-radius:999px}
+.bridgeway-product .access-action:hover{background:#234969;color:#fff;border-color:#234969}
+.bridgeway-product .home-secondary{border-radius:999px}
+.bridgeway-product .tap-preview{position:relative;isolation:isolate;margin:0;min-width:0;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:12px;padding:clamp(20px,4vw,48px);border-radius:28px;background:#edf2f6;color:#10243c}
+.tap-card,.tap-phone{display:flex;flex-direction:column;gap:10px;min-width:0;box-shadow:0 14px 28px rgb(16 36 60 / 15%)}
+.tap-card{aspect-ratio:1.58;justify-content:space-between;padding:clamp(10px,2vw,20px);border-radius:12px;background:#10243c;color:#fff;transform:rotate(-8deg)}
+.tap-card span,.tap-phone span,.tap-phone small,.tap-phone b{font-size:.75rem}
+.tap-phone{padding:clamp(10px,2vw,20px);border:4px solid #10243c;border-radius:20px;background:#fff}
+.tap-phone span{padding:6px;border:1px solid #dce1e6;border-radius:6px}
+.tap-phone b{padding:6px;background:#10243c;color:white;border-radius:6px}
+.tap-preview figcaption{grid-column:1/-1;margin-top:8px;font-size:.875rem}
