@@ -25,16 +25,46 @@ public sealed class Settings
     public string SmtpPassword { get; set; } = "";
     public string StripeSecretKey { get; set; } = "";
     public string StripePriceId { get; set; } = "";
+    /// <summary>Optional second recurring Stripe Price for the $400/month Managed Calling plan.</summary>
+    public string ManagedCallingStripePriceId { get; set; } = "";
     public string StripeWebhookSecret { get; set; } = "";
     public string StripeContext { get; set; } = "";
     public string StripeApiVersion { get; set; } = "";
     public int MonthlyPriceUsd { get; set; } = 50;
     public bool StripeConfigured => StripeSecretKey.Length > 0 && StripePriceId.StartsWith("price_", StringComparison.Ordinal) && StripeWebhookSecret.StartsWith("whsec_", StringComparison.Ordinal);
+    public bool ManagedCallingConfigured => ManagedCallingStripePriceId.StartsWith("price_", StringComparison.Ordinal);
+    public string StripePriceFor(string plan) => plan switch
+    {
+        BillingPlans.Workspace => StripePriceId,
+        BillingPlans.ManagedCalling when ManagedCallingConfigured => ManagedCallingStripePriceId,
+        BillingPlans.ManagedCalling => throw new ApiError(503, "Managed Calling checkout is not configured yet. Contact Bridgewayrefer."),
+        _ => throw new ApiError(400, "Choose a valid monthly plan."),
+    };
+    public int MonthlyPriceFor(string plan) => plan switch
+    {
+        BillingPlans.Workspace => MonthlyPriceUsd,
+        BillingPlans.ManagedCalling => BillingPlans.ManagedCallingMonthlyPriceUsd,
+        _ => throw new ApiError(400, "Choose a valid monthly plan."),
+    };
+    public string? PlanForPrice(string? priceId) =>
+        priceId == StripePriceId ? BillingPlans.Workspace :
+        ManagedCallingConfigured && priceId == ManagedCallingStripePriceId ? BillingPlans.ManagedCalling : null;
     public bool IdentityConfigured => TenantId.Length > 0 && ClientId.Length > 0 && ClientSecret.Length > 0;
     public bool SmtpConfigured => AlertsEnabled && SmtpUsername.Length > 0 && SmtpPassword.Length > 0;
     public bool IsPlatformAdmin(string? tenantId, string? oid) =>
         !string.IsNullOrWhiteSpace(oid) && string.Equals(tenantId, TenantId, StringComparison.OrdinalIgnoreCase) &&
         PlatformAdminObjectIds.Contains(oid, StringComparer.OrdinalIgnoreCase);
+}
+
+public static class BillingPlans
+{
+    public const string Workspace = "workspace";
+    public const string ManagedCalling = "managed-calling";
+    public const int ManagedCallingMonthlyPriceUsd = 400;
+    public static bool MatchesCheckout(string? savedPlan, string requestedPlan) => Normalize(savedPlan) == Normalize(requestedPlan);
+    public static string Normalize(string? plan) => string.IsNullOrWhiteSpace(plan) || plan == Workspace ? Workspace
+        : plan == ManagedCalling ? ManagedCalling
+        : throw new ApiError(400, "Choose a valid monthly plan.");
 }
 
 public sealed class ApiError(int status, string message) : Exception(message)
