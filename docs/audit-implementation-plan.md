@@ -199,3 +199,46 @@ Design updates to a verified referring office separately from public intake link
 Commands: `dotnet test tests/BridgeWay.Api.Tests --configuration Release`; `dotnet publish src/BridgeWay.Api --configuration Release`; `npm ci`, `npm run build`, and `npx playwright test` from `src/bridgeway-web`.
 
 The live Cosmos test is deliberately opt-in and must target disposable test partitions. Local browser execution may be blocked by environment restrictions; in that case record the exact launch failure and rely on a successful GitHub Actions browser job before claiming browser coverage. Never report a mocked frontend test as proof that Azure, Stripe, or SMTP worked.
+
+## Execution status matrix, follow-up to PR 14
+
+Inspected PR 14 at bc88dfc066467da56d373cce938ef664e4d32c7a and main at a6a0c2539c0cdf83b2b760471a64b94c227008a7. PR 14 is open. Its GitHub run 42938870607 passed API tests/publish and web build/browser checks. This evidence covers the PR source and mocked browser scenarios.
+
+| Workstream | Code status | Local evidence | Staging / production evidence | Required next evidence or decision |
+| --- | --- | --- | --- | --- |
+| 1 Canonical origin | Origin protection exists. Follow-up fixes bundled defaults overriding legacy deployment values. | Configuration regression test added. | Azure API legacy origin still uses generated Azure hostname. Canonical session flow unverified. | Coordinate certificate, callback registration and origin with rollback. |
+| 2 External identity | Tenant and membership checks present. | Existing authorization suite. | External office identity unverified. | Owner chooses workforce B2B provisioning or External ID and provides an authorized external test user. |
+| 3 First link | Checklist implemented. | PR browser coverage. | Physical card and fulfillment unverified. | Tenant-scoped request/fulfillment workflow remains. Approved card costs, handoff, shipping and replacement details needed. |
+| 4 Search | Parameterized filtering and continuation pages implemented. | PR browser search/pagination coverage. | Isolated Cosmos dataset over 500 rows unverified. | Explicit disposable database required before live-writing integration validation. |
+| 5 Follow-up | Deadlines, UTC normalization, ETags and terminal clearing implemented. | PR deadline tests. | Persisted production edits unverified. | Contact attempts, appointment timing, My work/Today views remain. Business timezone decision required. |
+| 6 Alerts | Failed/stalled visibility, retries and deterministic missing-alert recovery implemented. | PR API/browser coverage. | SMTP acceptance and inbox receipt unverified. | Authorized test recipient/provider and operator monitoring required. |
+| 7 Billing | Trialing reconciliation implemented. | Existing webhook tests. | Stripe test-hosted lifecycle unverified. | Trial offer policy required. Managed Calling price/product and inclusion decision remain pending. |
+| 8 Intake | Existing consent and submission-id idempotency retained. | Existing validation tests. | Real mobile handoff unverified. | Guardian/contact model and possible-duplicate review remain. Contact requirement decision needed. |
+| 9 Workflow | Shared business model retained. | Existing status validation. | Pilot workflow suitability unverified. | Earlier product requirement prohibits industry assignment. Use explicit shared workflow customization only after owner resolves the ledger's businessType proposal. |
+| 10 Reports | Cohort/open-event labels and throttled refresh implemented. | PR report/race tests. | RU/latency and per-business timezone unverified. | Timezones, event-month metrics and measured query costs remain. |
+| 11 Trust/SEO | Public contact, factual policies, metadata, icons, sitemap and noindex implemented. | PR browser metadata tests. | Candidate has not been deployed. | Approved operator/legal/card facts and Search Console ownership needed. |
+| 12 Partner feedback | Demand validation pending. | No implementation claimed. | No production evidence. | Verified recipient design and pilot demand required before notifications. |
+| 13 Release/pilot | Readiness script exists. | CI candidate verified at PR SHA. | Azure serving older revisions. | Matching candidate images, rollback snapshot, external identity and controlled pilot required. |
+
+### Observed Azure release state
+
+Read-only inspection found web ready revision bridgeway-web--admin-tabs-1110 with image bridgeway-web:admin-tabs-20261110 and custom-domain binding bridgewayrefer.com. API ready revision is bridgeway-api--0000006 while its latest template image is bridgeway-api:main-a6a0c253. A template image alone does not establish traffic or readiness.
+
+Before rollout, export the non-secret revision traffic weights and effective origin, inspect the candidate health, and record callback registrations. Rollback must restore the recorded traffic weights and matching public origin/callback together. Activation alone does not move traffic in multiple-revision mode.
+
+The live Cosmos test defaults to bridgeway-dev, which is also documented as the deployed database. Leave it opt-out until a distinct disposable integration database has been explicitly selected. No fictional records or notifications were created during this follow-up.
+
+### Follow-up validation and rollback
+
+The follow-up configuration regression suite passed 37 tests with 1 opt-in live Cosmos test skipped. The bundled defaults test loads the shipped JSON and proves a legacy HTTPS origin and enabled alerts/intake survive, and an explicitly configured new prefix takes precedence. No earlier NU1903 high-severity XML warning appeared. NU1510 for the intentional package pin and CS9113 for an existing unused constructor parameter remain.
+
+Observed ingress has 100 percent API traffic on bridgeway-api--0000006. Web traffic is 100 percent latestRevision, and the ready web revision is bridgeway-web--admin-tabs-1110. bridgewayrefer.com has an SNI managed-certificate binding. Certificate presence does not prove a successful external session.
+
+If a candidate rollout fails, first route traffic to the recorded healthy revisions:
+
+    az containerapp ingress traffic set -g BridgeWay -n bridgeway-api --revision-weight bridgeway-api--0000006=100
+    az containerapp ingress traffic set -g BridgeWay -n bridgeway-web --revision-weight bridgeway-web--admin-tabs-1110=100
+
+Restore the matching recorded PublicOrigin and callback registration if those were changed. Check revision health, public requests and login callback before declaring rollback verified. The existing generated-host PublicOrigin remains the recorded baseline. Its value is public configuration, not a credential.
+
+Owner inputs still required are an external test identity/provisioning choice, a distinct disposable integration database, an authorized SMTP test recipient, card fulfillment facts, trial/commercial policy, operator/legal facts, and the Managed Calling recurring Stripe price plus confirmation whether 400 dollars includes the workspace.
