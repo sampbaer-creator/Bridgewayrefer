@@ -13,14 +13,20 @@ test("a scheduled referral only becomes overdue when its action deadline is miss
 test("marketing routes expose metadata and private routes are excluded from indexing", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("scheduled visits");
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /dental specialists/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("partner referrals");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /NFC cards and QR links/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const robots = await request.get("/robots.txt"); expect(robots.status()).toBe(200);
   expect(await robots.text()).toContain("sitemap.xml");
   const sitemap = await request.get("/sitemap.xml");
-  expect(await sitemap.text()).toContain("/pricing"); expect(await sitemap.text()).not.toContain("/staff");
+  expect(await sitemap.text()).toContain("/pricing"); expect(await sitemap.text()).toContain("/industries/dental"); expect(await sitemap.text()).toContain("/industries/trades"); expect(await sitemap.text()).not.toContain("/staff");
+  await page.goto("/industries/dental");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("referring office");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/dental");
+  await page.goto("/industries/trades");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("next job");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/trades");
   await page.goto("/staff");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
   await page.goto("/does-not-exist");

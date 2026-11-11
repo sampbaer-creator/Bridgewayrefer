@@ -1,10 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-test("the homepage has two customer actions", async ({ page }) => {
+test("the homepage has customer paths for both industries, pricing, and walkthroughs", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/staff/login");
-  await expect(page.getByRole("navigation").getByRole("link", { name: "Sign up", exact: true })).toHaveAttribute("href", "/signup");
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Dental", exact: true })).toHaveAttribute("href", "/industries/dental");
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Trades", exact: true })).toHaveAttribute("href", "/industries/trades");
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "/pricing");
+  await expect(page.getByRole("main").getByRole("link", { name: "Request a walkthrough" }).first()).toHaveAttribute("href", "/contact");
   await expect(page.getByText("Book a demo", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Managed Calling", exact: true })).toBeVisible();
   await expect(page.getByText("$400", { exact: true })).toBeVisible();
