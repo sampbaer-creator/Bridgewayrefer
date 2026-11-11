@@ -7,7 +7,7 @@ import { isOverdue as overdueReferral } from "../lib/follow-up";
 import OfficeReport from "./OfficeReport";
 
 type Office = { id: string; name: string; active: boolean; etag: string };
-type CardLink = { id: string; partnerId: string; partnerName: string; officeName: string; active: boolean; etag: string; url: string };
+type CardLink = { id: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; etag: string; url: string };
 type Member = { id: string; name: string; email: string; role: string; etag: string };
 type BusinessProfile = { name: string; officeName: string; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; accepting: boolean; suspended: boolean; alertEmail: string; billingStatus: string; monthlyPriceUsd: number; etag: string };
 type Billing = { plan?: string; amountUsd: number; interval: string; status: string; billingExempt: boolean; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; managedCallingConfigured?: boolean; testMode: boolean; customerLinked: boolean };
@@ -27,7 +27,7 @@ export default function StaffDashboard() {
     const subscriptionReady = !!billing && (billing.billingExempt || ["active", "trialing", "past_due"].includes(billing.status));
     const locationReady = offices.some(office => office.active);
     const partnerReady = partners.some(partner => partner.active);
-    const cardReady = cards.some(card => card.active && !!card.url);
+    const cardReady = cards.some(card => card.active && !!card.url && partners.some(partner => partner.active && partner.id === card.partnerId) && offices.some(office => office.active && office.id === card.officeId));
     // The API does not yet provide an isolated, report-excluded test referral path.
     const testReferralReady = false;
     const intakeReady = !!profile?.accepting;
