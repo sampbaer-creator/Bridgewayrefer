@@ -242,3 +242,9 @@ If a candidate rollout fails, first route traffic to the recorded healthy revisi
 Restore the matching recorded PublicOrigin and callback registration if those were changed. Check revision health, public requests and login callback before declaring rollback verified. The existing generated-host PublicOrigin remains the recorded baseline. Its value is public configuration, not a credential.
 
 Owner inputs still required are an external test identity/provisioning choice, a distinct disposable integration database, an authorized SMTP test recipient, card fulfillment facts, trial/commercial policy, operator/legal facts, and the Managed Calling recurring Stripe price plus confirmation whether 400 dollars includes the workspace.
+
+### Concurrent source reconciliation
+
+During this execution main advanced to 8cd610e6aece0b1305309434d8c72c85f8d13a68 through PR 15. PR 14 advanced to bf13b77e9f822b400692aee699dec890f82a6a7c to preserve that Managed Calling work. The follow-up branch merged bf13b77 successfully, retaining both implementations and the configuration regression fix. Earlier matrix baseline entries describe the initial inspection time.
+
+Local npm ci produced no completion output, including an offline retry, and both attempts were stopped. A fresh local web build is therefore unresolved. PR 14's earlier successful GitHub browser/build job remains historical evidence at bc88dfc, not evidence for the newly merged source. Full CI is required on the reconciled revision.
