@@ -64,7 +64,7 @@ public static class Endpoints
             store.UseBusiness(CosmosStore.PlatformPartition); var id = "demo-request-" + submissionId;
             if (await store.Read(id, ct) is not null) return Results.Accepted(value: new { ok = true });
             if (!await store.Allow("demo-request-" + Address(ctx), 5, ct)) throw new ApiError(429, "Please wait before trying again.");
-            var doc = store.Document("demo-request", id); doc["name"] = name; doc["email"] = email.ToLowerInvariant(); doc["businessName"] = businessName; doc["consentVersion"] = "demo-contact-v1"; doc["consentAt"] = doc["createdAt"]!.DeepClone(); doc["ttl"] = 7776000;
+            var doc = store.Document("demo-request", id); doc["name"] = name; doc["email"] = email.ToLowerInvariant(); doc["businessName"] = businessName; doc["interest"] = data.Interest == "managed-calling" ? "managed-calling" : "demo"; doc["consentVersion"] = "demo-contact-v1"; doc["consentAt"] = doc["createdAt"]!.DeepClone(); doc["ttl"] = 7776000;
             try { await store.Create(doc, ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
             return Results.Accepted(value: new { ok = true });
         });
@@ -347,6 +347,17 @@ public static class Endpoints
             var doc = await store.Read(id, ct);
             if (doc?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
             if (!Submission.Statuses.Contains(data.Status)) throw new ApiError(400, "Choose a valid referral status.");
+            if (data.NextActionAt is not null)
+            {
+                var description = data.NextAction?.Trim() ?? "";
+                var due = FollowUpRules.ValidateDueAt(data.NextActionAt);
+                if (description.Length > 240 || (due is not null && description.Length == 0))
+                    throw new ApiError(400, "Please check the follow-up details.");
+                if (due is not null && FollowUpRules.Terminal(data.Status))
+                    throw new ApiError(400, "Reopen the referral before scheduling follow-up.");
+                doc["nextAction"] = description;
+                doc["nextActionAt"] = due;
+            }
             doc["status"] = data.Status; if (FollowUpRules.Terminal(data.Status)) doc["nextActionAt"] = null; doc["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
             var history = store.Document("status-history", "history-" + Guid.NewGuid()); history["referralId"] = id; history["status"] = data.Status; history["actor"] = Actor(ctx); history["changedAt"] = doc["updatedAt"]!.DeepClone(); history["partnerId"] = doc["partnerId"]?.DeepClone() ?? doc["doctorCode"]?.DeepClone();
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(id, doc, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "status:" + data.Status, id)).CreateItem(history).ExecuteAsync(ct);
@@ -494,4 +505,5 @@ public static class Endpoints
         });
     }
 }
+
 

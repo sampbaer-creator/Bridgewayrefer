@@ -14,7 +14,7 @@ public sealed record Submission(string FirstName = "", string LastName = "", str
     }
 }
 public sealed record LinkOpen(string Code, string EventId);
-public sealed record StatusUpdate(string Status, string Etag);
+public sealed record StatusUpdate(string Status, string Etag, string? NextActionAt = null, string? NextAction = null);
 public sealed record CardUpdate(bool Active, string Etag);
 public sealed record CustomerSignup(string Name, string? OfficeName = null, string? AlertEmail = null);
 public sealed record BusinessCreate(string Name, string AdminEmail, string? AlertEmail = null, bool BillingExempt = false);
@@ -24,10 +24,11 @@ public sealed record InvitationCreate(string Email, string Role);
 public sealed record MemberStatusUpdate(bool Active, string Etag);
 public sealed record InvitationCancel(string Etag);
 public sealed record AssignmentUpdate(string? OwnerId, string? OwnerName, string Etag);
-public sealed record DemoRequest(string Name, string Email, string BusinessName, string SubmissionId, bool Consent);
+public sealed record DemoRequest(string Name, string Email, string BusinessName, string SubmissionId, bool Consent, string? Interest = null);
 public sealed record BusinessProfileUpdate(string Name, string WelcomeText, string Phone, bool AcceptReferrals, string LogoUrl, string Etag, string? AlertEmail = null);
 public sealed record AdminBusinessUpdate(string Etag, bool? Suspended = null, bool? BillingExempt = null, string? AlertEmail = null);
 public sealed record OfficeCreate(string Name);
 
 
 public sealed record FollowUpUpdate(string? NextAction, string? NextActionAt, string Etag);
+

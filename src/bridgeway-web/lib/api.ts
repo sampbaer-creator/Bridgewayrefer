@@ -22,3 +22,4 @@ export type Report = { month: string; monthLabel: string; availableMonths: strin
   trend: { month: string; total: number; opens: number; offices: Record<string, number>; officeOpens: Record<string, number> }[];
 };
 
+
