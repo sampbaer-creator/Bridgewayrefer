@@ -102,7 +102,9 @@ az containerapp update -n "$WEB_APP" -g "$RESOURCE_GROUP" \
   --set-env-vars "BRIDGEWAY_API_ORIGIN=https://$API_CAND_ORIGIN" -o none
 wait_healthy "$WEB_APP" "$WEB_CAND"
 az containerapp revision label add -n "$WEB_APP" -g "$RESOURCE_GROUP" --revision "$WEB_CAND" --label "$CAND_LABEL" -o none --yes
-WEB_CAND_HOST="${CAND_LABEL}---$(az containerapp show -n "$WEB_APP" -g "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)"
+WEB_APP_FQDN="$(az containerapp show -n "$WEB_APP" -g "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)"
+WEB_ENV_DOMAIN="${WEB_APP_FQDN#*.}"
+WEB_CAND_HOST="${WEB_APP}---${CAND_LABEL}.${WEB_ENV_DOMAIN}"
 
 # 3. Smoke the candidate pair through the labelled web URL, before any public traffic moves.
 log "Smoke testing candidate pair at https://$WEB_CAND_HOST"
