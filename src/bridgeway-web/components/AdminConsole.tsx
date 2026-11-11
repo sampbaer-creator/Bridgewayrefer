@@ -8,7 +8,7 @@ type BusinessSummary = { businessId: string; name: string; createdAt: string; su
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; active: boolean }[]; members: { email: string; role: string }[]; invitations: { email: string; role: string; expiresAt: string }[] };
-type DemoRequest = { name: string; email: string; businessName: string; createdAt: string };
+type DemoRequest = { interest?: string; name: string; email: string; businessName: string; createdAt: string };
 
 const paid = ["active", "trialing", "past_due"];
 function liveState(b: BusinessSummary, session: AdminSession | null) {
@@ -146,7 +146,7 @@ export default function AdminConsole() {
           <button className="primary span-two" disabled={busy === "business"}>Create business</button>
         </form>
       </section>
-      <section className="card" id="admin-leads" hidden={tab !== "leads"}><p className="eyebrow">LEADS</p><h2>Demo requests</h2><div className="partner-card-list">{requests.map(r => <div className="card-row" key={r.email + r.createdAt}><div><strong>{r.businessName}</strong><small>{r.name} · <a href={"mailto:" + r.email}>{r.email}</a> · {new Date(r.createdAt).toLocaleDateString()}</small></div></div>)}{!requests.length && <p className="empty">No demo requests yet.</p>}</div></section>
+      <section className="card" id="admin-leads" hidden={tab !== "leads"}><p className="eyebrow">LEADS</p><h2>Demo requests</h2><div className="partner-card-list">{requests.map(r => <div className="card-row" key={r.email + r.createdAt}><div><strong>{r.businessName}{r.interest === "managed-calling" ? " · Managed Calling" : ""}</strong><small>{r.name} · <a href={"mailto:" + r.email}>{r.email}</a> · {new Date(r.createdAt).toLocaleDateString()}</small></div></div>)}{!requests.length && <p className="empty">No demo requests yet.</p>}</div></section>
     </div>
   </main>;
 }

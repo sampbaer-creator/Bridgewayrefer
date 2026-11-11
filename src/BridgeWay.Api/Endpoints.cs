@@ -42,7 +42,7 @@ public static class Endpoints
         }
         CosmosStore.Check(batch); return null;
     }
-    static object PatientView(JObject row) => new { id = row.Value<string>("id"), name = row.Value<string>("name"), firstName = row.Value<string>("firstName"), lastName = row.Value<string>("lastName"), email = row.Value<string>("email"), phone = row.Value<string>("phone"), notes = row.Value<string>("notes"), businessId = row.Value<string>("businessId"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), doctorCode = row.Value<string>("doctorCode"), doctorName = row.Value<string>("doctorName"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName") ?? row.Value<string>("doctorName"), ownerId = row.Value<string>("ownerId"), ownerName = row.Value<string>("ownerName"), serviceType = row.Value<string>("serviceType"), postalCode = row.Value<string>("postalCode"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), updatedAt = row.Value<string>("updatedAt"), etag = row.Value<string>("_etag") };
+    static object PatientView(JObject row) => new { id = row.Value<string>("id"), name = row.Value<string>("name"), firstName = row.Value<string>("firstName"), lastName = row.Value<string>("lastName"), email = row.Value<string>("email"), phone = row.Value<string>("phone"), notes = row.Value<string>("notes"), businessId = row.Value<string>("businessId"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), doctorCode = row.Value<string>("doctorCode"), doctorName = row.Value<string>("doctorName"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName") ?? row.Value<string>("doctorName"), ownerId = row.Value<string>("ownerId"), ownerName = row.Value<string>("ownerName"), serviceType = row.Value<string>("serviceType"), postalCode = row.Value<string>("postalCode"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), updatedAt = row.Value<string>("updatedAt"), nextActionAt = row.Value<string>("nextActionAt"), nextAction = row.Value<string>("nextAction"), etag = row.Value<string>("_etag") };
     static (string Tenant, string ObjectId) RequireIdentity(HttpContext ctx, Settings settings)
     {
         if (ctx.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
@@ -64,7 +64,7 @@ public static class Endpoints
             store.UseBusiness(CosmosStore.PlatformPartition); var id = "demo-request-" + submissionId;
             if (await store.Read(id, ct) is not null) return Results.Accepted(value: new { ok = true });
             if (!await store.Allow("demo-request-" + Address(ctx), 5, ct)) throw new ApiError(429, "Please wait before trying again.");
-            var doc = store.Document("demo-request", id); doc["name"] = name; doc["email"] = email.ToLowerInvariant(); doc["businessName"] = businessName; doc["consentVersion"] = "demo-contact-v1"; doc["consentAt"] = doc["createdAt"]!.DeepClone(); doc["ttl"] = 7776000;
+            var doc = store.Document("demo-request", id); doc["name"] = name; doc["email"] = email.ToLowerInvariant(); doc["businessName"] = businessName; doc["interest"] = data.Interest == "managed-calling" ? "managed-calling" : "demo"; doc["consentVersion"] = "demo-contact-v1"; doc["consentAt"] = doc["createdAt"]!.DeepClone(); doc["ttl"] = 7776000;
             try { await store.Create(doc, ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
             return Results.Accepted(value: new { ok = true });
         });
@@ -327,6 +327,18 @@ public static class Endpoints
             var doc = await store.Read(id, ct);
             if (doc?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
             if (!Submission.Statuses.Contains(data.Status)) throw new ApiError(400, "Choose a valid referral status.");
+            if (data.NextActionAt is not null)
+            {
+                var description = data.NextAction?.Trim() ?? "";
+                if (description.Length > 200) throw new ApiError(400, "Use 200 characters or fewer for the next action.");
+                if (data.NextActionAt.Length == 0) doc.Remove("nextActionAt");
+                else
+                {
+                    if (!DateTimeOffset.TryParse(data.NextActionAt, out var due)) throw new ApiError(400, "Enter a valid follow-up date.");
+                    doc["nextActionAt"] = due.ToUniversalTime().ToString("O");
+                }
+                doc["nextAction"] = description;
+            }
             doc["status"] = data.Status; doc["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
             var history = store.Document("status-history", "history-" + Guid.NewGuid()); history["referralId"] = id; history["status"] = data.Status; history["actor"] = Actor(ctx); history["changedAt"] = doc["updatedAt"]!.DeepClone(); history["partnerId"] = doc["partnerId"]?.DeepClone() ?? doc["doctorCode"]?.DeepClone();
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(id, doc, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "status:" + data.Status, id)).CreateItem(history).ExecuteAsync(ct);
