@@ -10,10 +10,12 @@
 set -euo pipefail
 
 : "${SHA:?}" "${ACR_LOGIN_SERVER:?}" "${ACR_NAME:?}" "${RESOURCE_GROUP:?}" "${API_APP:?}" "${WEB_APP:?}" "${PUBLIC_ORIGIN:?}"
-SHORT="${SHA:0:12}"
+SHORT="${SHA:0:8}"
+REV_SUFFIX="s${SHORT}a${GITHUB_RUN_ATTEMPT:-1}"
 CAND_LABEL="candidate"
-API_CAND="${API_APP}-s${SHORT}"
-WEB_CAND="${WEB_APP}-s${SHORT}"
+# Azure Container Apps revision names separate the app name and suffix with "--".
+API_CAND="${API_APP}--${REV_SUFFIX}"
+WEB_CAND="${WEB_APP}--${REV_SUFFIX}"
 WORK="$(mktemp -d)"
 PREV_API="$WORK/prev-api.tsv"
 PREV_WEB="$WORK/prev-web.tsv"
@@ -86,7 +88,7 @@ log "Previous web traffic: $(tr '\n' ' ' < "$PREV_WEB")"
 #    brief rollout window is covered by the Cosmos etag claim in AlertWorker.
 log "Staging API candidate $API_CAND"
 az containerapp update -n "$API_APP" -g "$RESOURCE_GROUP" \
-  --image "$ACR_LOGIN_SERVER/bridgeway-api:$SHA" --revision-suffix "s$SHORT" \
+  --image "$ACR_LOGIN_SERVER/bridgeway-api:$SHA" --revision-suffix "$REV_SUFFIX" \
   --min-replicas 1 --max-replicas 1 -o none
 wait_healthy "$API_APP" "$API_CAND"
 az containerapp revision label add -n "$API_APP" -g "$RESOURCE_GROUP" --revision "$API_CAND" --label "$CAND_LABEL" -o none --yes
@@ -96,7 +98,7 @@ log "Candidate API origin: $API_CAND_ORIGIN"
 # 2. Web candidate: points at the candidate API, so the pair is tested together.
 log "Staging web candidate $WEB_CAND against the candidate API"
 az containerapp update -n "$WEB_APP" -g "$RESOURCE_GROUP" \
-  --image "$ACR_LOGIN_SERVER/bridgeway-web:$SHA" --revision-suffix "s$SHORT" \
+  --image "$ACR_LOGIN_SERVER/bridgeway-web:$SHA" --revision-suffix "$REV_SUFFIX" \
   --set-env-vars "BRIDGEWAY_API_ORIGIN=https://$API_CAND_ORIGIN" -o none
 wait_healthy "$WEB_APP" "$WEB_CAND"
 az containerapp revision label add -n "$WEB_APP" -g "$RESOURCE_GROUP" --revision "$WEB_CAND" --label "$CAND_LABEL" -o none --yes
