@@ -15,6 +15,7 @@ export default function OfficeReport({ report, month, onMonth, availableMonths =
       <label htmlFor="report-month" className="sr-only">Reporting month</label><select id="report-month" value={month || report?.month || ""} onChange={e => onMonth(e.target.value)}>{!availableMonths.length && <option>Loading months…</option>}{availableMonths.map(m => <option key={m} value={m}>{new Date(m + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select>
       <button className="icon-button" aria-label="Next month" disabled={selectedIndex <= 0} onClick={() => onMonth(availableMonths[selectedIndex - 1])}>→</button>
     </div></div>
+    <p className="hint">Outcomes describe referrals received in the selected month that later reached completion. Link opens include NFC, QR, and shared-link visits; they are not unique patients.</p>
     <div className="report-summary" aria-live="polite">
       <div className="summary-card summary-primary"><p>Submitted referrals</p><strong>{report?.total ?? "—"}</strong><small>{report ? report.hasSubmissions ? `${report.previousTotal} in the previous month` : "No submissions this month" : "Loading monthly totals"}</small></div>
       <div className="summary-card"><p>{report?.outcomeLabel || "Reached outcome"}</p><strong>{report?.outcomes ?? "—"}</strong><small>{report?.hasSubmissions ? `of ${report.total} submissions` : "No outcome data yet"}</small></div>
@@ -30,3 +31,4 @@ export default function OfficeReport({ report, month, onMonth, availableMonths =
     </section><section className="card table-card"><div className="table-heading"><h3>Partner breakdown</h3><span className="muted">{report?.monthLabel}</span></div><div className="table-scroll"><table className="office-table"><thead><tr><th scope="col">Referring partner</th><th scope="col">Opens</th><th scope="col">Requests</th><th scope="col">Outcome</th></tr></thead><tbody>{rows.map(r => <tr key={r.officeId}><th scope="row">{r.name}{!r.active && <small> · Inactive</small>}</th><td>{r.opens}</td><td>{r.count}</td><td>{r.outcomes} / {r.count}{r.outcomeRate === null ? " · —" : ` · ${r.outcomeRate}%`}</td></tr>)}</tbody><tfoot><tr><th>Total</th><td>{report?.linkOpens ?? 0}</td><td>{report?.total ?? 0}</td><td>{report?.outcomes ?? 0} / {report?.total ?? 0}</td></tr></tfoot></table></div>{!!report?.invalidDates && <p className="notice">{report.invalidDates} records have invalid dates and were excluded.</p>}</section></div>
   </section>;
 }
+

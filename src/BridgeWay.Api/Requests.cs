@@ -28,3 +28,7 @@ public sealed record DemoRequest(string Name, string Email, string BusinessName,
 public sealed record BusinessProfileUpdate(string Name, string WelcomeText, string Phone, bool AcceptReferrals, string LogoUrl, string Etag, string? AlertEmail = null);
 public sealed record AdminBusinessUpdate(string Etag, bool? Suspended = null, bool? BillingExempt = null, string? AlertEmail = null);
 public sealed record OfficeCreate(string Name);
+
+
+public sealed record FollowUpUpdate(string? NextAction, string? NextActionAt, string Etag);
+

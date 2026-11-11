@@ -1,0 +1,3 @@
+import DemoRequestForm from "../../components/DemoRequestForm";
+export const metadata = { title: "Contact and product walkthrough", alternates: { canonical: "/contact" } };
+export default function ContactPage() { return <main className="dashboard public-document" id="main-content"><section className="card"><p className="eyebrow">TALK TO BRIDGEWAY</p><h1>See how referrals reach your front desk.</h1><p>Request a walkthrough, ask about card pricing, or contact us about workspace access. No Microsoft sign-in or payment is needed to send this form.</p><p>For an existing patient referral, contact the receiving practice directly.</p><DemoRequestForm /></section></main>; }

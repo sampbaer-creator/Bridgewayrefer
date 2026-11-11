@@ -40,7 +40,7 @@ jobs:
             if curl --fail --silent http://localhost:3000/staff > /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/customer-entry.spec.ts tests/staff-report-race.spec.ts
+          npx playwright test
       - name: Assemble standalone frontend
         run: |
           cp -r public .next/standalone/public
@@ -51,3 +51,4 @@ jobs:
           name: bridgeway-web
           path: src/bridgeway-web/.next/standalone
           include-hidden-files: true
+

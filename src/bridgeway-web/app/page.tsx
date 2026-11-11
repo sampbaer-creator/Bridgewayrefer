@@ -1,13 +1,4 @@
 import LandingPage from "../components/LandingPage";
+export const metadata = { alternates: { canonical: "/" } };
+export default function HomePage() { return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "SoftwareApplication", name: "BridgeWay", applicationCategory: "BusinessApplication", operatingSystem: "Web", url: "https://bridgewayrefer.com", description: "Referral tracking for dental specialists", offers: { "@type": "Offer", price: "50", priceCurrency: "USD", description: "Per business per month. NFC cards sold separately." } }) }} /><LandingPage /></>; }
 
-export const metadata = {
-  description: "Bridgewayrefer helps dental specialists track referrals from an NFC card or QR link through staff follow-up.",
-  alternates: { canonical: "https://bridgewayrefer.com/" },
-  openGraph: {
-    title: "Bridgewayrefer | Referral tracking for dental specialists",
-    description: "Capture referrals, assign follow-up, and see where each request stands.",
-    url: "https://bridgewayrefer.com/",
-  },
-};
-
-export default function Home() { return <LandingPage />; }

@@ -42,7 +42,7 @@ public static class Endpoints
         }
         CosmosStore.Check(batch); return null;
     }
-    static object PatientView(JObject row) => new { id = row.Value<string>("id"), name = row.Value<string>("name"), firstName = row.Value<string>("firstName"), lastName = row.Value<string>("lastName"), email = row.Value<string>("email"), phone = row.Value<string>("phone"), notes = row.Value<string>("notes"), businessId = row.Value<string>("businessId"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), doctorCode = row.Value<string>("doctorCode"), doctorName = row.Value<string>("doctorName"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName") ?? row.Value<string>("doctorName"), ownerId = row.Value<string>("ownerId"), ownerName = row.Value<string>("ownerName"), serviceType = row.Value<string>("serviceType"), postalCode = row.Value<string>("postalCode"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), updatedAt = row.Value<string>("updatedAt"), nextActionAt = row.Value<string>("nextActionAt"), nextAction = row.Value<string>("nextAction"), etag = row.Value<string>("_etag") };
+    static object PatientView(JObject row) => new { id = row.Value<string>("id"), name = row.Value<string>("name"), firstName = row.Value<string>("firstName"), lastName = row.Value<string>("lastName"), email = row.Value<string>("email"), phone = row.Value<string>("phone"), notes = row.Value<string>("notes"), businessId = row.Value<string>("businessId"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), doctorCode = row.Value<string>("doctorCode"), doctorName = row.Value<string>("doctorName"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName") ?? row.Value<string>("doctorName"), ownerId = row.Value<string>("ownerId"), ownerName = row.Value<string>("ownerName"), serviceType = row.Value<string>("serviceType"), postalCode = row.Value<string>("postalCode"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), updatedAt = row.Value<string>("updatedAt"), nextAction = row.Value<string>("nextAction"), nextActionAt = row.Value<string>("nextActionAt"), etag = row.Value<string>("_etag") };
     static (string Tenant, string ObjectId) RequireIdentity(HttpContext ctx, Settings settings)
     {
         if (ctx.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
@@ -315,11 +315,31 @@ public static class Endpoints
         staff.MapGet("/cards", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { cards = (await store.BusinessCards(ct: ct)).Select(c => new { id = c.Value<string>("id"), partnerId = c.Value<string>("partnerId"), partnerName = c.Value<string>("partnerName") ?? c.Value<string>("officeName"), officeName = c.Value<string>("officeName"), active = c.Value<bool>("active"), etag = c.Value<string>("_etag"), url = settings.PublicOrigin + "/r/" + c.Value<string>("id") }) }));
         staff.MapGet("/referrals", async (HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
+            var args = ctx.Request.Query;
+            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], args["unresolved"] == "true");
+            var cursor = args["cursor"].FirstOrDefault();
+            if (cursor?.Length > 16000) throw new ApiError(400, "The page token is invalid. Restart your search.");
             await store.AuditRead(Actor(ctx), "list-referrals", ct);
-            var query = new QueryDefinition("SELECT TOP 501 * FROM c WHERE c.businessId = @b AND c.type = 'referral' ORDER BY c.createdAt DESC").WithParameter("@b", store.BusinessId);
-            var rows = new List<JObject>(); using var iterator = store.Operations.GetItemQueryIterator<JObject>(query, requestOptions: new QueryRequestOptions { PartitionKey = store.BusinessKey });
-            while (iterator.HasMoreResults) rows.AddRange(await iterator.ReadNextAsync(ct));
-            return Json(new { referrals = rows.Take(500).Select(PatientView), limited = rows.Count > 500 });
+            using var iterator = store.Operations.GetItemQueryIterator<JObject>(query, cursor, new QueryRequestOptions { PartitionKey = store.BusinessKey, MaxItemCount = 100 });
+            FeedResponse<JObject> page;
+            try { page = await iterator.ReadNextAsync(ct); }
+            catch (CosmosException e) when (e.StatusCode == HttpStatusCode.BadRequest) { throw new ApiError(400, "This search page expired. Restart your search."); }
+            return Json(new { referrals = page.Select(PatientView), limited = page.ContinuationToken is not null, nextCursor = page.ContinuationToken });
+        });
+        staff.MapPatch("/referrals/{id}/follow-up", async (string id, FollowUpUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        {
+            var action = data.NextAction?.Trim() ?? "";
+            if (!id.StartsWith("ref-", StringComparison.Ordinal) || action.Length > 240 || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the follow-up details.");
+            var due = FollowUpRules.ValidateDueAt(data.NextActionAt);
+            if (due is not null && action.Length == 0) throw new ApiError(400, "Describe the next action before setting a deadline.");
+            var referral = await store.Read(id, ct);
+            if (referral?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
+            if (FollowUpRules.Terminal(referral.Value<string>("status")) && due is not null) throw new ApiError(400, "Reopen the referral before scheduling follow-up.");
+            referral["nextAction"] = action; referral["nextActionAt"] = due; referral["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
+            using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
+                .ReplaceItem(id, referral, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag })
+                .CreateItem(store.Audit(Actor(ctx), "update-follow-up", id)).ExecuteAsync(ct);
+            CosmosStore.Check(batch); return Results.Ok(new { ok = true });
         });
         staff.MapPatch("/referrals/{id}", async (string id, StatusUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
@@ -330,16 +350,15 @@ public static class Endpoints
             if (data.NextActionAt is not null)
             {
                 var description = data.NextAction?.Trim() ?? "";
-                if (description.Length > 200) throw new ApiError(400, "Use 200 characters or fewer for the next action.");
-                if (data.NextActionAt.Length == 0) doc.Remove("nextActionAt");
-                else
-                {
-                    if (!DateTimeOffset.TryParse(data.NextActionAt, out var due)) throw new ApiError(400, "Enter a valid follow-up date.");
-                    doc["nextActionAt"] = due.ToUniversalTime().ToString("O");
-                }
+                var due = FollowUpRules.ValidateDueAt(data.NextActionAt);
+                if (description.Length > 240 || (due is not null && description.Length == 0))
+                    throw new ApiError(400, "Please check the follow-up details.");
+                if (due is not null && FollowUpRules.Terminal(data.Status))
+                    throw new ApiError(400, "Reopen the referral before scheduling follow-up.");
                 doc["nextAction"] = description;
+                doc["nextActionAt"] = due;
             }
-            doc["status"] = data.Status; doc["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
+            doc["status"] = data.Status; if (FollowUpRules.Terminal(data.Status)) doc["nextActionAt"] = null; doc["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
             var history = store.Document("status-history", "history-" + Guid.NewGuid()); history["referralId"] = id; history["status"] = data.Status; history["actor"] = Actor(ctx); history["changedAt"] = doc["updatedAt"]!.DeepClone(); history["partnerId"] = doc["partnerId"]?.DeepClone() ?? doc["doctorCode"]?.DeepClone();
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(id, doc, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "status:" + data.Status, id)).CreateItem(history).ExecuteAsync(ct);
             CosmosStore.Check(batch); return Results.Ok(new { ok = true });
@@ -388,12 +407,25 @@ public static class Endpoints
                 waiting = waiting.Count, retrying = waiting.Count(a => a.Value<string>("state") == "Retry"),
                 failed = alerts.Count(a => a.Value<string>("state") == "Failed"),
                 stalled = alerts.Count(a => a.Value<string>("state") == "Sending" && (a.Value<long?>("readyAt") ?? long.MaxValue) <= now),
-                oldestWaitingAt = oldest
+                oldestWaitingAt = oldest,
+                failures = alerts.Where(a => a.Value<string>("state") == "Failed").OrderBy(a => a.Value<string>("createdAt")).Take(20).Select(a => new { id = a.Value<string>("id"), attempts = a.Value<int>("attempts") })
             });
+        });
+        staff.MapPost("/referrals/{id}/notify", async (string id, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        {
+            RequireAdmin(ctx);
+            if (!id.StartsWith("ref-", StringComparison.Ordinal) || !Guid.TryParse(id[4..], out var referralId)) throw new ApiError(404, "Not found.");
+            if (BusinessRules.AlertEmail(settings, await store.Business(store.BusinessId, ct)).Length == 0) throw new ApiError(503, "Configure email alerts first.");
+            if ((await store.Read(id, ct))?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
+            var alertId = "alert-" + referralId;
+            if (await store.Read(alertId, ct) is not null) throw new ApiError(409, "An alert already exists. Check delivery health or retry a failed alert.");
+            using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
+                .CreateItem(AlertWorker.NewAlert(store, alertId)).CreateItem(store.Audit(Actor(ctx), "queue-missing-alert", id)).ExecuteAsync(ct);
+            CosmosStore.Check(batch); return Results.Accepted(value: new { ok = true });
         });
         staff.MapPost("/alerts/{id}/retry", async (string id, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            if (!Regex.IsMatch(id, @"\Aalert-[0-9a-f-]{36}\z") || ctx.RequestServices.GetRequiredService<BusinessContext>().Role != "Admin") throw new ApiError(404, "Not found.");
+            if (!Regex.IsMatch(id, @"\Aalert-(?:[0-9a-f-]{36}|test-[0-9a-f-]{36})\z") || ctx.RequestServices.GetRequiredService<BusinessContext>().Role != "Admin") throw new ApiError(404, "Not found.");
             var alert = await store.Read(store.Operations, id, store.BusinessKey, ct);
             if (alert?.Value<string>("type") != "alert" || alert.Value<string>("state") != "Failed") throw new ApiError(404, "Failed alert not found.");
             alert["state"] = "Pending"; alert["attempts"] = 0; alert["readyAt"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); alert["manualRetryAt"] = DateTimeOffset.UtcNow.ToString("O"); alert["manualRetryBy"] = Actor(ctx);
@@ -473,3 +505,5 @@ public static class Endpoints
         });
     }
 }
+
+

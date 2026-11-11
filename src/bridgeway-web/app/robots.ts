@@ -1,8 +1,6 @@
 import type { MetadataRoute } from "next";
-
+import { siteOrigin } from "../lib/site";
 export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/api/"] },
-    sitemap: "https://bridgewayrefer.com/sitemap.xml",
-  };
+  return { rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/health/"] }, sitemap: siteOrigin + "/sitemap.xml" };
 }
+
