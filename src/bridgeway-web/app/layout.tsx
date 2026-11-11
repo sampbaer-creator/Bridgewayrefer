@@ -6,8 +6,8 @@ import "./globals.css";
 import "./launch.css";
 import "./launch-extra.css";
 import "./access.css";
-import "./uidesign.css";
 import "./staff-dashboard.css";
+import "./design-system.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
