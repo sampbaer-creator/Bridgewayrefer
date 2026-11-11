@@ -7,15 +7,17 @@ import { isOverdue as overdueReferral } from "../lib/follow-up";
 import OfficeReport from "./OfficeReport";
 
 type Office = { id: string; name: string; active: boolean; etag: string };
-type CardLink = { id: string; partnerId: string; partnerName: string; officeName: string; active: boolean; etag: string; url: string };
+type CardLink = { id: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; etag: string; url: string };
 type Member = { id: string; name: string; email: string; role: string; etag: string };
 type BusinessProfile = { name: string; officeName: string; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; accepting: boolean; suspended: boolean; alertEmail: string; billingStatus: string; monthlyPriceUsd: number; etag: string };
 type Billing = { plan?: string; amountUsd: number; interval: string; status: string; billingExempt: boolean; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; managedCallingConfigured?: boolean; testMode: boolean; customerLinked: boolean };
 type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string; etag: string };
 type Session = { businessId?: string | null; role: string; businesses: Business[] };
+type TestReferral = { id: string; name: string; partnerId: string; partnerName: string; officeId: string; cardId: string; status: string; createdAt: string; isTest: true };
 
 export default function StaffDashboard() {
   const [referrals, setReferrals] = useState<Referral[]>([]), [partners, setPartners] = useState<Partner[]>([]), [offices, setOffices] = useState<Office[]>([]), [cards, setCards] = useState<CardLink[]>([]), [members, setMembers] = useState<Member[]>([]);
+  const [testReferrals, setTestReferrals] = useState<TestReferral[]>([]), [testReferralsLimited, setTestReferralsLimited] = useState(false), [testCardId, setTestCardId] = useState("");
   const [businesses, setBusinesses] = useState<Business[]>([]), [profile, setProfile] = useState<BusinessProfile | null>(null), [billing, setBilling] = useState<Billing | null>(null), [invitations, setInvitations] = useState<Invitation[]>([]), [alerts, setAlerts] = useState<Alerts | null>(null), [report, setReport] = useState<Report | null>(null);
   const [month, setMonth] = useState(""), [workspace, setWorkspace] = useState(""), [filter, setFilter] = useState(""), [partnerFilter, setPartnerFilter] = useState(""), [query, setQuery] = useState(""), [fromDate, setFromDate] = useState(""), [toDate, setToDate] = useState("");
   const [checkoutPlan, setCheckoutPlan] = useState<"workspace" | "managed-calling">("workspace");
@@ -23,12 +25,29 @@ export default function StaffDashboard() {
   const [detailId, setDetailId] = useState(""), [history, setHistory] = useState<Record<string, ReferralHistory[]>>({}), [qrCard, setQrCard] = useState<{ id: string; data: string } | null>(null), [inviteLink, setInviteLink] = useState("");
   const [nextCursor, setNextCursor] = useState<string | null>(null), [unresolvedOnly, setUnresolvedOnly] = useState(false);
   const searchRef = useRef("");
+  const setupSteps = useMemo(() => {
+    const subscriptionReady = !!billing && (billing.billingExempt || ["active", "trialing", "past_due"].includes(billing.status));
+    const locationReady = offices.some(office => office.active);
+    const partnerReady = partners.some(partner => partner.active);
+    const cardReady = cards.some(card => card.active && !!card.url && partners.some(partner => partner.active && partner.id === card.partnerId) && offices.some(office => office.active && office.id === card.officeId));
+    const testReferralReady = cards.some(card => card.active && testReferrals.some(test => test.cardId === card.id));
+    const intakeReady = !!profile?.accepting;
+    const steps: Array<{ label: string; complete: boolean; detail: string; href: string; action: string; testAction?: boolean }> = [
+      { label: "Confirm workspace access", complete: subscriptionReady, detail: subscriptionReady ? billing?.billingExempt ? "Pilot access approved" : `Subscription ${billing?.status}` : "An active subscription or approved pilot is required.", href: "#billing", action: subscriptionReady ? "Review billing" : "Continue to billing" },
+      { label: "Set up a receiving location", complete: locationReady, detail: locationReady ? "Active location is ready for referrals." : "Add the branch or practice that will receive referrals.", href: "#management", action: locationReady ? "Review location" : "Add location" },
+      { label: "Add a referring partner", complete: partnerReady, detail: partnerReady ? "An active partner can be assigned to a card." : "Add the business or person who will share the card.", href: "#management", action: partnerReady ? "Review partners" : "Add partner" },
+      { label: "Issue and check a card link", complete: cardReady, detail: cardReady ? "An active card link is available to preview, copy, or share as QR." : "Create a partner and location card link, then preview its form.", href: "#management", action: cardReady ? "Review cards" : "Set up a card link" },
+      { label: "Verify a test referral", complete: testReferralReady, detail: testReferralReady ? "A synthetic referral is visible in the separate test list and excluded from normal reporting." : "Run an admin-only synthetic check. It does not change billing or intake and does not send an alert.", href: "#test-referrals", action: testReferralReady ? "Run another test" : "Run test referral", testAction: true },
+      { label: "Enable customer intake", complete: intakeReady, detail: intakeReady ? "Your card links can accept real referrals." : profile?.suspended ? "BridgeWay has paused this workspace. Contact support to reactivate it." : !subscriptionReady ? "Complete billing or confirm an approved pilot first." : !locationReady ? "Add an active receiving location first." : !partnerReady ? "Add an active referring partner first." : !cardReady ? "Issue an active card link first." : !profile?.acceptReferrals ? "Turn on referral requests in Business profile after testing." : "The platform intake switch is off. Contact BridgeWay to enable it.", href: profile?.suspended || !subscriptionReady ? "#billing" : "#management", action: intakeReady ? "Review intake" : "Review prerequisites" },
+    ];
+    return steps;
+  }, [billing, cards, offices, partners, profile, testReferrals]);
   const analyticsLoaded = useRef({ workspace: "", month: "", at: 0 });
   const generation = useRef(0), stopped = useRef(false), selectedMonth = useRef(""), workspaceRef = useRef(""), loading = useRef<{ month: string; workspace: string; controller: AbortController } | null>(null);
 
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      stopped.current = true; generation.current++; loading.current?.controller.abort(); setReferrals([]); setPartners([]); setOffices([]); setCards([]); setMembers([]); setReport(null); setAlerts(null); setSession(e.status === 401 ? "expired" : "denied");
+      stopped.current = true; generation.current++; loading.current?.controller.abort(); setReferrals([]); setTestReferrals([]); setTestReferralsLimited(false); setPartners([]); setOffices([]); setCards([]); setMembers([]); setReport(null); setAlerts(null); setSession(e.status === 401 ? "expired" : "denied");
     } else setError(e instanceof Error ? e.message : "Service unavailable. Please try again.");
   }, []);
 
@@ -64,10 +83,10 @@ export default function StaffDashboard() {
       setReferrals(inbox.referrals); setLimited(inbox.limited); setNextCursor(inbox.nextCursor || null); setUpdated(new Date().toLocaleTimeString()); setError("");
 
       const panelResults = await Promise.allSettled([
-        api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }),
+        api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }), admin ? api<{ referrals: TestReferral[]; limited: boolean }>("/api/staff/test-referrals", options) : Promise.resolve({ referrals: [], limited: false }),
       ]);
       if (!current()) return;
-      const [partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData] = panelResults;
+      const [partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData, testReferralData] = panelResults;
       if (partnerData.status === "fulfilled") setPartners(partnerData.value.partners);
       if (officeData.status === "fulfilled") setOffices(officeData.value.offices);
       if (cardData.status === "fulfilled") setCards(cardData.value.cards);
@@ -76,6 +95,7 @@ export default function StaffDashboard() {
       if (billingData.status === "fulfilled") { setBilling(billingData.value); setCheckoutPlan(billingData.value.plan === "managed-calling" ? "managed-calling" : "workspace"); }
       if (alertData.status === "fulfilled") setAlerts(alertData.value);
       if (inviteData.status === "fulfilled") setInvitations(inviteData.value.invitations);
+      if (testReferralData.status === "fulfilled") { setTestReferrals(testReferralData.value.referrals); setTestReferralsLimited(testReferralData.value.limited); }
       const panelError = panelResults.find(result => result.status === "rejected");
       if (panelError?.status === "rejected" && panelError.reason instanceof ApiError && (panelError.reason.status === 401 || panelError.reason.status === 403)) { handleError(panelError.reason); return; }
 
@@ -147,7 +167,7 @@ export default function StaffDashboard() {
   }
   function selectMonth(value: string) { if (value === selectedMonth.current) return; selectedMonth.current = value; generation.current++; loading.current?.controller.abort(); setMonth(value); }
   function selectWorkspace(value: string) {
-    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId("");
+    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setTestReferrals([]); setTestReferralsLimited(false); setTestCardId(""); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId("");
     if (value) localStorage.setItem(WORKSPACE_KEY, value); else localStorage.removeItem(WORKSPACE_KEY);
   }
   async function changeStatus(referral: Referral, status: string) {
@@ -199,6 +219,15 @@ export default function StaffDashboard() {
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function subscribe() { setBusy("billing"); setError(""); try { const response = await api<{ url: string }>("/api/staff/billing/checkout", { method: "POST", body: JSON.stringify({ plan: checkoutPlan }) }); window.location.assign(response.url); } catch (e) { handleError(e); setBusy(""); } }
+  async function runTestReferral(card: CardLink) {
+    setBusy("test-referral"); setError(""); setNotice("");
+    try {
+      const result = await api<{ ok: boolean; idempotent: boolean; referralId: string }>("/api/staff/test-referrals", { method: "POST", body: JSON.stringify({ cardCode: card.id, submissionId: crypto.randomUUID() }) });
+      setNotice(`Synthetic test referral ${result.idempotent ? "was already verified" : "created"} for ${card.partnerName} · ${card.officeName}. It is excluded from the normal inbox, alerts, and reports.`);
+      await refresh();
+    } catch (e) { handleError(e); }
+    finally { setBusy(""); }
+  }
   async function manageBilling() { setBusy("billing"); setError(""); try { const response = await api<{ url: string }>("/api/staff/billing/portal", { method: "POST", body: "{}" }); window.location.assign(response.url); } catch (e) { handleError(e); setBusy(""); } }
   async function makeQr(card: CardLink) { try { setQrCard({ id: card.id, data: await QRCode.toDataURL(card.url, { width: 320, margin: 1, errorCorrectionLevel: "M" }) }); } catch { setError("Could not create the QR code. Copy the link instead."); } }
   async function testAlert() { setBusy("alert"); setNotice(""); try { await api("/api/staff/alerts/test", { method: "POST", body: "{}" }); setNotice("Test alert queued."); } catch (e) { handleError(e); } finally { setBusy(""); } }
@@ -211,6 +240,8 @@ export default function StaffDashboard() {
     const priority = (r: Referral) => ["Completed", "Won", "Closed"].includes(r.status) ? 3 : r.status === "New" ? 0 : !r.ownerId ? 1 : overdue(r) ? 2 : 3;
     return priority(a) - priority(b) || (priority(a) < 3 ? Date.parse(a.createdAt) - Date.parse(b.createdAt) : Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }), [referrals, filter, partnerFilter, query, fromDate, toDate]);
+  const testableCards = cards.filter(card => card.active && partners.some(partner => partner.active && partner.id === card.partnerId) && offices.some(office => office.active && office.id === card.officeId));
+  const selectedTestCard = testableCards.find(card => card.id === testCardId) || testableCards[0];
   // Attention counts describe the loaded records only, matching the status tiles below.
   const attention = useMemo(() => {
     const open = referrals.filter(r => !["Completed", "Won", "Closed"].includes(r.status));
@@ -235,7 +266,7 @@ export default function StaffDashboard() {
         </div>
       </section> : <>
       {profile && !profile.accepting && <p className="notice">{profile.suspended ? "This workspace is paused by Bridgewayrefer. Card taps show a closed form until it is reactivated." : !profile.acceptReferrals ? "Referral intake is turned off in the business profile below." : "Referral intake opens once the subscription is active. Use Subscribe in the Billing section."}</p>}
-      {isAdmin && profile && <section className="card" aria-label="Workspace activation"><h2>Get ready for your first referral</h2><ol className="activation-list"><li>{offices.some(office => office.active) ? "✓" : "○"} Add a receiving office in Setup.</li><li>{partners.some(partner => partner.active) ? "✓" : "○"} Add a referring partner.</li><li>{cards.some(card => card.active) ? "✓ Active card links available" : "○ Arrange your first card links with BridgeWay."} <a href="/contact">Ask about cards</a></li><li>{alerts?.enabled ? "✓ Alert recipient configured. Send a test below." : "○ Configure an alert recipient and email delivery."}</li><li>{profile.accepting ? "✓ Intake is open." : "○ Intake is closed. Check billing, activation and business settings."}</li></ol><p><a href="#management">Open setup</a> · <a href="/pricing">Card costs and setup details</a></p></section>}
+      {isAdmin && profile && <section className="card activation-card" aria-label="Workspace activation"><div className="activation-heading"><div><p className="eyebrow">WORKSPACE SETUP</p><h2>{profile.accepting ? "Your referral intake is ready" : "Get ready for your first referral"}</h2><p>{profile.accepting ? "Your team can receive and follow up on attributed referrals." : "Complete each step in order. Your progress is saved as you set up the workspace."}</p></div><span className="activation-progress">{setupSteps.filter(step => step.complete).length} of {setupSteps.length} complete</span></div><ol className="activation-steps">{setupSteps.map((step, index) => <li key={step.label} className={step.complete ? "is-complete" : ""}><span className="activation-index" aria-hidden="true">{step.complete ? "✓" : String(index + 1).padStart(2, "0")}</span><div><strong>{step.label}</strong><p>{step.detail}</p></div>{step.testAction ? <div className="activation-test-action"><label htmlFor="test-referral-card">Test card<select id="test-referral-card" value={selectedTestCard?.id || ""} onChange={event => setTestCardId(event.target.value)} disabled={!testableCards.length}><option value="">{testableCards.length ? "Choose an active partner card" : "Set up an active partner card first"}</option>{testableCards.map(card => <option value={card.id} key={card.id}>{card.partnerName} · {card.officeName}</option>)}</select></label><button className="secondary" type="button" disabled={!selectedTestCard || busy === "test-referral"} onClick={() => selectedTestCard && void runTestReferral(selectedTestCard)}>{busy === "test-referral" ? "Checking…" : step.action}</button></div> : <a href={step.href}>{step.action}<span aria-hidden="true"> →</span></a>}</li>)}</ol><div className="activation-test-list" id="test-referrals"><h3>Isolated test referrals</h3><p>Synthetic records are visible here only. They do not enter the staff inbox, partner reports, alerts, billing, or intake.</p>{testReferralsLimited && <p className="notice">Showing the latest 200 test referrals.</p>}{testReferrals.length ? <ul>{testReferrals.map(test => <li key={test.id}><strong>{test.partnerName || "Direct referral"}</strong><span>{test.officeId} · {test.cardId} · {new Date(test.createdAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT</span></li>)}</ul> : <p className="muted">No test referrals yet.</p>}</div><p className="activation-footnote">Need physical NFC cards? <a href="/contact">Request a card quote</a>.</p></section>}
       <section className="inbox-section" id="inbox" aria-labelledby="inbox-title"><div className="section-heading"><div><p className="eyebrow">FOLLOW-UP TODAY</p><h2 id="inbox-title">Referral inbox</h2><p className="muted">New, unassigned, and overdue requests first.</p></div><button className="secondary" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh inbox ↻"}</button></div>
         <div className="attention-strip" aria-label="Loaded requests needing attention">{[["New requests", attention.newCount], ["Unassigned", attention.unassigned], ["Late follow-ups", attention.overdue]].map(([label, count]) => <div className={"attention-tile" + (Number(count) > 0 ? " is-warn" : "")} key={String(label)}><span>{label}</span><b>{count}</b></div>)}</div>
         <div className="metrics" role="group" aria-label="Filter referrals by status">{["", ...allowedStatuses].map(status => <button key={status} className="metric" aria-pressed={filter === status} aria-controls="referrals" onClick={() => setFilter(status)}>{status || "Loaded requests"}<b>{status ? referrals.filter(r => r.status === status).length : referrals.length}</b></button>)}</div>

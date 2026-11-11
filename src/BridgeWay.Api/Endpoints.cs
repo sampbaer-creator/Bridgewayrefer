@@ -100,6 +100,7 @@ public static class Endpoints
             record["status"] = "New"; record["updatedAt"] = record["createdAt"]!.DeepClone();
             record["consentVersion"] = "contact-v1"; record["consentAt"] = record["createdAt"]!.DeepClone();
             var history = store.Document("status-history", "history-" + Guid.Parse(data.SubmissionId)); history["referralId"] = id; history["status"] = "New"; history["actor"] = "system"; history["changedAt"] = record["createdAt"]!.DeepClone();
+            history["partnerId"] = record["partnerId"]!.DeepClone(); history["officeId"] = record["officeId"]!.DeepClone(); history["cardId"] = record["cardId"]!.DeepClone();
             var batch = store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(record).CreateItem(history);
             if (BusinessRules.AlertEmail(settings, business).Length > 0) batch.CreateItem(AlertWorker.NewAlert(store, "alert-" + Guid.Parse(data.SubmissionId)));
             using var response = await batch.ExecuteAsync(ct);
@@ -324,7 +325,28 @@ public static class Endpoints
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(store.Audit(Actor(ctx), "create-partner", id)).CreateItem(partner).ExecuteAsync(ct); CosmosStore.Check(batch);
             return Results.Json(new { id, name, active = true }, statusCode: 201);
         });
-        staff.MapGet("/cards", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { cards = (await store.BusinessCards(ct: ct)).Select(c => new { id = c.Value<string>("id"), partnerId = c.Value<string>("partnerId"), partnerName = c.Value<string>("partnerName") ?? c.Value<string>("officeName"), officeName = c.Value<string>("officeName"), active = c.Value<bool>("active"), etag = c.Value<string>("_etag"), url = settings.PublicOrigin + "/r/" + c.Value<string>("id") }) }));
+        staff.MapGet("/cards", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { cards = (await store.BusinessCards(ct: ct)).Select(c => new { id = c.Value<string>("id"), partnerId = c.Value<string>("partnerId"), partnerName = c.Value<string>("partnerName") ?? c.Value<string>("officeName"), officeId = c.Value<string>("officeId"), officeName = c.Value<string>("officeName"), active = c.Value<bool>("active"), etag = c.Value<string>("_etag"), url = settings.PublicOrigin + "/r/" + c.Value<string>("id") }) }));
+        staff.MapPost("/test-referrals", async (TestReferralCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        {
+            RequireAdmin(ctx);
+            if (!ValidCode(data.CardCode) || !Guid.TryParse(data.SubmissionId, out var submissionId)) throw new ApiError(400, "Please choose a valid card and test submission ID.");
+            var id = TestReferralRules.Id(submissionId);
+            if (TestReferralRules.IsRepeat(await store.Read(id, ct))) return Results.Ok(new { ok = true, idempotent = true, referralId = id });
+            var card = await store.Card(data.CardCode, ct, requireActiveAssociations: true);
+            if (!TestReferralRules.IsCardForWorkspace(card, store.BusinessId)) throw new ApiError(400, "Choose an active card in this workspace.");
+            if (!await store.Allow("activation-test-" + Actor(ctx), 10, ct)) throw new ApiError(429, "Please wait before running another test referral.");
+            var (referral, history) = TestReferralRules.Create(store, card!, Actor(ctx), submissionId);
+            using var response = await store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(referral).CreateItem(history).CreateItem(store.Audit(Actor(ctx), "create-test-referral", id)).ExecuteAsync(ct);
+            if (response.IsSuccessStatusCode) return Results.Json(new { ok = true, idempotent = false, referralId = id }, statusCode: 201);
+            if (response.StatusCode == HttpStatusCode.Conflict && TestReferralRules.IsRepeat(await store.Read(id, ct))) return Results.Ok(new { ok = true, idempotent = true, referralId = id });
+            CosmosStore.Check(response); throw new ApiError(503, "Service unavailable. Please try again.");
+        });
+        staff.MapGet("/test-referrals", async (HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        {
+            RequireAdmin(ctx);
+            var rows = await store.TestReferrals(ct);
+            return Results.Ok(new { limited = rows.Count > 200, referrals = rows.Take(200).Select(row => new { id = row.Value<string>("id"), name = row.Value<string>("name"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), isTest = true }) });
+        });
         staff.MapGet("/referrals", async (HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             var args = ctx.Request.Query;
@@ -346,6 +368,7 @@ public static class Endpoints
             if (due is not null && action.Length == 0) throw new ApiError(400, "Describe the next action before setting a deadline.");
             var referral = await store.Read(id, ct);
             if (referral?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
+            if (referral.Value<bool?>("isTest") == true) throw new ApiError(404, "Not found.");
             if (FollowUpRules.Terminal(referral.Value<string>("status")) && due is not null) throw new ApiError(400, "Reopen the referral before scheduling follow-up.");
             referral["nextAction"] = action; referral["nextActionAt"] = due; referral["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
@@ -371,21 +394,22 @@ public static class Endpoints
                 doc["nextActionAt"] = due;
             }
             doc["status"] = data.Status; if (FollowUpRules.Terminal(data.Status)) doc["nextActionAt"] = null; doc["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
-            var history = store.Document("status-history", "history-" + Guid.NewGuid()); history["referralId"] = id; history["status"] = data.Status; history["actor"] = Actor(ctx); history["changedAt"] = doc["updatedAt"]!.DeepClone(); history["partnerId"] = doc["partnerId"]?.DeepClone() ?? doc["doctorCode"]?.DeepClone();
+            var history = store.Document("status-history", "history-" + Guid.NewGuid()); history["referralId"] = id; history["status"] = data.Status; history["actor"] = Actor(ctx); history["changedAt"] = doc["updatedAt"]!.DeepClone(); history["partnerId"] = doc["partnerId"]?.DeepClone() ?? doc["doctorCode"]?.DeepClone(); history["officeId"] = doc["officeId"]?.DeepClone(); history["cardId"] = doc["cardId"]?.DeepClone();
+            if (doc.Value<bool?>("isTest") == true) throw new ApiError(404, "Not found.");
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(id, doc, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "status:" + data.Status, id)).CreateItem(history).ExecuteAsync(ct);
             CosmosStore.Check(batch); return Results.Ok(new { ok = true });
         });
         staff.MapGet("/referrals/{id}/history", async (string id, CosmosStore store, CancellationToken ct) =>
         {
             if (!id.StartsWith("ref-", StringComparison.Ordinal)) throw new ApiError(404, "Not found.");
-            var referral = await store.Read(id, ct); if (referral?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
+            var referral = await store.Read(id, ct); if (referral?.Value<string>("type") != "referral" || referral.Value<bool?>("isTest") == true) throw new ApiError(404, "Not found.");
             var history = (await store.Query("status-history", ct: ct)).Where(x => x.Value<string>("referralId") == id).OrderBy(x => x.Value<string>("changedAt"), StringComparer.Ordinal).Select(x => new { status = x.Value<string>("status"), actor = x.Value<string>("actor"), changedAt = x.Value<string>("changedAt") });
             return Results.Ok(new { history });
         });
         staff.MapPatch("/referrals/{id}/assignment", async (string id, AssignmentUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             if (!id.StartsWith("ref-", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(data.Etag) || (data.OwnerId?.Length ?? 0) > 80 || (data.OwnerName?.Length ?? 0) > 120) throw new ApiError(400, "Please check the assignment.");
-            var referral = await store.Read(id, ct); if (referral?.Value<string>("type") != "referral") throw new ApiError(404, "Not found.");
+            var referral = await store.Read(id, ct); if (referral?.Value<string>("type") != "referral" || referral.Value<bool?>("isTest") == true) throw new ApiError(404, "Not found.");
             if (string.IsNullOrWhiteSpace(data.OwnerId)) { referral.Remove("ownerId"); referral.Remove("ownerName"); }
             else
             {

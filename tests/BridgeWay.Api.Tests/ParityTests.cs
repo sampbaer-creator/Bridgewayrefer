@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
@@ -34,7 +35,7 @@ public class ParityTests
             [new JObject { ["id"] = "zero", ["officeName"] = "Zero", ["active"] = false }], [new JObject { ["doctorCode"] = "old", ["createdAt"] = "2026-11-02T12:00:00Z" }], "2026-11"));
         Assert.Equal(1, report.Value<int>("total")); Assert.Equal(1, report.Value<int>("linkOpens")); Assert.Equal(2, ((JArray)report["offices"]!).Count);
     }
-    [Fact] public void PartnerOutcomesUseSubmissionCohortAndStatusHistory()
+    [Fact] public void PartnerOutcomesUseOutcomeEventMonthAndStatusHistory()
     {
         var referrals = new List<JObject>
         {
@@ -43,12 +44,54 @@ public class ParityTests
             new() { ["id"] = "ref-c", ["partnerId"] = "partner-b", ["partnerName"] = "Builder Two", ["status"] = "Closed", ["createdAt"] = "2026-11-07T12:00:00Z" },
         };
         var partners = new List<JObject> { new() { ["id"] = "partner-a", ["type"] = "partner", ["name"] = "Builder One", ["active"] = true }, new() { ["id"] = "partner-b", ["type"] = "partner", ["name"] = "Builder Two", ["active"] = true } };
-        var history = new List<JObject> { new() { ["referralId"] = "ref-a", ["status"] = "Completed" }, new() { ["referralId"] = "ref-c", ["status"] = "Completed" } };
+        var history = new List<JObject> { new() { ["referralId"] = "ref-a", ["status"] = "Completed", ["changedAt"] = "2026-11-08T12:00:00Z", ["partnerId"] = "partner-a" }, new() { ["referralId"] = "ref-a", ["status"] = "Won", ["changedAt"] = "2026-11-09T12:00:00Z", ["partnerId"] = "partner-a" }, new() { ["referralId"] = "ref-c", ["status"] = "Completed", ["changedAt"] = "2026-11-09T12:00:00Z", ["partnerId"] = "partner-b" } };
         var report = JObject.FromObject(MonthlyReport.Build(referrals, partners, [], "2026-11", DateTimeOffset.Parse("2026-11-10T12:00:00Z"), history));
         Assert.Equal(3, report.Value<int>("total")); Assert.Equal(2, report.Value<int>("outcomes")); Assert.True(report.Value<bool>("hasSubmissions"));
         var a = ((JArray)report["offices"]!).Single(x => x.Value<string>("officeId") == "partner-a");
-        Assert.Equal(2, a.Value<int>("count")); Assert.Equal(1, a.Value<int>("outcomes")); Assert.Equal(50d, a.Value<double>("outcomeRate"));
-        Assert.Equal("Completed requests", report.Value<string>("outcomeLabel"));
+        Assert.Equal(2, a.Value<int>("count")); Assert.Equal(1, a.Value<int>("outcomes")); Assert.Null(a["outcomeRate"]);
+        Assert.Equal("Completed requests this month", report.Value<string>("outcomeLabel"));
+    }
+    [Fact] public void OutcomesFollowTheEventMonthWhenReferralCohortIsEarlier()
+    {
+        var referral = new JObject { ["id"] = "ref-cross-month", ["partnerId"] = "partner-a", ["partnerName"] = "HVAC Partner", ["status"] = "Completed", ["createdAt"] = "2026-11-30T19:00:00-07:00", ["updatedAt"] = "2026-12-02T09:30:00-07:00" };
+        var history = new List<JObject> { new() { ["referralId"] = "ref-cross-month", ["status"] = "Completed", ["changedAt"] = "2026-12-02T09:30:00-07:00", ["partnerId"] = "partner-a" } };
+        var partners = new List<JObject> { new() { ["id"] = "partner-a", ["type"] = "partner", ["name"] = "HVAC Partner", ["active"] = true } };
+        var november = JObject.FromObject(MonthlyReport.Build([referral], partners, [], "2026-11", DateTimeOffset.Parse("2026-12-10T12:00:00Z"), history));
+        var december = JObject.FromObject(MonthlyReport.Build([referral], partners, [], "2026-12", DateTimeOffset.Parse("2026-12-10T12:00:00Z"), history));
+        Assert.Equal(1, november.Value<int>("total")); Assert.Equal(0, november.Value<int>("outcomes"));
+        Assert.Equal(0, december.Value<int>("total")); Assert.Equal(1, december.Value<int>("outcomes"));
+        Assert.Contains("2026-12", december["availableMonths"]!.Values<string>());
+        var attributedWithoutCohortRead = JObject.FromObject(MonthlyReport.Build([], partners, [], "2026-12", DateTimeOffset.Parse("2026-12-10T12:00:00Z"), history));
+        Assert.Equal(1, attributedWithoutCohortRead.Value<int>("outcomes"));
+    }
+    [Fact] public void TestReferralsAndTheirHistoryNeverEnterNormalReports()
+    {
+        var referral = new JObject { ["id"] = "ref-test-one", ["isTest"] = true, ["partnerId"] = "partner-a", ["status"] = "Completed", ["createdAt"] = "2026-11-02T12:00:00Z", ["updatedAt"] = "2026-11-05T12:00:00Z" };
+        var history = new List<JObject> { new() { ["isTest"] = true, ["referralId"] = "ref-test-one", ["status"] = "Completed", ["changedAt"] = "2026-11-05T12:00:00Z", ["partnerId"] = "partner-a" } };
+        var report = JObject.FromObject(MonthlyReport.Build([referral], [], [], "2026-11", DateTimeOffset.Parse("2026-11-10T12:00:00Z"), history));
+        Assert.Equal(0, report.Value<int>("total")); Assert.Equal(0, report.Value<int>("outcomes"));
+    }
+    [Fact] public void TestReferralIsSyntheticAttributedAndNeverCreatesAnAlert()
+    {
+        using var client = new Microsoft.Azure.Cosmos.CosmosClient("https://localhost:8081", "bG9jYWwtdGVzdC1rZXk=");
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Cosmos:Database"] = "bridgeway-tests" }).Build();
+        var store = new CosmosStore(client, config, new Settings()); store.UseBusiness("orthodontics-stage-a");
+        var card = new JObject { ["id"] = "card-code-a", ["businessId"] = "orthodontics-stage-a", ["active"] = true, ["partnerId"] = "partner-a", ["officeId"] = "office-a", ["resolvedPartnerName"] = "General Dentist", ["resolvedOfficeName"] = "Orthodontics" };
+        Assert.True(TestReferralRules.IsCardForWorkspace(card, "orthodontics-stage-a"));
+        Assert.False(TestReferralRules.IsCardForWorkspace(card, "hvac-stage-b"));
+        Assert.False(TestReferralRules.IsCardForWorkspace(new JObject(card) { ["active"] = false }, "orthodontics-stage-a"));
+        Assert.False(TestReferralRules.IsCardForWorkspace(new JObject { ["id"] = "legacy-card", ["businessId"] = "orthodontics-stage-a", ["active"] = true }, "orthodontics-stage-a"));
+        var id = Guid.Parse("d8c782b0-cd57-4ba3-bfe6-e09c2ae75c81");
+        var (referral, history) = TestReferralRules.Create(store, card, "admin-a", id);
+        Assert.Equal("orthodontics-stage-a", referral.Value<string>("businessId")); Assert.Equal("partner-a", referral.Value<string>("partnerId"));
+        Assert.Equal("office-a", referral.Value<string>("officeId")); Assert.True(referral.Value<bool>("isTest"));
+        Assert.True(history.Value<bool>("isTest")); Assert.Equal(referral.Value<string>("id"), history.Value<string>("referralId"));
+        Assert.Equal("test-referral@bridgeway.invalid", referral.Value<string>("email"));
+        Assert.Equal(new[] { "referral", "status-history" }, new[] { referral.Value<string>("type"), history.Value<string>("type") });
+        Assert.Equal("ref-test-" + id, TestReferralRules.Id(id));
+        Assert.True(TestReferralRules.IsRepeat(new JObject { ["type"] = "referral", ["isTest"] = true }));
+        Assert.False(TestReferralRules.IsRepeat(new JObject { ["type"] = "referral", ["isTest"] = false }));
+        Assert.Equal(new[] { "CardCode", "SubmissionId" }, typeof(TestReferralCreate).GetProperties().Select(p => p.Name));
     }
     [Fact] public void MembershipSelectionNeverFallsBackToAnotherBusiness()
     {

@@ -6,8 +6,8 @@ function report(month: string): Report {
   const count = Number(month.slice(5));
   return { month, monthLabel: `${month} report`, availableMonths: months, total: count, linkOpens: count * 2,
     referringOffices: 1, previousTotal: count - 1, invalidDates: 0, hasSubmissions: true, outcomes: 0, outcomeLabel: "Completed",
-    offices: [{ officeId: "fictional", name: `${month} office`, active: true, count, opens: count * 2, outcomes: 0, outcomeRate: 0 }],
-    trend: [{ month, total: count, opens: count * 2, offices: { fictional: count }, officeOpens: { fictional: count * 2 } }],
+    offices: [{ officeId: "fictional", name: `${month} office`, active: true, count, opens: count * 2, outcomes: 0 }],
+    trend: [{ month, total: count, opens: count * 2, outcomes: 0, offices: { fictional: count }, officeOpens: { fictional: count * 2 } }],
   };
 }
 
@@ -37,6 +37,7 @@ async function dashboard(page: Page) {
     else if (url.pathname.endsWith("/business/profile")) await route.fulfill({ json: { name: "Fictional Demo", officeName: "Fictional Demo", welcomeText: "", phone: "", logoUrl: "", acceptReferrals: false, billingStatus: "not_configured", monthlyPriceUsd: 50, etag: "fictional" } });
     else if (url.pathname.endsWith("/billing")) await route.fulfill({ json: { amountUsd: 50, interval: "month", status: "not_configured", cancelAtPeriodEnd: false, configured: false, testMode: false, customerLinked: false } });
     else if (url.pathname.endsWith("/invitations")) await route.fulfill({ json: { invitations: [] } });
+    else if (url.pathname.endsWith("/test-referrals")) await route.fulfill({ json: { referrals: [], limited: false } });
     else if (url.pathname.endsWith("/alerts")) await route.fulfill({ json: { enabled: false, recipient: "", waiting: 0, retrying: 0 } });
     else throw new Error(`Unexpected staff request: ${url.pathname}`);
   });

@@ -28,7 +28,7 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound) { return null; }
     }
     public Task<JObject?> Read(string id, CancellationToken ct = default) => Read(Operations, id, BusinessKey, ct);
-    public async Task<JObject?> Card(string code, CancellationToken ct = default)
+    public async Task<JObject?> Card(string code, CancellationToken ct = default, bool requireActiveAssociations = false)
     {
         var card = await Read(Cards, code, new PartitionKey(code), ct);
         if (string.IsNullOrWhiteSpace(card?.Value<string>("businessId"))) return null;
@@ -40,13 +40,13 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         if (officeId is not null)
         {
             var office = await Read(Operations, officeId, new PartitionKey(businessId), ct);
-            if (!ValidCardReference(office, "office", legacy)) return null;
+            if (!ValidCardReference(office, "office", legacy) || (requireActiveAssociations && (office?.Value<bool?>("active") != true || office.Value<string>("type") != "office"))) return null;
             card["resolvedOfficeName"] = office?.Value<string>("name") ?? card.Value<string>("officeName");
         }
         if (partnerId is not null)
         {
             var partner = await Read(Operations, partnerId, new PartitionKey(businessId), ct);
-            if (!ValidCardReference(partner, "partner", legacy)) return null;
+            if (!ValidCardReference(partner, "partner", legacy) || (requireActiveAssociations && (partner?.Value<bool?>("active") != true || partner.Value<string>("type") != "partner"))) return null;
             card["resolvedPartnerName"] = partner?.Value<string>("name") ?? card.Value<string>("partnerName");
         }
         return card;
@@ -77,11 +77,15 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
     }
     public async Task<List<JObject>> Query(string type, int? limit = null, bool summaries = false, CancellationToken ct = default)
     {
-        var select = summaries ? type == "status-history" ? "c.id,c.type,c.referralId,c.status,c.changedAt,c.partnerId" : "c.id,c.type,c.doctorCode,c.doctorName,c.partnerId,c.partnerName,c.status,c.createdAt" : "*";
-        var query = new QueryDefinition($"SELECT {select} FROM c WHERE c.businessId = @business AND c.type = @type")
+        var select = summaries ? type == "status-history" ? "c.id,c.type,c.referralId,c.status,c.changedAt,c.partnerId,c.officeId,c.cardId" : "c.id,c.type,c.doctorCode,c.doctorName,c.partnerId,c.partnerName,c.status,c.createdAt,c.officeId,c.cardId" : "*";
+        var testFilter = type is "referral" or "status-history" ? " AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false)" : "";
+        var query = new QueryDefinition($"SELECT {select} FROM c WHERE c.businessId = @business AND c.type = @type{testFilter}")
             .WithParameter("@business", BusinessId).WithParameter("@type", type);
         return await Collect(Operations, query, BusinessKey, limit, ct);
     }
+    public Task<List<JObject>> TestReferrals(CancellationToken ct = default) => Collect(Operations,
+        new QueryDefinition("SELECT TOP 201 * FROM c WHERE c.businessId = @business AND c.type = 'referral' AND c.isTest = true ORDER BY c.createdAt DESC")
+            .WithParameter("@business", BusinessId), BusinessKey, 201, ct);
     /// <summary>Card directory is partitioned by card code for O(1) public taps, so listing a business's cards is a cross-partition query.</summary>
     public Task<List<JObject>> BusinessCards(string? businessId = null, CancellationToken ct = default) => Collect(Cards,
         new QueryDefinition("SELECT * FROM c WHERE c.businessId = @business").WithParameter("@business", businessId ?? BusinessId), null, 2000, ct);
@@ -89,7 +93,7 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         new QueryDefinition("SELECT * FROM c WHERE c.type = 'business' AND c.id = 'business'"), null, 5000, ct);
     public async Task<Dictionary<(string Business, string Type), long>> CountsByBusiness(CancellationToken ct = default)
     {
-        var rows = await Collect(Operations, new QueryDefinition("SELECT c.businessId, c.type, COUNT(1) AS n FROM c WHERE c.type IN ('referral', 'link-open') GROUP BY c.businessId, c.type"), null, null, ct);
+        var rows = await Collect(Operations, new QueryDefinition("SELECT c.businessId, c.type, COUNT(1) AS n FROM c WHERE (c.type = 'referral' AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false)) OR c.type = 'link-open' GROUP BY c.businessId, c.type"), null, null, ct);
         var cards = await Collect(Cards, new QueryDefinition("SELECT c.businessId, COUNT(1) AS n FROM c GROUP BY c.businessId"), null, null, ct);
         var result = new Dictionary<(string, string), long>();
         foreach (var row in rows) result[(row.Value<string>("businessId") ?? "", row.Value<string>("type") ?? "")] = row.Value<long>("n");

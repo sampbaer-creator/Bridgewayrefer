@@ -8,6 +8,7 @@ public class AuditReadinessTests
     {
         var query = ReferralSearch.Build("business-a", "' OR true --", "Scheduled", "partner-a", "2026-01-01", "2026-01-31", true);
         Assert.Contains("c.businessId = @business", query.QueryText);
+        Assert.Contains("NOT IS_DEFINED(c.isTest)", query.QueryText);
         Assert.Contains("c.status NOT IN", query.QueryText);
         Assert.DoesNotContain("' OR true --", query.QueryText);
         Assert.DoesNotContain("TOP 501", query.QueryText);
