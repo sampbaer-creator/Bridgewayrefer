@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
 import Header from "../components/Header";
 import "./globals.css";
-import "./launch.css";
-import "./launch-extra.css";
-import "./access.css";
-import "./staff-dashboard.css";
-import "./design-system.css";
+import "./staff.css";
+import "./landing.css";
+import "./site.css";
+
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
@@ -18,6 +20,32 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body><a className="skip-link" href="#main-content">Skip to content</a><Header />{children}<footer className="site-footer"><span>BridgeWay · Referrals, followed through.</span><nav aria-label="Footer"><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/security">Security</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav></footer></body></html>;
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <a className="skip-link" href="#main-content">Skip to content</a>
+        <Header />
+        {children}
+        <footer className="site-footer">
+          <div className="footer-inner">
+            <Link className="footer-brand" href="/" aria-label="BridgeWay home">
+              <img className="footer-brand-mark" src="/brand-mark.png" alt="" width={30} height={30} />
+              <span className="footer-brand-name">
+                Bridge<span className="footer-brand-accent">Way</span>
+              </span>
+            </Link>
+            <p className="footer-tag">Referrals, followed through.</p>
+            <nav aria-label="Footer">
+              <a href="/pricing">Pricing</a>
+              <a href="/contact">Contact</a>
+              <a href="/security">Security</a>
+              <a href="/privacy">Privacy</a>
+              <a href="/terms">Terms</a>
+            </nav>
+            <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for dental, orthodontic, and home service teams.</p>
+          </div>
+        </footer>
+      </body>
+    </html>
+  );
 }
-
