@@ -33,7 +33,7 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
   await page.getByLabel("Business name").fill("Test Practice");
   const primary = page.getByRole("button", { name: "Continue to Stripe" });
   await expect(primary).toHaveCSS("background-color", "rgb(72, 178, 230)");
-  await expect(primary).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(primary).toHaveCSS("color", "rgb(13, 35, 57)");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page).toHaveURL(/checkout=verified/);
 });
