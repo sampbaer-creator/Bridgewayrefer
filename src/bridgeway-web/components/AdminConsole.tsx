@@ -1,3 +1,4 @@
+
 "use client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
