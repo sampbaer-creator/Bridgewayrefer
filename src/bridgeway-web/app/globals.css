@@ -24,7 +24,8 @@
   --radius: 14px;
   --radius-sm: 8px;
   --warm-brown: #826148;
-  --font-display: "Libre Caslon Text", "Adobe Caslon Pro", "Big Caslon", Georgia, serif;
+  --font-body: "Faustina", serif;
+  --font-display: var(--font-body);
 }
 
 * { box-sizing: border-box; }
@@ -39,11 +40,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.015em; }
+h1, h2, h3, h4 { font-family: var(--font-body); font-weight: 700; letter-spacing: -0.015em; }
 
 a { color: var(--ink-blue); text-underline-offset: 4px; }
 
 button, input, select, textarea { font: inherit; }
+button, input, select, textarea { font-family: var(--font-body), sans-serif; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 button, a, input, select, textarea { outline-offset: 3px; }
