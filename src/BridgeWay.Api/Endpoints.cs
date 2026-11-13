@@ -48,8 +48,7 @@ public static class Endpoints
         if (ctx.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
         var tenant = ctx.User.FindFirstValue("tid");
         var objectId = ctx.User.FindFirstValue("oid");
-        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(objectId) ||
-            !string.Equals(tenant, settings.TenantId, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(objectId) || !settings.AcceptsTenant(tenant))
             throw new ApiError(403, "Access denied.");
         return (tenant, objectId);
     }
@@ -186,7 +185,7 @@ public static class Endpoints
             {
                 if (http.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
                 var oid = http.User.FindFirstValue("oid"); var tid = http.User.FindFirstValue("tid");
-                if (string.IsNullOrWhiteSpace(oid) || string.IsNullOrWhiteSpace(tid) || !string.Equals(tid, settings.TenantId, StringComparison.OrdinalIgnoreCase)) throw new ApiError(403, "Access denied.");
+                if (string.IsNullOrWhiteSpace(oid) || string.IsNullOrWhiteSpace(tid) || !settings.AcceptsTenant(tid)) throw new ApiError(403, "Access denied.");
                 var email = (http.User.FindFirstValue("email") ?? http.User.FindFirstValue("preferred_username") ?? "").Trim().ToLowerInvariant();
                 var memberships = await store.Memberships(oid, tid, http.RequestAborted);
                 var requested = RequestedBusiness(http);
@@ -283,9 +282,10 @@ public static class Endpoints
             if (ctx.RequestServices.GetRequiredService<BusinessContext>().Role != "Admin") throw new ApiError(403, "Administrator access is required.");
             if (data.Active) throw new ApiError(400, "Members can only be deactivated here.");
             if (string.Equals(oid, ctx.User.FindFirstValue("oid"), StringComparison.OrdinalIgnoreCase)) throw new ApiError(409, "Ask another administrator to revoke your access.");
-            var memberId = CosmosStore.MembershipId(settings.TenantId, oid);
-            var member = await store.Read(store.Operations, memberId, store.BusinessKey, ct);
-            if (member?.Value<string>("type") != "membership" || member.Value<string>("tenantId") != settings.TenantId || member.Value<string>("oid") != oid || member.Value<bool?>("active") != true) throw new ApiError(404, "Active member not found.");
+            // Members may sign in from any tenant, so find this business's active membership by object ID and use its stored tenant.
+            var member = (await store.Query("membership", ct: ct)).FirstOrDefault(m => string.Equals(m.Value<string>("oid"), oid, StringComparison.OrdinalIgnoreCase) && m.Value<bool?>("active") == true);
+            if (member?.Value<string>("type") != "membership" || string.IsNullOrWhiteSpace(member.Value<string>("tenantId")) || member.Value<string>("oid") != oid || member.Value<bool?>("active") != true) throw new ApiError(404, "Active member not found.");
+            var memberId = member.Value<string>("id") ?? throw new ApiError(404, "Active member not found.");
             if (!string.Equals(member.Value<string>("_etag"), data.Etag, StringComparison.Ordinal)) throw new ApiError(409, "This member changed. Refresh and try again.");
             member["active"] = false; member["revokedAt"] = DateTimeOffset.UtcNow.ToString("O"); member["revokedBy"] = Actor(ctx);
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(memberId, member, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "revoke-member", oid)).ExecuteAsync(ct);
@@ -522,7 +522,7 @@ public static class Endpoints
                 }
                 business["selectedPlan"] = plan; business["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan);
                 var savedCustomer = await store.Operations.ReplaceItemAsync(business, "business", store.BusinessKey, new ItemRequestOptions { IfMatchEtag = business.Value<string>("_etag") }, ct); business["_etag"] = savedCustomer.ETag;
-                var session = await stripe.CreateCheckout(store.BusinessId, business.Value<string>("name") ?? store.BusinessId, customerId!, plan, settings.PublicOrigin + "/staff?billing=pending", settings.PublicOrigin + "/staff?billing=cancelled", "bridgeway-checkout-" + store.BusinessId + "-" + attempts, ct);
+                var session = await stripe.CreateCheckout(store.BusinessId, business.Value<string>("name") ?? store.BusinessId, customerId!, plan, settings.PublicOrigin + "/staff?billing=pending", settings.PublicOrigin + "/staff?billing=cancelled", "bridgeway-checkout-" + store.BusinessId + "-" + attempts, ct, trialDays: business.Value<bool?>("customerSignup") == true && business.Value<string>("stripeSubscriptionId") is null ? BillingPlans.SignupTrialDays : null);
                 var checkoutUrl = session.Value<string>("url") ?? throw new ApiError(503, "Stripe did not return a Checkout URL.");
                 var expiresAt = DateTimeOffset.FromUnixTimeSeconds(session.Value<long>("expires_at")).ToString("O");
                 business["checkoutSessionId"] = session.Value<string>("id"); business["checkoutSessionPlan"] = plan; business["checkoutSessionUrl"] = checkoutUrl; business["checkoutSessionExpiresAt"] = expiresAt;
