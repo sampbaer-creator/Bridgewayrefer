@@ -7,7 +7,7 @@
 
 :root {
   --navy: #0D2339;
-  --navy-deep: #081A2B;
+  --navy-deep: #7BC8ED;
   --blue: #7BC8ED;
   --ink-blue: #183E52;
   --accent: #48B2E6;
@@ -73,7 +73,7 @@ button {
   cursor: pointer; font-weight: 600; font-size: 0.9rem;
   transition: background 0.15s, transform 0.15s, border-color 0.15s;
 }
-button:hover { background: var(--navy-deep); }
+button:hover { background: var(--pale); }
 button:disabled { opacity: 0.6; cursor: wait; }
 button:not(:disabled):active { transform: translateY(1px); }
 button.primary { background: var(--accent); color: var(--navy); }

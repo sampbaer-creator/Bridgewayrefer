@@ -8,7 +8,7 @@
 .bw-landing {
   --bw-navy: var(--navy);
   --bw-navy-deep: var(--navy-deep);
-  --bw-navy-panel: var(--navy-deep);
+  --bw-navy-panel: var(--ink-blue);
   --bw-blue: var(--blue);
   --bw-link: var(--ink-blue);
   --bw-accent: var(--accent);
@@ -289,15 +289,15 @@ body:has(.bw-landing) > .site-footer {
 .bw-proof-item + .bw-proof-item { border-left: 1px solid var(--bw-line); padding-left: 1.5rem; }
 
 /* ============ Journey (dark band) ============ */
-.bw-journey { background: var(--bw-navy-deep); color: var(--offwhite); }
+.bw-journey { background: var(--pale); color: var(--ink); }
 .bw-journey-inner { max-width: 1200px; margin: 0 auto; padding: var(--bw-section-y) 2rem; }
-.bw-journey h2 { color: #fff; }
+.bw-journey h2 { color: var(--navy); }
 .bw-journey-sub { color: var(--bw-silver); max-width: 42rem; margin-top: 1rem; font-size: 1.05rem; }
 
 .bw-pipeline { position: relative; margin-top: 3.2rem; }
 .bw-pipeline-track {
   position: absolute; top: 30px; left: 6%; right: 6%; height: 3px;
-  background: rgba(72, 178, 230, 0.22); border-radius: 2px; overflow: visible;
+  background: rgba(72, 178, 230, 0.35); border-radius: 2px; overflow: visible;
 }
 .bw-pipeline-pulse {
   position: absolute; top: 50%; left: 0; width: 14px; height: 14px;
@@ -331,12 +331,12 @@ body:has(.bw-landing) > .site-footer {
   stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
 .bw-pipe-step.lit .bw-pipe-icon { border-color: var(--bw-sky); box-shadow: 0 0 24px rgba(72, 178, 230, 0.35); }
-.bw-pipe-step b { display: block; font-size: 1.06rem; color: #fff; margin-bottom: 0.5rem; }
-.bw-pipe-step p { color: var(--bw-silver); font-size: 0.95rem; }
+.bw-pipe-step b { display: block; font-size: 1.06rem; color: var(--navy); margin-bottom: 0.5rem; }
+.bw-pipe-step p { color: var(--muted); font-size: 0.95rem; }
 .bw-step-num {
   position: absolute; top: 0; right: 0;
   font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
-  color: rgba(176, 222, 244, 0.75);
+  color: var(--ink-blue);
 }
 
 /* ============ Sections shared ============ */
@@ -509,8 +509,8 @@ body:has(.bw-landing) > .site-footer {
 .bw-lead { padding: var(--bw-section-y) 2rem 0; }
 .bw-lead-card {
   max-width: 1200px; margin: 0 auto;
-  background: linear-gradient(135deg, var(--bw-navy-deep) 0%, var(--bw-navy) 58%, var(--ink-blue) 100%);
-  border-radius: 20px; color: var(--offwhite);
+  background: linear-gradient(135deg, var(--bw-blue) 0%, var(--bw-sky) 58%, var(--bw-pale) 100%);
+  border-radius: 20px; color: var(--ink);
   padding: clamp(2.2rem, 5vw, 3.8rem);
   display: grid; grid-template-columns: 1fr 1.05fr; gap: clamp(2rem, 4vw, 3.5rem);
   align-items: center;
@@ -522,32 +522,32 @@ body:has(.bw-landing) > .site-footer {
   background: radial-gradient(34rem 22rem at 108% -12%, rgba(72, 178, 230, 0.35), transparent 62%);
 }
 .bw-lead-copy { position: relative; z-index: 1; }
-.bw-lead-copy h2 { color: #fff; }
-.bw-lead-sub { color: var(--bw-silver); margin-top: 1rem; font-size: 1.02rem; }
+.bw-lead-copy h2 { color: var(--navy); }
+.bw-lead-sub { color: var(--ink-blue); margin-top: 1rem; font-size: 1.02rem; }
 .bw-lead-forms { position: relative; z-index: 1; display: grid; gap: 1.3rem; }
 .bw-lead-form { display: grid; gap: 0.7rem; }
 .bw-lead-form input {
   width: 100%; font: 500 0.95rem/1.4 var(--font-body), sans-serif;
   padding: 0.85rem 1rem; border-radius: var(--bw-radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.08); color: #fff;
+  border: 1px solid rgba(24, 62, 82, 0.3);
+  background: rgba(255, 255, 255, 0.75); color: var(--ink);
   display: block; margin: 0; box-shadow: none;
   transition: border-color 0.15s, background 0.15s;
 }
-.bw-lead-form input::placeholder { color: rgba(238, 247, 250, 0.65); }
-.bw-lead-form input:focus { outline: none; border-color: var(--bw-sky); background: rgba(255, 255, 255, 0.13); }
+.bw-lead-form input::placeholder { color: var(--muted); }
+.bw-lead-form input:focus { outline: none; border-color: var(--bw-accent); background: #fff; }
 .bw-lead-consent {
   display: flex; align-items: center; gap: 0.6rem;
-  font-size: 0.78rem; color: var(--bw-silver); font-weight: 400; margin: 0;
+  font-size: 0.78rem; color: var(--ink-blue); font-weight: 400; margin: 0;
 }
 .bw-lead-consent input {
   width: 16px; height: 16px; padding: 0; margin: 0; flex-shrink: 0;
-  accent-color: #fff; cursor: pointer;
+  accent-color: var(--accent); cursor: pointer;
 }
 .bw-lead-fine { font-size: 0.78rem; color: var(--bw-silver); text-align: center; margin: 0; }
 .bw-lead-error { font-size: 0.82rem; color: #e08a92; margin: 0; }
 .bw-lead-success {
-  font-size: 0.95rem; font-weight: 600; color: #fff; margin: 0;
+  font-size: 0.95rem; font-weight: 600; color: var(--navy); margin: 0;
   display: flex; align-items: center; justify-content: center; min-height: 120px;
 }
 .bw-lead-form .bw-btn { font-size: 0.9rem; }
@@ -579,28 +579,28 @@ body:has(.bw-landing) > .site-footer {
 /* ============ Final CTA ============ */
 .bw-final-cta {
   margin-top: var(--bw-section-y);
-  background: var(--bw-navy-deep);
-  text-align: center; color: #fff;
+  background: var(--bw-blue);
+  text-align: center; color: var(--navy);
   padding: clamp(4rem, 8vw, 6.5rem) 2rem;
 }
 .bw-final-cta h2 { max-width: 18ch; margin: 0 auto 2rem; }
 
 /* ============ Footer ============ */
 .bw-footer {
-  background: var(--bw-navy-deep); color: var(--bw-silver);
+  background: var(--bw-pale); color: var(--ink);
   border-top: 1px solid rgba(72, 178, 230, 0.18);
 }
 .bw-footer-inner {
   max-width: 1200px; margin: 0 auto; padding: 3rem 2rem 2.4rem;
   display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem 2.5rem;
 }
-.bw-brand-footer { color: #fff; }
+.bw-brand-footer { color: var(--navy); }
 .bw-brand-footer .bw-brand-mark { width: 30px; height: 30px; }
 .bw-footer-tag { font-size: 0.9rem; }
 .bw-footer-nav { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-left: auto; }
-.bw-footer-nav a { color: var(--bw-silver); font-size: 0.87rem; }
-.bw-footer-nav a:hover { color: #fff; text-decoration: none; }
-.bw-footer-fine { width: 100%; font-size: 0.78rem; color: rgba(176, 222, 244, 0.72); margin: 0; }
+.bw-footer-nav a { color: var(--ink-blue); font-size: 0.87rem; }
+.bw-footer-nav a:hover { color: var(--navy); text-decoration: none; }
+.bw-footer-fine { width: 100%; font-size: 0.78rem; color: var(--muted); margin: 0; }
 
 /* ============ Sticky mobile CTA ============ */
 .bw-sticky-cta {
