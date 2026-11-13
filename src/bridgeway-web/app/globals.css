@@ -8,17 +8,18 @@
 :root {
   --navy: #0D2339;
   --navy-deep: #081A2B;
-  --blue: #183E52;
-  --accent: #24536B;
-  --accent-strong: #183E52;
-  --sky: #C7D4D7;
-  --silver: #98A3A5;
-  --offwhite: #F3F4F3;
+  --blue: #7BC8ED;
+  --ink-blue: #183E52;
+  --accent: #48B2E6;
+  --accent-strong: #7BC8ED;
+  --sky: #B0DEF4;
+  --silver: #B0DEF4;
+  --offwhite: #EEF7FA;
   --paper: #FFFFFF;
   --ink: #192C37;
   --muted: #536168;
-  --line: #D7DFE0;
-  --pale: #E8EEF0;
+  --line: #B0DEF4;
+  --pale: #D2ECF8;
   --error: #a6323e;
   --radius: 14px;
   --radius-sm: 8px;
@@ -33,14 +34,14 @@ html { scroll-behavior: smooth; scroll-padding-top: 24px; }
 body {
   margin: 0;
   background: var(--offwhite);
-  font: 400 16px/1.65 inherit;
+  font: 400 16px/1.65 var(--font-body), sans-serif;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.015em; }
 
-a { color: var(--accent); text-underline-offset: 4px; }
+a { color: var(--ink-blue); text-underline-offset: 4px; }
 
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
@@ -73,7 +74,7 @@ button {
 button:hover { background: var(--navy-deep); }
 button:disabled { opacity: 0.6; cursor: wait; }
 button:not(:disabled):active { transform: translateY(1px); }
-button.primary { background: var(--accent); }
+button.primary { background: var(--accent); color: var(--navy); }
 button.primary:hover { background: var(--accent-strong); }
 button.secondary { background: var(--pale); color: var(--ink); border-color: var(--line); }
 button.secondary:hover { background: var(--silver); }
