@@ -6,22 +6,24 @@
    ============================================================ */
 
 :root {
-  --navy: #3B2C26;
-  --navy-deep: #261B17;
-  --blue: #365D76;
-  --accent: #3B2C26;
-  --accent-strong: #261B17;
-  --sky: #CFE3F2;
-  --silver: #E9D8C6;
-  --offwhite: #F4F3F1;
+  --navy: #0D2339;
+  --navy-deep: #081A2B;
+  --blue: #183E52;
+  --accent: #24536B;
+  --accent-strong: #183E52;
+  --sky: #C7D4D7;
+  --silver: #98A3A5;
+  --offwhite: #F3F4F3;
   --paper: #FFFFFF;
-  --ink: #302824;
-  --muted: #625C57;
-  --line: #DCD7D2;
-  --pale: #EAF3F9;
+  --ink: #192C37;
+  --muted: #536168;
+  --line: #D7DFE0;
+  --pale: #E8EEF0;
   --error: #a6323e;
   --radius: 14px;
   --radius-sm: 8px;
+  --warm-brown: #826148;
+  --font-display: "Libre Caslon Text", "Adobe Caslon Pro", "Big Caslon", Georgia, serif;
 }
 
 * { box-sizing: border-box; }
@@ -35,6 +37,8 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
+
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.015em; }
 
 a { color: var(--accent); text-underline-offset: 4px; }
 
@@ -75,10 +79,10 @@ button.secondary { background: var(--pale); color: var(--ink); border-color: var
 button.secondary:hover { background: var(--silver); }
 
 /* Shared utility classes (used by staff workspace) */
-.eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--blue); margin: 0 0 0.8rem; }
+.eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--warm-brown); margin: 0 0 0.8rem; }
 .muted { color: var(--muted); }
 .hint { font-size: 0.78rem; line-height: 1.6; color: var(--muted); margin: 0.5rem 0 0; }
-.card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.6rem; box-shadow: 0 1px 2px rgba(59, 44, 38, 0.05); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.6rem; box-shadow: 0 1px 2px rgba(13, 35, 57, 0.05); }
 .check { display: flex; gap: 0.7rem; margin: 1.1rem 0; align-items: start; }
 .check input { width: 16px; height: 16px; min-width: 16px; margin-top: 0.2rem; accent-color: var(--accent); }
 .check > span { font-size: 0.85rem; font-weight: 400; line-height: 1.6; float: none; color: var(--muted); }
