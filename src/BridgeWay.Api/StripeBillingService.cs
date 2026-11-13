@@ -67,17 +67,20 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         return JObject.Parse(body).Value<string>("id") ?? throw new ApiError(503, "Stripe did not return a customer ID.");
     }
 
-    public async Task<JObject> CreateCheckout(string businessId, string businessName, string customerId, string plan, string successUrl, string cancelUrl, string idempotencyKey, CancellationToken ct)
+    public async Task<JObject> CreateCheckout(string businessId, string businessName, string customerId, string plan, string successUrl, string cancelUrl, string idempotencyKey, CancellationToken ct, int? trialDays = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, Api + "checkout/sessions");
-        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        var form = new Dictionary<string, string>
         {
             ["mode"] = "subscription", ["customer"] = customerId, ["client_reference_id"] = businessId,
             ["line_items[0][price]"] = settings.StripePriceFor(plan), ["line_items[0][quantity]"] = "1",
             ["success_url"] = successUrl, ["cancel_url"] = cancelUrl,
             ["metadata[businessId]"] = businessId, ["metadata[businessName]"] = businessName, ["metadata[plan]"] = plan,
             ["subscription_data[metadata][businessId]"] = businessId, ["subscription_data[metadata][plan]"] = plan,
-        });
+        };
+        // Card is collected at Checkout (payment_method_collection defaults to always for subscriptions); the first charge happens after the trial.
+        if (trialDays is > 0) form["subscription_data[trial_period_days]"] = trialDays.Value.ToString(CultureInfo.InvariantCulture);
+        request.Content = new FormUrlEncodedContent(form);
         Configure(request, idempotencyKey);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         var body = await response.Content.ReadAsStringAsync(ct);

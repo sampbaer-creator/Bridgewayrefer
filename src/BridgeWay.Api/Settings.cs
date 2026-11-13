@@ -59,6 +59,15 @@ public sealed class Settings
     public bool IsPlatformAdmin(string? tenantId, string? oid) =>
         !string.IsNullOrWhiteSpace(oid) && string.Equals(tenantId, TenantId, StringComparison.OrdinalIgnoreCase) &&
         PlatformAdminObjectIds.Contains(oid, StringComparer.OrdinalIgnoreCase);
+    /// <summary>When true, any Microsoft Entra tenant (and personal Microsoft accounts) may sign in. Access still requires an active membership keyed by tenant and object ID.</summary>
+    public bool MultiTenantSignIn { get; set; }
+    public bool AcceptsTenant(string? tenantId) =>
+        !string.IsNullOrWhiteSpace(tenantId) && (MultiTenantSignIn
+            ? System.Text.RegularExpressions.Regex.IsMatch(tenantId, @"\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z")
+            : string.Equals(tenantId, TenantId, StringComparison.OrdinalIgnoreCase));
+    public string EffectiveAuthority => Authority.Length > 0 ? Authority
+        : MultiTenantSignIn ? "https://login.microsoftonline.com/common/v2.0"
+        : $"https://login.microsoftonline.com/{TenantId}/v2.0";
 }
 
 public static class BillingPlans
@@ -66,6 +75,8 @@ public static class BillingPlans
     public const string Workspace = "workspace";
     public const string ManagedCalling = "managed-calling";
     public const int ManagedCallingMonthlyPriceUsd = 400;
+    /// <summary>Free trial length for self-serve customer signups. Checkout still collects a card up front.</summary>
+    public const int SignupTrialDays = 15;
     public static bool MatchesCheckout(string? savedPlan, string requestedPlan) => Normalize(savedPlan) == Normalize(requestedPlan);
     public static string Normalize(string? plan) => string.IsNullOrWhiteSpace(plan) || plan == Workspace ? Workspace
         : plan == ManagedCalling ? ManagedCalling

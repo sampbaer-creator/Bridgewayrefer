@@ -66,7 +66,16 @@ var auth = builder.Services.AddAuthentication(CookieAuthenticationDefaults.Authe
 });
 if (settings.IdentityConfigured) auth.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
-    options.Authority = settings.Authority.Length > 0 ? settings.Authority : $"https://login.microsoftonline.com/{settings.TenantId}/v2.0";
+    options.Authority = settings.EffectiveAuthority;
+    if (settings.MultiTenantSignIn)
+    {
+        // Multi-tenant tokens carry the signing tenant's issuer. Accept only Microsoft login issuers for a tenant GUID;
+        // access is then decided by the active membership keyed by tid and oid.
+        options.TokenValidationParameters.IssuerValidator = (issuer, _, _) =>
+            System.Text.RegularExpressions.Regex.IsMatch(issuer ?? "", @"\Ahttps://login\.microsoftonline\.com/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/v2\.0\z")
+                ? issuer!
+                : throw new Microsoft.IdentityModel.Tokens.SecurityTokenInvalidIssuerException("Issuer is not a Microsoft sign-in tenant.");
+    }
     options.ClientId = settings.ClientId; options.ClientSecret = settings.ClientSecret;
     options.ResponseType = OpenIdConnectResponseType.Code; options.UsePkce = true;
     options.Scope.Add("email");
