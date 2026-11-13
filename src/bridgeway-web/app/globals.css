@@ -18,6 +18,7 @@
   --paper: #FFFFFF;
   --ink: #192C37;
   --muted: #536168;
+  --accent-text: #0D2339;
   --line: #B0DEF4;
   --pale: #D2ECF8;
   --error: #a6323e;
@@ -50,11 +51,14 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 button, a, input, select, textarea { outline-offset: 3px; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 3px solid var(--blue);
+  outline: 3px solid var(--ink-blue);
 }
 
-label { display: block; font-weight: 650; font-size: 0.8rem; margin-top: 1.1rem; }
-label > span { font-weight: 400; color: var(--muted); font-size: 0.7rem; float: right; }
+button.primary, a.button-primary { color: var(--navy); }
+button.primary:hover, a.button-primary:hover { color: var(--navy); }
+
+label { display: block; font-weight: 600; font-size: 0.95rem; margin-top: 1.1rem; }
+label > span { font-weight: 500; color: var(--ink-blue); font-size: 0.85rem; float: right; }
 
 input, textarea, select {
   display: block; width: 100%;
@@ -82,13 +86,13 @@ button.secondary { background: var(--pale); color: var(--ink); border-color: var
 button.secondary:hover { background: var(--silver); }
 
 /* Shared utility classes (used by staff workspace) */
-.eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--warm-brown); margin: 0 0 0.8rem; }
-.muted { color: var(--muted); }
-.hint { font-size: 0.78rem; line-height: 1.6; color: var(--muted); margin: 0.5rem 0 0; }
+.eyebrow { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-blue); margin: 0 0 0.8rem; }
+.muted { color: var(--ink-blue); }
+.hint { font-size: 0.95rem; line-height: 1.6; color: var(--ink-blue); margin: 0.5rem 0 0; }
 .card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.6rem; box-shadow: 0 1px 2px rgba(13, 35, 57, 0.05); }
 .check { display: flex; gap: 0.7rem; margin: 1.1rem 0; align-items: start; }
 .check input { width: 16px; height: 16px; min-width: 16px; margin-top: 0.2rem; accent-color: var(--accent); }
-.check > span { font-size: 0.85rem; font-weight: 400; line-height: 1.6; float: none; color: var(--muted); }
+.check > span { font-size: 0.95rem; font-weight: 400; line-height: 1.6; float: none; color: var(--ink-blue); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
 .form-grid label { margin-top: 1rem; }
 .form-grid .span-two { grid-column: 1 / -1; }
