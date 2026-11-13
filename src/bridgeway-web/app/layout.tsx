@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Libre_Caslon_Text } from "next/font/google";
+import { Faustina, Libre_Caslon_Text } from "next/font/google";
 import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
@@ -9,7 +9,7 @@ import "./staff.css";
 import "./landing.css";
 import "./site.css";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
+const faustina = Faustina({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800"], style: ["normal", "italic"], display: "swap", variable: "--font-body" });
 const libreCaslon = Libre_Caslon_Text({ subsets: ["latin"], weight: ["400", "700"], display: "swap", variable: "--font-display" });
 
 export const metadata: Metadata = {
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} ${libreCaslon.variable}`}>
+      <body className={`${faustina.variable} ${libreCaslon.variable}`}>
         <a className="skip-link" href="#main-content">Skip to content</a>
         <Header />
         {children}

@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Inter } from "next/font/google";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
 
 const PIPE_STEPS = [
   {
@@ -359,7 +357,7 @@ export default function LandingPage() {
   }
 
   return (
-    <main className={`bw-landing ${inter.className}`} id="main-content" ref={root}>
+    <main className="bw-landing" id="main-content" ref={root}>
       <header className="bw-header">
         <div className="bw-header-inner">
           <Link className="bw-brand" href="/" aria-label="BridgeWay home">
