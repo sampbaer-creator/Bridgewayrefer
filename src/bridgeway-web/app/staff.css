@@ -492,3 +492,24 @@ button.primary:hover{border-color:var(--accent-strong);background:var(--accent-s
 }
 .admin-workspace .section-nav.admin-tabs button:not([aria-current="page"]){background:#fff;color:var(--ink-blue);border:1px solid var(--line)}
 .admin-workspace .section-nav.admin-tabs button[aria-current="page"]{background:var(--sky);color:var(--navy)}
+
+/* Shared workspace surfaces and navigation. */
+.admin-workspace { display: grid; gap: 24px; align-items: start; }
+.admin-workspace-content { min-width: 0; }
+.admin-workspace .admin-tabs { margin: 0; }
+:is(.staff-shell, .admin-workspace) :is(.staff-overview-metric, .summary-card, .card) {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgb(23 45 69 / 5%);
+}
+@media (min-width: 1024px) {
+  .admin-workspace { grid-template-columns: 200px minmax(0, 1fr); }
+  .admin-workspace .admin-tabs { display: grid; gap: 6px; position: sticky; top: 84px; }
+  .admin-workspace .admin-tabs button { text-align: left; }
+  .staff-shell { grid-template-columns: 208px minmax(0, 1fr); }
+  .staff-shell .staff-sidebar { width: 208px; padding-inline: 12px; align-items: stretch; }
+  .staff-shell .staff-sidebar-brand { display: flex; gap: 8px; width: auto; }
+  .staff-shell .staff-sidebar-nav a, .staff-shell .staff-sidebar-signout {
+    display: flex; gap: 10px; justify-content: flex-start; align-items: center; width: 100%; padding-inline: 12px;
+  }
+  .staff-shell .staff-nav-label { display: inline; }
+}
