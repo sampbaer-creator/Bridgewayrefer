@@ -289,7 +289,7 @@ export default function StaffDashboard() {
   return <main className="staff-shell" id="main-content" aria-busy={session === "loading" || refreshing}>
     <button className={`staff-sidebar-scrim${sidebarOpen ? " is-visible" : ""}`} aria-label="Dismiss navigation overlay" tabIndex={sidebarOpen ? 0 : -1} onClick={() => setSidebarOpen(false)} />
     <aside className={`staff-sidebar${sidebarOpen ? " is-open" : ""}`} aria-label="Staff workspace navigation">
-      <a className="staff-sidebar-brand" href="/" aria-label="BridgeWay home"><img src="/brand-mark.png" alt="" width={32} height={32} /><span className="staff-nav-label">BridgeWay</span></a>
+      <a className="staff-sidebar-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-mark-square.png" alt="" width={40} height={40} /><span className="staff-nav-label">BridgeWayRefer</span></a>
       <nav className="staff-sidebar-nav" aria-label="Workspace sections">
         <a href="#overview" className={activeSection === "overview" ? "is-active" : undefined} aria-current={activeSection === "overview" ? "location" : undefined} aria-label="Overview" title="Overview" onClick={() => setSidebarOpen(false)}><NavIcon name="overview" /><span className="staff-nav-label">Overview</span></a>
         <a href="#inbox" className={activeSection === "inbox" ? "is-active" : undefined} aria-current={activeSection === "inbox" ? "location" : undefined} aria-label="Referrals" title="Referrals" onClick={() => setSidebarOpen(false)}><NavIcon name="inbox" /><span className="staff-nav-label">Referrals</span></a>

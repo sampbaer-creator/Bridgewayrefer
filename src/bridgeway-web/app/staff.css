@@ -107,6 +107,7 @@ body:has(.staff-shell)>.site-header,body:has(.staff-shell)>.site-footer{display:
 .staff-shell{display:grid;grid-template-columns:64px minmax(0,1fr);min-height:100vh;max-width:none;margin:0;background:var(--offwhite);color:var(--ink)}
 .staff-sidebar{position:sticky;top:0;z-index:40;display:flex;flex-direction:column;width:230px;height:100vh;min-height:600px;padding:24px 12px;background:var(--pale);color:var(--ink)}
 .staff-sidebar-brand{margin:0 12px 28px;color:var(--navy);text-decoration:none;font-size:23px;font-weight:500;letter-spacing:-.6px;line-height:1.3}
+.staff-sidebar-brand img{display:block;width:36px;height:36px;border-radius:9px}
 .staff-workspace-label{display:block;margin:0 4px 25px;color:var(--ink-blue);font-size:14px;font-weight:600}
 .staff-workspace-label select{margin-top:7px;width:100%;min-height:39px;padding:8px 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);font-size:12px}
 .staff-workspace-label option{background:#fff;color:var(--navy)}
@@ -413,7 +414,7 @@ button.primary:hover{border-color:var(--accent-strong);background:var(--accent-s
 /* ============ Slim staff rail (icon sidebar) ============ */
 .staff-shell .staff-sidebar{width:64px;min-height:0;padding:14px 8px;align-items:center;gap:6px;background:#fff;border-right:1px solid var(--line)}
 .staff-shell .staff-sidebar-brand{display:grid;place-items:center;width:44px;height:44px;margin:0 0 14px;padding:0}
-.staff-shell .staff-sidebar-brand img{display:block;border-radius:8px}
+.staff-shell .staff-sidebar-brand img{display:block;width:40px;height:40px;border-radius:10px}
 .staff-shell .staff-sidebar-nav{width:100%;gap:4px}
 .staff-shell .staff-sidebar-nav a,.staff-shell .staff-sidebar-signout{position:relative;display:grid;place-items:center;width:44px;height:44px;min-height:0;margin:0 auto;padding:0;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer}
 .staff-shell .staff-sidebar-nav a:hover,.staff-shell .staff-sidebar-signout:hover{background:var(--pale);color:var(--navy)}

@@ -369,11 +369,8 @@ export default function LandingPage() {
     <main className="bw-landing" id="main-content" ref={root}>
       <header className="bw-header">
         <div className="bw-header-inner">
-          <Link className="bw-brand" href="/" aria-label="BridgeWay home">
-            <img className="bw-brand-mark" src="/brand-mark.png" alt="" width={34} height={34} />
-            <span className="bw-brand-name">
-              Bridge<span className="bw-brand-accent">Way</span>
-            </span>
+          <Link className="bw-brand" href="/" aria-label="BridgeWayRefer home">
+            <img className="bw-brand-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={116} height={40} />
           </Link>
           <nav className="bw-nav" aria-label="Main navigation">
             <a href="#how-it-works">How it works</a>
@@ -906,11 +903,8 @@ export default function LandingPage() {
       {/* ============ FOOTER ============ */}
       <footer className="bw-footer">
         <div className="bw-footer-inner">
-          <Link className="bw-brand bw-brand-footer" href="/" aria-label="BridgeWay home">
-            <img className="bw-brand-mark" src="/brand-mark.png" alt="" width={30} height={30} />
-            <span className="bw-brand-name">
-              Bridge<span className="bw-brand-accent-footer">Way</span>
-            </span>
+          <Link className="bw-brand bw-brand-footer" href="/" aria-label="BridgeWayRefer home">
+            <img className="bw-brand-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={105} height={36} />
           </Link>
           <p className="bw-footer-tag">Referrals, followed through.</p>
           <nav className="bw-footer-nav" aria-label="Footer">

@@ -29,8 +29,8 @@ export default function PatientForm({ config, code = "" }: { config: PublicConfi
   const callback = config.phone ? <a href={"tel:" + config.phone.replace(/[^\d]/g, "")}>{config.phone}</a> : null;
   return <>
     <header className="bw-intake-header">
-      <a className="bw-intake-brand" href="/" aria-label="BridgeWay home">
-        {config.logoUrl ? <img src={config.logoUrl} alt={config.businessName || config.officeName} /> : <span className="bw-intake-brand-text" aria-hidden="true">B</span>}
+      <a className="bw-intake-brand" href="/" aria-label="BridgeWayRefer home">
+        {config.logoUrl ? <img src={config.logoUrl} alt={config.businessName || config.officeName} /> : <img className="bw-intake-brand-mark" src="/brand-mark.png" alt="" width={72} height={25} />}
         <span className="bw-intake-brand-name">{config.logoUrl ? "" : config.businessName || config.officeName}</span>
       </a>
       <span className="bw-intake-label">SECURE REFERRAL REQUEST</span>

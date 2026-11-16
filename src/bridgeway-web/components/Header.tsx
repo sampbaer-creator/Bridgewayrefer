@@ -22,9 +22,8 @@ export default function Header() {
     window.location.assign("/sign-in");
   }
   return <header className="site-header"><div className="header-inner">
-    <Link className="brand" href="/" aria-label="BridgeWay home">
-      <img className="brand-mark" src="/brand-mark.png" alt="" width={32} height={32} />
-      <span className="brand-name">Bridge<span className="brand-accent">Way</span></span>
+    <Link className="brand" href="/" aria-label="BridgeWayRefer home">
+      <img className="brand-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={128} height={44} />
     </Link>
     {staff || admin ? <div className="staff-header-actions"><span className="portal-label">{admin ? "PLATFORM ADMIN" : "STAFF WORKSPACE"}</span><button className="header-signout" onClick={logout}>Sign out</button></div> : <>
       <nav className="public-nav" aria-label="Main navigation"><a href="/#how-it-works">How it works</a><a href="/industries/dental">Dental</a><a href="/industries/trades">Trades</a><a href="/pricing">Pricing</a><a className="public-nav-signin" href="/staff/login">Sign in</a><a className="public-nav-cta" href="/signup?plan=workspace">Get started</a></nav>
