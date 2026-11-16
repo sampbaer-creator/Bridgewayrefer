@@ -7,5 +7,6 @@
 **/obj
 **/test-results
 **/playwright-report
+playwright/.auth/
 **/.env*
 !**/.env.example
