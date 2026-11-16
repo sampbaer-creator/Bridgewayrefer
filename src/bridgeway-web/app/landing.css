@@ -115,8 +115,8 @@ body:has(.bw-landing) > .site-footer {
 .bw-btn-ghost:hover { border-color: var(--bw-navy); color: var(--bw-navy); box-shadow: none; }
 .bw-btn-light { background: #fff; color: var(--bw-navy); }
 .bw-btn-light:hover { background: var(--bw-pale); }
-.bw-btn-ghost-light { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.35); }
-.bw-btn-ghost-light:hover { border-color: #fff; color: #fff; box-shadow: none; }
+.bw-btn-ghost-light { background: var(--bw-navy); color: #fff; border-color: var(--bw-navy); }
+.bw-btn-ghost-light:hover { border-color: var(--navy); color: #fff; box-shadow: none; }
 
 /* ============ Header ============ */
 .bw-header {
@@ -383,7 +383,7 @@ body:has(.bw-landing) > .site-footer {
 }
 .bw-industry-card h3 { color: var(--bw-navy); }
 .bw-industry-card p { color: var(--bw-muted); font-size: 0.97rem; }
-.bw-industry-link { margin-top: auto; padding-top: 0.8rem; font-weight: 700; font-size: 0.92rem; }
+.bw-industry-link { margin-top: auto; padding-top: 0.8rem; font-weight: 700; font-size: 0.92rem; display: inline-flex; align-items: center; min-height: 44px; }
 .bw-industry-card:hover .bw-industry-link { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ============ Features ============ */
@@ -626,8 +626,8 @@ body:has(.bw-landing) > .site-footer {
 .bw-brand-footer { color: var(--navy); }
 .bw-brand-footer .bw-brand-logo { height: 34px; }
 .bw-footer-tag { font-size: 0.9rem; }
-.bw-footer-nav { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-left: auto; }
-.bw-footer-nav a { color: var(--ink-blue); font-size: 0.87rem; }
+.bw-footer-nav { display: flex; gap: 0.4rem 1.4rem; flex-wrap: wrap; margin-left: auto; }
+.bw-footer-nav a { color: var(--ink-blue); font-size: 0.87rem; display: inline-flex; align-items: center; min-height: 44px; }
 .bw-footer-nav a:hover { color: var(--navy); text-decoration: none; }
 .bw-footer-fine { width: 100%; font-size: 0.78rem; color: var(--muted); margin: 0; }
 
@@ -667,18 +667,18 @@ body:has(.bw-landing) > .site-footer {
   .bw-mobile-menu { display: flex; }
   .bw-header-inner { padding: 0 1.2rem; }
   .bw-hero-inner { grid-template-columns: 1fr; padding-top: 2.8rem; }
-  .bw-hero-visual { order: -1; }
+  .bw-hero-visual { margin-top: 3.4rem; }
   .bw-mockup { justify-items: center; }
   .bw-tap-card { margin-right: -10px; width: 165px; height: 104px; }
   .bw-tap-phone { width: 262px; padding-left: 2.2rem; transform: rotate(2deg); }
-  .bw-referral-chip { right: 0; top: -30px; }
+  .bw-referral-chip { right: 0; top: -52px; }
   .bw-industry-grid, .bw-pricing-grid, .bw-lead-card { grid-template-columns: 1fr; }
   .bw-pipeline-track { left: 30px; right: auto; top: 0; bottom: 0; width: 3px; height: auto; }
   .bw-pipeline-pulse { animation: none; opacity: 0; }
   .bw-pipeline-steps { grid-template-columns: 1fr; gap: 2.4rem; }
   .bw-pipe-step { padding-left: 88px; }
   .bw-pipe-icon { position: absolute; left: 0; top: 0; margin: 0; }
-  .bw-step-num { top: 4px; right: auto; left: 74px; }
+  .bw-step-num { top: 68px; right: auto; left: 0; width: 60px; text-align: center; }
   .bw-sticky-cta { display: flex; }
   .bw-footer-nav { margin-left: 0; }
 }
@@ -691,8 +691,8 @@ body:has(.bw-landing) > .site-footer {
 
 @media (max-width: 620px) {
   .bw-header-actions { gap: 0.6rem; }
-  .bw-header-actions .bw-btn { padding: 0.55rem 0.9rem; }
-  .bw-feature-grid { grid-template-columns: 1fr; }
+  .bw-header-actions .bw-btn { padding: 0.6rem 1.2rem; min-height: 44px; align-items: center; }
+  .bw-landing .bw-feature-grid { grid-template-columns: 1fr; }
   .bw-proof-inner { grid-template-columns: 1fr 1fr; padding: 1.6rem 1.2rem; }
   .bw-proof-item + .bw-proof-item { border-left: 0; padding-left: 0; }
   .bw-hero-actions .bw-btn { flex: 1; }
