@@ -22,7 +22,7 @@
   --line: #B0DEF4;
   --pale: #D2ECF8;
   --error: #a6323e;
-  --radius: 14px;
+  --radius: 16px;
   --radius-sm: 8px;
   --warm-brown: #826148;
   --font-body: "Faustina", serif;
@@ -73,7 +73,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 button {
   border: 1px solid transparent;
   background: var(--navy); color: #fff;
-  padding: 0.8rem 1.3rem; border-radius: var(--radius-sm);
+  padding: 12px 24px; border-radius: var(--radius-sm);
   cursor: pointer; font-weight: 600; font-size: 0.9rem;
   transition: background 0.15s, transform 0.15s, border-color 0.15s;
 }

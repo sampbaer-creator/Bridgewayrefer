@@ -23,6 +23,7 @@ const NAV_ICONS: Record<string, string[]> = {
   management: ["M3 8h18v12H3z", "M3 12h18", "M8 4h8v4H8z"],
   access: ["M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M22 20v-2a4 4 0 0 0-3-3.9"],
   billing: ["M2 6h20v12H2z", "M2 10h20"],
+  admin: ["M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z", "M9 12l2 2 4-4"],
   signout: ["M9 4H4v16h5", "M16 8l4 4-4 4", "M20 12H9"],
 };
 function NavIcon({ name }: { name: string }) {
@@ -283,8 +284,8 @@ export default function StaffDashboard() {
   }), [referrals, filter, partnerFilter, query, fromDate, toDate]);
   const testableCards = cards.filter(card => card.active && partners.some(partner => partner.active && partner.id === card.partnerId) && offices.some(office => office.active && office.id === card.officeId));
   const selectedTestCard = testableCards.find(card => card.id === testCardId) || testableCards[0];
-  if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your session has ended. Sign in to continue." : "Your account does not have access to this workspace. Contact its administrator."}</p><a className="session-sign-in" href="/staff/login">Sign in</a></section></main>;
-  if (session === "active" && !businesses.length) return <main className="dashboard" id="main-content"><section className="card no-workspace"><p className="eyebrow">STAFF ACCESS</p><h1>Invitation required</h1><p className="muted">Ask your workspace administrator to invite the email you sign in with.</p><a className="session-sign-in" href="/staff/login">Try another sign-in</a></section></main>;
+  if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your session has ended. Sign in to continue." : "Your account does not have access to this workspace. Contact its administrator."}</p><a className="session-sign-in" href="/staff/login">Sign in</a></section></main>;
+  if (session === "active" && !businesses.length) return <main className="dashboard" id="main-content"><section className="card no-workspace"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><p className="eyebrow">STAFF ACCESS</p><h1>Invitation required</h1><p className="muted">Ask your workspace administrator to invite the email you sign in with.</p><a className="session-sign-in" href="/staff/login">Try another sign-in</a></section></main>;
 
   return <main className="staff-shell" id="main-content" aria-busy={session === "loading" || refreshing}>
     <button className={`staff-sidebar-scrim${sidebarOpen ? " is-visible" : ""}`} aria-label="Dismiss navigation overlay" tabIndex={sidebarOpen ? 0 : -1} onClick={() => setSidebarOpen(false)} />
@@ -298,6 +299,7 @@ export default function StaffDashboard() {
         <a href="#management" className={activeSection === "management" ? "is-active" : undefined} aria-current={activeSection === "management" ? "location" : undefined} aria-label="Partners and cards" title="Partners and cards" onClick={() => setSidebarOpen(false)}><NavIcon name="management" /><span className="staff-nav-label">Partners and cards</span></a>
         {isAdmin && <a href="#staff-access" className={activeSection === "staff-access" ? "is-active" : undefined} aria-current={activeSection === "staff-access" ? "location" : undefined} aria-label="Team" title="Team" onClick={() => setSidebarOpen(false)}><NavIcon name="access" /><span className="staff-nav-label">Team</span></a>}
         {isAdmin && <a href="#billing" className={activeSection === "billing" ? "is-active" : undefined} aria-current={activeSection === "billing" ? "location" : undefined} aria-label="Billing" title="Billing" onClick={() => setSidebarOpen(false)}><NavIcon name="billing" /><span className="staff-nav-label">Billing</span></a>}
+        {platformAdmin && <a href="/admin" className="staff-sidebar-admin-link" aria-label="Platform admin" title="Platform admin" onClick={() => setSidebarOpen(false)}><NavIcon name="admin" /><span className="staff-nav-label">Platform admin</span></a>}
       </nav>
       <button className="staff-sidebar-signout" type="button" aria-label="Sign out" title="Sign out" onClick={() => void signOut()}><NavIcon name="signout" /><span className="staff-nav-label">Sign out</span></button>
     </aside>

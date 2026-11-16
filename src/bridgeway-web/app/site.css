@@ -39,18 +39,18 @@ body:has(.bw-landing) > .site-header { display: none; }
 }
 .public-nav > a:hover { color: var(--ink-blue); text-decoration: none; }
 .public-nav .public-nav-signin {
-  padding: 0.55rem 1rem; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px;
   color: var(--ink); background: transparent;
 }
 .public-nav .public-nav-signin:hover { border-color: var(--navy); color: var(--navy); }
 .public-nav .public-nav-cta {
-  padding: 0.65rem 1.15rem; border-radius: 8px;
+  padding: 8px 16px; border-radius: 8px;
   background: var(--accent); color: var(--navy); font-weight: 600; border: 1px solid var(--accent);
 }
 .public-nav .public-nav-cta:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--navy); }
 .menu-toggle {
   display: none; align-items: center; justify-content: center;
-  width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px;
+  width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 8px;
   background: #fff; color: var(--navy); font-size: 1.15rem; cursor: pointer;
 }
 .mobile-menu {
@@ -177,7 +177,7 @@ body:has(.staff-shell) > .site-footer { display: none; }
 .bw-two-col article:first-child { border-top-color: var(--bw-accent); }
 
 /* ============ CTA band ============ */
-.bw-cta-band { background: var(--bw-navy); color: var(--bw-offwhite); text-align: center; padding: clamp(3rem, 7vw, 5rem) 2rem; }
+.bw-cta-band { background: linear-gradient(135deg, var(--bw-navy) 0%, var(--ink-blue) 62%, #0A3145 100%); color: var(--bw-offwhite); text-align: center; padding: clamp(3rem, 7vw, 5rem) 2rem; }
 .bw-cta-band h2 { color: #fff; max-width: 26ch; margin: 0.4rem auto 0; }
 .bw-cta-band p { color: var(--bw-offwhite); margin-top: 1rem; font-size: 1.05rem; }
 .bw-cta-band .bw-btn { margin-top: 2rem; }
