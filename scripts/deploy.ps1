@@ -22,6 +22,33 @@ function Invoke-Native {
     if ($LASTEXITCODE -ne 0) { throw "$File failed with exit code $LASTEXITCODE." }
 }
 
+function Invoke-AcrBuild {
+    param([string[]] $Arguments)
+    $queueOutput = & az @Arguments '--no-logs' '--no-wait' 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not queue the ACR remote build.'
+    }
+    $queueText = ($queueOutput | ForEach-Object { $_.ToString() }) -join "`n"
+    $runMatch = [regex]::Match($queueText,'Queued a build with ID:\s*(\S+)')
+    if (-not $runMatch.Success) { throw 'ACR accepted a build request but did not return a run ID; image will not be deployed.' }
+    $runId = $runMatch.Groups[1].Value
+    Write-Host "ACR build $runId queued; waiting for server-side result."
+    for ($attempt = 0; $attempt -lt 360; $attempt++) {
+        $status = & az acr task show-run --registry $AcrName --run-id $runId --query status --output tsv 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            if ($status -eq 'Succeeded') {
+                Write-Host "ACR build $runId succeeded."
+                return
+            }
+            if ($status -in @('Failed','Canceled','Error','Timeout')) {
+                throw "ACR build $runId ended with status $status; image will not be deployed."
+            }
+        }
+        Start-Sleep -Seconds 5
+    }
+    throw "ACR build $runId did not finish within 30 minutes; image will not be deployed."
+}
+
 function Get-AzValue {
     param([string[]] $Arguments)
     $output = & az @Arguments
@@ -140,20 +167,12 @@ function Invoke-Deploy {
         $image = "$AcrServer/${repo}:$tag"
         $built += [pscustomobject]@{ App=$app; Repo=$repo; Image=$image; Tag=$tag }
     }
-    $previousEncoding = $env:PYTHONIOENCODING
-    try {
-        # Azure CLI streams non-ASCII ACR build logs; force UTF-8 on Windows PowerShell consoles.
-        $env:PYTHONIOENCODING = 'utf-8'
-        foreach ($item in $built) {
-            $dockerfile = if ($item.App -eq $ApiApp) {'src/BridgeWay.Api/Dockerfile'} else {'src/bridgeway-web/Dockerfile'}
-            $buildArgs = @('acr','build','--registry',$AcrName,'--image',"$($item.Repo):$tag",'--file',$dockerfile)
-            if ($item.App -eq $WebApp) { $buildArgs += @('--build-arg','BRIDGEWAYREFER_API_ORIGIN=https://bridgewayrefer.com') }
-            $buildArgs += $RepoRoot
-            Invoke-Native 'az' $buildArgs
-        }
-    } finally {
-        if ($null -eq $previousEncoding) { Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue }
-        else { $env:PYTHONIOENCODING = $previousEncoding }
+    foreach ($item in $built) {
+        $dockerfile = if ($item.App -eq $ApiApp) {'src/BridgeWay.Api/Dockerfile'} else {'src/bridgeway-web/Dockerfile'}
+        $buildArgs = @('acr','build','--registry',$AcrName,'--image',"$($item.Repo):$tag",'--file',$dockerfile)
+        if ($item.App -eq $WebApp) { $buildArgs += @('--build-arg','BRIDGEWAYREFER_API_ORIGIN=https://bridgewayrefer.com') }
+        $buildArgs += $RepoRoot
+        Invoke-AcrBuild $buildArgs
     }
     foreach ($item in $built) {
         $digest = & az acr repository show --name $AcrName --image "$($item.Repo):$tag" --query digest --output tsv
