@@ -15,7 +15,6 @@ __pycache__/
 artifacts/
 playwright-report/
 test-results/
-playwright/.auth/
 **/.env.*
 !**/.env.example
 **/appsettings.*.local.json
