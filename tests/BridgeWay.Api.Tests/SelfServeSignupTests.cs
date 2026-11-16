@@ -50,8 +50,8 @@ public class SelfServeSignupTests
     }
 
     [Fact]
-    public void SignupTrialIsFifteenDays()
+    public void SignupHasNoTrial()
     {
-        Assert.Equal(15, BillingPlans.SignupTrialDays);
+        Assert.Equal(0, BillingPlans.SignupTrialDays);
     }
 }

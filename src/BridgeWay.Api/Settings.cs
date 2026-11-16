@@ -76,7 +76,7 @@ public static class BillingPlans
     public const string ManagedCalling = "managed-calling";
     public const int ManagedCallingMonthlyPriceUsd = 400;
     /// <summary>Free trial length for self-serve customer signups. Checkout still collects a card up front.</summary>
-    public const int SignupTrialDays = 15;
+    public const int SignupTrialDays = 0;
     public static bool MatchesCheckout(string? savedPlan, string requestedPlan) => Normalize(savedPlan) == Normalize(requestedPlan);
     public static string Normalize(string? plan) => string.IsNullOrWhiteSpace(plan) || plan == Workspace ? Workspace
         : plan == ManagedCalling ? ManagedCalling

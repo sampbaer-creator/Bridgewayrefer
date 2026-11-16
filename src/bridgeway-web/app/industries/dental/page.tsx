@@ -10,7 +10,7 @@ export default function DentalIndustryPage() {
         <h1>Make every referring office easy to follow up with.</h1>
         <p className="muted">A general dentist shares a BridgeWay card with a patient. The patient opens your practice’s short referral form, and your team sees which office sent them.</p>
         <div className="bw-hero-actions">
-          <Link className="bw-btn bw-btn-primary" href="/contact">Request a walkthrough →</Link>
+          <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started →</Link>
           <Link className="bw-btn bw-btn-ghost" href="/#how-it-works">See the handoff</Link>
         </div>
       </section>
@@ -44,7 +44,7 @@ export default function DentalIndustryPage() {
         <div className="bw-cta-band">
           <h2>Start with one practice and a few referring offices.</h2>
           <p>We’ll walk through your card handoff, workspace setup, and the first referral workflow.</p>
-          <Link className="bw-btn bw-btn-light" href="/contact">Request a walkthrough →</Link>
+          <Link className="bw-btn bw-btn-light" href="/signup?plan=workspace">Get started →</Link>
         </div>
       </section>
     </main>

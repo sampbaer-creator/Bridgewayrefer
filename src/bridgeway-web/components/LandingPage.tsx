@@ -14,7 +14,7 @@ const PIPE_STEPS = [
       </svg>
     ),
     title: "Your partner shares the card",
-    copy: "A dentist, plumber, or partner office hands the customer your branded NFC card or QR link.",
+    copy: "A partner hands the customer your branded NFC card or QR link.",
   },
   {
     icon: (
@@ -24,7 +24,7 @@ const PIPE_STEPS = [
       </svg>
     ),
     title: "The customer taps and fills a short form",
-    copy: "No app to install — the form opens in the browser with the partner already attached.",
+    copy: "No app needed. The form opens in the browser with the partner attached.",
   },
   {
     icon: (
@@ -36,7 +36,7 @@ const PIPE_STEPS = [
       </svg>
     ),
     title: "Your team assigns and follows up",
-    copy: "Alerts route the referral to the right staff member, and you track it through to a scheduled visit or booked job.",
+    copy: "Alerts reach the right staff member. You track each referral to a booked visit or job.",
   },
 ];
 
@@ -58,8 +58,8 @@ const FEATURES = [
         <path d="M12 21v-1" />
       </svg>
     ),
-    title: "Branded referral form",
-    copy: "Your logo and offices on every card link. Partners share something that looks like you, not a generic form.",
+    title: "Branded form",
+    copy: "Your logo and offices on every card link. Partners share a form that looks like you.",
   },
   {
     icon: (
@@ -71,7 +71,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Partner tracking",
-    copy: "Compare link opens and referrals for each partner and office, so your strongest relationships get the credit.",
+    copy: "See card taps and referrals for each partner and office.",
   },
   {
     icon: (
@@ -81,7 +81,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Staff alerts",
-    copy: "Configure email alerts that link your team straight to the dashboard the moment a referral lands.",
+    copy: "Email alerts link your team to the dashboard when a referral arrives.",
   },
   {
     icon: (
@@ -93,7 +93,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Monthly reports",
-    copy: "12-month trends and month-over-month comparisons, delivered to your workspace every month.",
+    copy: "12-month trends and month-over-month comparisons in your workspace.",
   },
   {
     icon: (
@@ -108,7 +108,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Team access",
-    copy: "Invite staff to your private workspace with roles that match how your office actually works.",
+    copy: "Invite staff to your workspace as admins or staff.",
   },
   {
     icon: (
@@ -118,16 +118,17 @@ const FEATURES = [
       </svg>
     ),
     title: "Secure by default",
-    copy: "Workspace membership controls access to referral records. Your data stays in your business, full stop.",
+    copy: "Only workspace members can see your referral records.",
   },
 ];
 
 const FAQS = [
-  ["How do NFC cards work?", "Tap the card with a compatible phone to open the receiving business's branded referral form. QR links do the same for any camera."],
-  ["Do customers need an app?", "No. The referral form opens in the phone's web browser — nothing to download, nothing to sign up for."],
-  ["Who can see our referrals?", "Only authorized members of your business workspace can access its private referral dashboard."],
-  ["Can I cancel anytime?", "Manage your subscription and cancellation from Billing in your workspace. No lock-in, no exit fees."],
-  ["How do I add more offices?", "Add offices from Setup in your workspace, then issue card links for the correct office. Unlimited offices on every plan."],
+  ["How do NFC cards work?", "Tap the card on a phone to open the receiving business's referral form. QR links work with any camera."],
+  ["Do customers need an app?", "No. The form opens in the phone's browser."],
+  ["Who can see our referrals?", "Only members of your workspace."],
+  ["Can I cancel anytime?", "Yes. Manage or cancel your subscription from Billing in your workspace."],
+  ["Are NFC cards included?", "Yes. Cards come with your subscription. Request more from your workspace."],
+  ["How do I add more offices?", "Add each location in your workspace, then request cards for it. Each location is billed at your plan rate."],
 ];
 
 const CHECK_ICON = (
@@ -145,6 +146,14 @@ export default function LandingPage() {
   const [listState, setListState] = useState<FormState>("idle");
   const [listError, setListError] = useState("");
   const submissionId = useRef<string>("");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   useEffect(() => {
     const el = root.current;
@@ -184,7 +193,7 @@ export default function LandingPage() {
     /* ---- Hero mockup loop ---- */
     const ripple = el.querySelector<HTMLElement>("#tap-ripple");
     const chip = el.querySelector<HTMLElement>("#referral-chip");
-    const fields = el.querySelectorAll<HTMLElement>(".field-fake");
+    const fields = el.querySelectorAll<HTMLElement>(".bw-field-fake");
     if (reducedMotion) {
       fields.forEach((f) => f.classList.add("filled"));
       chip?.classList.add("show");
@@ -216,7 +225,7 @@ export default function LandingPage() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     /* ---- Pipeline step lighting ---- */
-    const steps = el.querySelectorAll<HTMLElement>(".pipe-step");
+    const steps = el.querySelectorAll<HTMLElement>(".bw-pipe-step");
     if (reducedMotion) {
       steps.forEach((s) => s.classList.add("lit"));
       return;
@@ -285,7 +294,7 @@ export default function LandingPage() {
   useEffect(() => {
     const el = root.current;
     const sticky = el?.querySelector<HTMLElement>("#sticky-cta");
-    const hero = el?.querySelector<HTMLElement>(".hero");
+    const hero = el?.querySelector<HTMLElement>(".bw-hero");
     if (!sticky || !hero) return;
     const onScroll = () => {
       const past = window.scrollY > hero.offsetHeight - 120;
@@ -377,29 +386,50 @@ export default function LandingPage() {
             <Link className="bw-signin" href="/staff/login">
               Sign in
             </Link>
-            <a className="bw-btn bw-btn-primary bw-btn-sm" href="#walkthrough">
-              Request a walkthrough
-            </a>
+            <Link className="bw-btn bw-btn-primary bw-btn-sm" href="/signup?plan=workspace">
+              Get started
+            </Link>
+            <button
+              type="button"
+              className="bw-menu-toggle"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              aria-controls="bw-mobile-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <span aria-hidden="true">{menuOpen ? "\u2715" : "\u2630"}</span>
+            </button>
           </div>
         </div>
+        {menuOpen && (
+          <nav className="bw-mobile-menu" id="bw-mobile-menu" aria-label="Mobile navigation" onClick={() => setMenuOpen(false)}>
+            <a href="#how-it-works">How it works</a>
+            <Link href="/industries/dental">Dental</Link>
+            <Link href="/industries/trades">Trades</Link>
+            <Link href="/pricing">Pricing</Link>
+            <a href="#faq">FAQ</a>
+            <Link href="/staff/login">Sign in</Link>
+            <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started</Link>
+          </nav>
+        )}
       </header>
 
       {/* ============ HERO ============ */}
       <section className="bw-hero">
         <div className="bw-hero-inner">
           <div className="bw-hero-copy">
-            <p className="bw-eyebrow">NFC referral cards + tracking</p>
+            <p className="bw-eyebrow">NFC referral cards and tracking</p>
             <h1>
               Most partner referrals never get followed&nbsp;up. <span className="bw-accent">Yours will.</span>
             </h1>
             <p className="bw-hero-sub">
-              Give your partners a branded NFC card. Customers tap or scan to open a short form, and your team sees who sent
-              each referral and what needs follow-up — from first contact to a booked job.
+              Give partners a branded NFC card. Customers tap it to send a referral. Your team sees who sent it and what
+              needs follow-up.
             </p>
             <div className="bw-hero-actions">
-              <a className="bw-btn bw-btn-primary" href="#walkthrough">
-                Request a walkthrough <span aria-hidden="true">→</span>
-              </a>
+              <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">
+                Get started <span aria-hidden="true">→</span>
+              </Link>
               <a className="bw-btn bw-btn-ghost" href="#how-it-works">
                 See how it works
               </a>
@@ -409,15 +439,15 @@ export default function LandingPage() {
                 {CHECK_ICON}No app for customers
               </li>
               <li>
-                {CHECK_ICON}Works on any modern phone
+                {CHECK_ICON}Works on any phone
               </li>
               <li>
                 {CHECK_ICON}Cancel anytime
               </li>
             </ul>
             <p className="bw-price-note">
-              Plans from <strong>$50</strong> per business, per month · NFC cards sold separately.{" "}
-              <Link href="/pricing">See details</Link>.
+              From <strong>$50</strong> per location, per month. NFC cards included.{" "}
+              <Link href="/pricing">See pricing</Link>.
             </p>
           </div>
 
@@ -460,7 +490,7 @@ export default function LandingPage() {
                 </div>
               </div>
             </figure>
-            <p className="bw-mockup-caption">A branded card opens your referral form.</p>
+            <p className="bw-mockup-caption">Tap the card to open your referral form.</p>
           </div>
         </div>
       </section>
@@ -474,7 +504,7 @@ export default function LandingPage() {
                 3 steps
               </span>
             </strong>
-            <span>From tap to assigned follow-up</span>
+            <span>Tap to assigned follow-up</span>
           </div>
           <div className="bw-proof-item reveal">
             <strong>
@@ -482,7 +512,7 @@ export default function LandingPage() {
                 12 months
               </span>
             </strong>
-            <span>Referral trends in every report</span>
+            <span>Trends in every report</span>
           </div>
           <div className="bw-proof-item reveal">
             <strong>
@@ -490,7 +520,7 @@ export default function LandingPage() {
                 No apps
               </span>
             </strong>
-            <span>Customers use their phone&rsquo;s browser</span>
+            <span>Customers use the browser</span>
           </div>
           <div className="bw-proof-item reveal">
             <strong>
@@ -498,7 +528,7 @@ export default function LandingPage() {
                 $50/mo
               </span>
             </strong>
-            <span>Flat per business. Unlimited partners.</span>
+            <span>Per location. Unlimited partners.</span>
           </div>
         </div>
       </section>
@@ -511,7 +541,7 @@ export default function LandingPage() {
             From a tap to a booked job<span className="bw-accent-light">.</span>
           </h2>
           <p className="bw-journey-sub">
-            Every referral carries the partner who sent it and the office that receives it — so nothing slips through.
+            Every referral records who sent it and which office receives it.
           </p>
 
           <div className="bw-pipeline">
@@ -539,7 +569,7 @@ export default function LandingPage() {
         <div className="bw-section-head reveal">
           <p className="bw-eyebrow">Tuned to your business</p>
           <h2>
-            One referral workflow, <span className="bw-accent">two worlds.</span>
+            One workflow, <span className="bw-accent">two industries.</span>
           </h2>
         </div>
         <div className="bw-industry-grid">
@@ -555,8 +585,8 @@ export default function LandingPage() {
             </span>
             <h3>Dental & orthodontics</h3>
             <p>
-              A general dentist refers a patient to an orthodontist. The receiving practice sees which office sent the
-              referral and who is following up — no more slips of paper lost at the front desk.
+              A dentist refers a patient to an orthodontist. The receiving practice sees who sent the referral and who is
+              following up.
             </p>
             <span className="bw-industry-link">Explore dental referrals →</span>
           </Link>
@@ -569,7 +599,7 @@ export default function LandingPage() {
             <h3>Home service trades</h3>
             <p>
               A plumber introduces a homeowner to an HVAC company. The receiving team sees who made the introduction and
-              tracks it through to a booked job — with the partner credited every time.
+              tracks it to a booked job.
             </p>
             <span className="bw-industry-link">Explore trades referrals →</span>
           </Link>
@@ -604,11 +634,11 @@ export default function LandingPage() {
               Where referrals leak<span className="bw-accent">.</span>
             </h2>
             <p>
-              A partner hands you a warm introduction. It lands on a sticky note, an inbox, or a front desk. Nobody owns
-              it, so nobody follows up — and the job goes to whoever answers the phone first.
+              A partner sends you a warm introduction. It lands on a sticky note or in a shared inbox. Nobody owns it, so
+              nobody follows up.
             </p>
             <p className="bw-example-kicker">
-              BridgeWay gives every referral an owner, a status, and a trail — from the first tap to the booked job.
+              BridgeWay gives every referral an owner and a status, from first tap to booked job.
             </p>
             <span className="bw-example-tag">Illustrative example</span>
           </div>
@@ -673,8 +703,7 @@ export default function LandingPage() {
             Simple plans, <span className="bw-accent">no per-referral fees.</span>
           </h2>
           <p className="bw-section-sub">
-            Every plan includes unlimited referrals, offices, and partners. NFC cards are sold separately — see card and
-            setup details during your walkthrough.
+            Every plan includes unlimited referrals and partners, plus your NFC cards.
           </p>
         </div>
         <div className="bw-pricing-grid">
@@ -684,23 +713,21 @@ export default function LandingPage() {
             <div className="bw-plan-price">
               <span className="bw-currency">$</span>
               <strong>50</strong>
-              <span className="bw-per">/ business / month</span>
+              <span className="bw-per">/ location / month</span>
             </div>
             <ul className="bw-plan-list">
               <li>{CHECK_ICON}Unlimited referrals</li>
-              <li>{CHECK_ICON}Unlimited offices & partners</li>
+              <li>{CHECK_ICON}Unlimited partners</li>
               <li>{CHECK_ICON}Branded referral forms</li>
+              <li>{CHECK_ICON}NFC cards included</li>
               <li>{CHECK_ICON}Staff invites & alerts</li>
               <li>{CHECK_ICON}Monthly reports</li>
             </ul>
             <Link className="bw-btn bw-btn-primary bw-btn-block" href="/signup?plan=workspace">
-              Start your workspace <span aria-hidden="true">→</span>
-            </Link>
-            <Link className="bw-btn bw-btn-secondary bw-btn-block" href="/signup?plan=workspace">
-              Start 15-day free trial <span aria-hidden="true">→</span>
+              Get started <span aria-hidden="true">→</span>
             </Link>
             <p className="bw-plan-note">
-              NFC cards sold separately. <Link href="/pricing">See card and setup details</Link>.
+              NFC cards included. <Link href="/pricing">See pricing details</Link>.
             </p>
           </article>
           <article className="bw-plan-card reveal">
@@ -709,10 +736,10 @@ export default function LandingPage() {
             <div className="bw-plan-price">
               <span className="bw-currency">$</span>
               <strong>400</strong>
-              <span className="bw-per">total / business / month</span>
+              <span className="bw-per">/ location / month</span>
             </div>
             <p className="bw-plan-qualifier">
-              For teams that want follow-up handled for them. Includes the full Referral Workspace.
+              We call your referrals for you. Includes the full Referral Workspace.
             </p>
             <ul className="bw-plan-list">
               <li>{CHECK_ICON}Everything in Referral Workspace</li>
@@ -720,9 +747,28 @@ export default function LandingPage() {
               <li>{CHECK_ICON}Follow-up recorded in your workspace</li>
             </ul>
             <Link className="bw-btn bw-btn-secondary bw-btn-block" href="/signup?plan=managed-calling">
-              Choose Managed Calling <span aria-hidden="true">→</span>
+              Get Managed Calling <span aria-hidden="true">→</span>
             </Link>
-            <p className="bw-plan-note">We confirm calling hours and service details during setup.</p>
+            <p className="bw-plan-note">We confirm calling hours during setup.</p>
+          </article>
+          <article className="bw-plan-card reveal">
+            <div className="bw-plan-badge bw-plan-badge-alt">Large teams</div>
+            <h3>Custom</h3>
+            <div className="bw-plan-price">
+              <strong>Let&rsquo;s talk</strong>
+            </div>
+            <p className="bw-plan-qualifier">
+              For corporate groups and practices with many locations.
+            </p>
+            <ul className="bw-plan-list">
+              <li>{CHECK_ICON}Volume pricing across locations</li>
+              <li>{CHECK_ICON}Guided setup and onboarding</li>
+              <li>{CHECK_ICON}NFC cards included</li>
+            </ul>
+            <Link className="bw-btn bw-btn-secondary bw-btn-block" href="/contact">
+              Request a custom quote <span aria-hidden="true">→</span>
+            </Link>
+            <p className="bw-plan-note">We reply within one business day.</p>
           </article>
         </div>
       </section>
@@ -731,19 +777,18 @@ export default function LandingPage() {
       <section className="bw-lead" id="walkthrough">
         <div className="bw-lead-card reveal">
           <div className="bw-lead-copy">
-            <p className="bw-eyebrow bw-eyebrow-light">Two ways to start</p>
+            <p className="bw-eyebrow bw-eyebrow-light">Questions?</p>
             <h2>
-              Book a walkthrough, or steal our checklist<span className="bw-accent-light">.</span>
+              Talk to us, or get our checklist<span className="bw-accent-light">.</span>
             </h2>
             <p className="bw-lead-sub">
-              See the dashboard with your own referral workflow in 15 minutes — or grab the follow-up checklist dental
-              and trades teams use to stop losing referrals.
+              Book a 15-minute walkthrough, or get the follow-up checklist dental and trades teams use.
             </p>
           </div>
           <div className="bw-lead-forms">
             {demoState === "done" ? (
               <p className="bw-lead-success" role="status">
-                Thanks — we&rsquo;ll email you within one business day to set up your walkthrough.
+                Thanks. We&rsquo;ll email you within one business day.
               </p>
             ) : (
               <form className="bw-lead-form" onSubmit={submitDemo} noValidate>
@@ -772,19 +817,19 @@ export default function LandingPage() {
                   <span>I agree that BridgeWay may contact me about this request.</span>
                 </label>
                 <button className="bw-btn bw-btn-light bw-btn-block" type="submit" disabled={demoState === "busy"}>
-                  {demoState === "busy" ? "Sending…" : "Request a walkthrough"} <span aria-hidden="true">→</span>
+                  {demoState === "busy" ? "Sending…" : "Book a walkthrough"} <span aria-hidden="true">→</span>
                 </button>
                 {demoState === "error" && (
                   <p className="bw-lead-error" role="alert">
                     {demoError}
                   </p>
                 )}
-                <p className="bw-lead-fine">A real person replies within one business day. No pressure.</p>
+                <p className="bw-lead-fine">We reply within one business day.</p>
               </form>
             )}
             {listState === "done" ? (
               <p className="bw-lead-success" role="status">
-                Check your inbox — the referral follow-up checklist is on its way.
+                Check your inbox for the checklist.
               </p>
             ) : (
               <form className="bw-lead-form" onSubmit={submitChecklist} noValidate>
@@ -817,7 +862,7 @@ export default function LandingPage() {
                   </p>
                 )}
                 <p className="bw-lead-fine">
-                  The referral follow-up checklist for dental & trades teams. Free, one email.
+                  Free. One email.
                 </p>
               </form>
             )}
@@ -853,9 +898,9 @@ export default function LandingPage() {
         <h2 className="reveal">
           Make the next referral <span className="bw-accent-light">impossible to lose.</span>
         </h2>
-        <a className="bw-btn bw-btn-light bw-btn-lg reveal" href="#walkthrough">
-          Request a walkthrough <span aria-hidden="true">→</span>
-        </a>
+        <Link className="bw-btn bw-btn-light bw-btn-lg reveal" href="/signup?plan=workspace">
+          Get started <span aria-hidden="true">→</span>
+        </Link>
       </section>
 
       {/* ============ FOOTER ============ */}
@@ -880,14 +925,14 @@ export default function LandingPage() {
       </footer>
 
       {/* Sticky mobile CTA */}
-      <div className="bw-sticky-cta" id="sticky-cta" aria-hidden="true">
+      <div className="bw-sticky-cta" id="sticky-cta">
         <div className="bw-sticky-copy">
           <strong>From $50/mo</strong>
-          <small>Unlimited referrals & partners</small>
+          <small>NFC cards included</small>
         </div>
-        <a className="bw-btn bw-btn-primary" href="#walkthrough">
-          Request a walkthrough
-        </a>
+        <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">
+          Get started
+        </Link>
       </div>
     </main>
   );

@@ -3,12 +3,15 @@ import { expect, test } from "@playwright/test";
 test("the homepage has customer paths for both industries, pricing, and walkthroughs", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  // The redesigned landing header collapses its nav on mobile, so industry and
-  // pricing paths are asserted from the always-visible industry cards and footer.
+  // The landing header collapses its nav into a menu on mobile.
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await expect(page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
+  await page.getByRole("button", { name: "Close menu" }).click();
   await expect(page.getByRole("link", { name: /Explore dental referrals/ })).toHaveAttribute("href", "/industries/dental");
   await expect(page.getByRole("link", { name: /Explore trades referrals/ })).toHaveAttribute("href", "/industries/trades");
   await expect(page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "/pricing");
-  await expect(page.getByRole("link", { name: "Request a walkthrough" }).first()).toHaveAttribute("href", "#walkthrough");
+  await expect(page.getByRole("link", { name: "Get started" }).first()).toHaveAttribute("href", "/signup?plan=workspace");
+  await expect(page.getByRole("link", { name: "Request a custom quote" })).toHaveAttribute("href", "/contact");
   await expect(page.getByText("Book a demo", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Managed Calling", exact: true })).toBeVisible();
   await expect(page.getByText("400", { exact: true })).toBeVisible();
@@ -71,7 +74,7 @@ test("Managed Calling signup carries the $400 plan through resumed Stripe Checko
     await route.fulfill(checkoutCalls === 1 ? { status: 503, json: { error: "Temporary Checkout issue" } } : { json: { url: "/signup?checkout=managed-calling" } });
   });
   await page.goto("/signup?plan=managed-calling");
-  await expect(page.getByRole("radio", { name: /Managed Calling.*\$400\/month/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /Managed Calling.*\$400\/location\/month/ })).toBeChecked();
   await page.getByLabel("Business name").fill("Calling Practice");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page.getByText("Temporary Checkout issue", { exact: true })).toBeVisible();

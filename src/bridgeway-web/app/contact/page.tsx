@@ -1,6 +1,6 @@
 import DemoRequestForm from "../../components/DemoRequestForm";
 
-export const metadata = { title: "Contact and product walkthrough", alternates: { canonical: "/contact" } };
+export const metadata = { title: "Contact", alternates: { canonical: "/contact" } };
 
 export default function ContactPage() {
   return (
@@ -8,11 +8,11 @@ export default function ContactPage() {
       <section className="bw-section" aria-label="Contact BridgeWay">
         <div className="bw-contact-grid">
           <div className="bw-contact-copy">
-            <p className="eyebrow">TALK TO BRIDGEWAY</p>
-            <h1>See how BridgeWay handles your referrals.</h1>
+            <p className="eyebrow">CONTACT</p>
+            <h1>Talk to BridgeWay.</h1>
             <div className="bw-contact-points">
-              <p>Request a walkthrough, ask about card pricing, or contact us about workspace access. No Microsoft sign-in or payment is needed to send this form.</p>
-              <p className="muted">For an existing referral, contact the receiving business directly.</p>
+              <p>Book a walkthrough or ask a question. No sign-in or payment needed.</p>
+              <p className="muted">For an existing referral, contact the receiving business.</p>
             </div>
           </div>
           <DemoRequestForm />

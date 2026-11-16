@@ -25,6 +25,7 @@ export default function AdminConsole() {
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
   const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null);
   const [selected, setSelected] = useState(""), [detail, setDetail] = useState<Detail | null>(null), [requests, setRequests] = useState<DemoRequest[]>([]);
+  const [search, setSearch] = useState(""), [liveFilter, setLiveFilter] = useState("");
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [busy, setBusy] = useState(""), [issued, setIssued] = useState<{ label: string; url: string }[]>([]), [qr, setQr] = useState<{ id: string; data: string } | null>(null);
 
   const fail = useCallback((e: unknown) => {
@@ -89,28 +90,30 @@ export default function AdminConsole() {
     const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); link.download = `bridgewayrefer-cards-${detail.business.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`; link.click(); URL.revokeObjectURL(link.href);
   }
 
-  if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><h1>Platform admin sign-in</h1><p>Sign in with your Bridgewayrefer owner account.</p><a className="session-sign-in" href="/admin/login">Sign in</a></section></main>;
-  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>Access denied</h1><p>This account is not a Bridgewayrefer platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a></section></main>;
+  if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><h1>Platform admin sign-in</h1><p>Sign in with your BridgeWay owner account.</p><a className="session-sign-in" href="/admin/login">Sign in</a></section></main>;
+  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><h1>Access denied</h1><p>This account is not a platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a></section></main>;
 
   const b = detail?.business;
+  const shownBusinesses = businesses.filter(x => (!search || x.name.toLowerCase().includes(search.toLowerCase())) && (!liveFilter || liveState(x, session) === liveFilter));
   return <main className="dashboard dashboard-wide admin-workspace" id="main-content" aria-busy={state === "loading"}>
-    <div className="dashboard-heading"><div><p className="eyebrow">BRIDGEWAYREFER PLATFORM WORKSPACE</p><h1>Businesses and NFC cards.</h1><p className="muted">Create workspaces, connect cards, and track partner outcomes.</p></div>
-      <div className="workspace-actions"><label className="business-switcher-light" htmlFor="admin-workspace">Workspace<select id="admin-workspace" value={selected} onChange={event => setSelected(event.target.value)}><option value="">Choose a workspace…</option>{businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}</option>)}</select></label><a className="text-link" href="/staff">Open staff dashboard →</a></div></div>
+    <div className="dashboard-heading"><div><p className="eyebrow">PLATFORM ADMIN</p><h1>Businesses and NFC cards</h1><p className="muted">Create workspaces, issue cards and track outcomes.</p></div>
+      <div className="workspace-actions"><label className="business-switcher-light" htmlFor="admin-workspace">Workspace<select id="admin-workspace" value={selected} onChange={event => setSelected(event.target.value)}><option value="">Choose a workspace…</option>{businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}</option>)}</select></label><a className="text-link" href="/staff">Staff dashboard →</a></div></div>
     <nav className="section-nav admin-tabs" aria-label="Admin sections">{([["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"], ["leads", "Demo requests"]] as const).map(([key, label]) => <button type="button" key={key} aria-current={tab === key ? "page" : undefined} aria-controls={`admin-${key}`} onClick={() => setTab(key)}>{label}</button>)}</nav>
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {session?.canonicalOriginReady === false && <p className="notice">Public URLs currently use {session.publicOrigin}. Coordinate the API PublicOrigin and Microsoft callback registration for https://bridgewayrefer.com before customer onboarding.</p>}
-    {session && (!session.acceptingGlobally || !session.smtpConfigured || !session.stripeConfigured) && <p className="notice">{!session.acceptingGlobally && "Global intake is off (Bridgewayrefer__AcceptReferrals). "}{!session.smtpConfigured && "Email alerts are not configured (SMTP). "}{!session.stripeConfigured && "Stripe billing is not configured."}</p>}
+    {session && (!session.acceptingGlobally || !session.smtpConfigured || !session.stripeConfigured) && <p className="notice">{!session.acceptingGlobally && "Global intake is off (AcceptReferrals). "}{!session.smtpConfigured && "Email alerts are not configured (SMTP). "}{!session.stripeConfigured && "Stripe billing is not configured."}</p>}
 
     {totals && <div className="report-summary"><div className="summary-card summary-primary"><p>Businesses</p><strong>{totals.businesses}</strong><small>{businesses.filter(x => liveState(x, session) === "Live").length} live</small></div><div className="summary-card"><p>Card taps</p><strong>{totals.taps}</strong><small>{totals.cards} cards issued</small></div><div className="summary-card"><p>Referrals submitted</p><strong>{totals.referrals}</strong><small>{totals.taps ? Math.round(totals.referrals / totals.taps * 100) : 0}% of taps</small></div></div>}
 
     <section className="card" id="admin-businesses" hidden={tab !== "businesses"}><p className="eyebrow">ALL BUSINESSES</p><h2>Businesses</h2>
-      <div className="table-scroll"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Taps</th><th>Referrals</th></tr></thead><tbody>
-        {businesses.map(x => <tr key={x.businessId} onClick={() => { setSelected(x.businessId); setTab("cards"); }} style={{ cursor: "pointer", background: x.businessId === selected ? "#edf1f5" : undefined }}><td><button className="secondary" style={{ padding: "4px 8px" }} onClick={() => { setSelected(x.businessId); setTab("cards"); }}>{x.name}</button></td><td>{liveState(x, session)}</td><td>{x.billingExempt ? "Exempt" : x.billingStatus}</td><td>{x.cards}</td><td>{x.taps}</td><td>{x.referrals}</td></tr>)}
-        {!businesses.length && <tr><td colSpan={6}>{state === "loading" ? "Loading…" : "No businesses yet. Create the first one below."}</td></tr>}
+      <div className="admin-filters"><label className="sr-only" htmlFor="admin-search">Search businesses</label><input id="admin-search" type="search" placeholder="Search businesses" value={search} onChange={e => setSearch(e.target.value)} /><label className="sr-only" htmlFor="admin-state">Filter by status</label><select id="admin-state" value={liveFilter} onChange={e => setLiveFilter(e.target.value)}><option value="">All statuses</option>{["Live", "Awaiting payment", "Intake off", "Intake closed globally", "Suspended"].map(v => <option key={v}>{v}</option>)}</select></div>
+      <div className="table-scroll admin-table"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Card taps</th><th>Referrals</th></tr></thead><tbody>
+        {shownBusinesses.map(x => <tr key={x.businessId} className={x.businessId === selected ? "is-selected" : undefined}><td><button className="secondary admin-business-button" onClick={() => { setSelected(x.businessId); setTab("cards"); }}>{x.name}</button></td><td data-label="Status">{liveState(x, session)}</td><td data-label="Billing">{x.billingExempt ? "Exempt" : x.billingStatus}</td><td data-label="Cards">{x.cards}</td><td data-label="Card taps">{x.taps}</td><td data-label="Referrals">{x.referrals}</td></tr>)}
+        {!shownBusinesses.length && <tr><td colSpan={6}>{state === "loading" ? "Loading…" : businesses.length ? "No businesses match." : "No businesses yet. Create the first one."}</td></tr>}
       </tbody></table></div>
     </section>
 
-    {tab === "cards" && !b && <section className="card workspace-empty" id="admin-cards"><h2>Connect NFC cards</h2><p>Choose a workspace above to create referral links and connect them to NFC cards.</p><button type="button" onClick={() => setTab("create")}>Create a business</button></section>}
+    {tab === "cards" && !b && <section className="card workspace-empty" id="admin-cards"><h2>Connect NFC cards</h2><p>Choose a business above to issue card links.</p><button type="button" onClick={() => setTab("create")}>Create a business</button></section>}
     {b && detail && <div className="management-grid" id="admin-cards" hidden={tab !== "cards"}>
       <section className="card"><p className="eyebrow">NFC CARDS</p><h2>{b.name}</h2><p className="muted">{liveState(b, session)} · {b.cards} cards · {b.taps} taps · {b.referrals} referrals</p>
         <form className="form-grid" onSubmit={issueCards}>

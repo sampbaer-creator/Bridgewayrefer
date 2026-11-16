@@ -46,9 +46,9 @@ test("a walkthrough request needs no login and keeps its idempotency key after a
   await page.getByLabel("Work email").fill("fictional@example.invalid");
   await page.getByLabel("Practice or business").fill("Fictional Practice");
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Request a walkthrough" }).click();
+  await page.getByRole("button", { name: "Book a walkthrough" }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText("Please retry");
-  await page.getByRole("button", { name: "Request a walkthrough" }).click();
+  await page.getByRole("button", { name: "Book a walkthrough" }).click();
   await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
   expect(ids[0]).toBe(ids[1]);
 });

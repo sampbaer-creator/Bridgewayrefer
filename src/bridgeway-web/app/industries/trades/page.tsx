@@ -10,7 +10,7 @@ export default function TradesIndustryPage() {
         <h1>Know which partner sent the next job.</h1>
         <p className="muted">A plumber or property manager shares your BridgeWay card with a homeowner. They open a short form for your HVAC team, and the request arrives with its partner and location attached.</p>
         <div className="bw-hero-actions">
-          <Link className="bw-btn bw-btn-primary" href="/contact">Request a walkthrough →</Link>
+          <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started →</Link>
           <Link className="bw-btn bw-btn-ghost" href="/#how-it-works">See the handoff</Link>
         </div>
       </section>
@@ -44,7 +44,7 @@ export default function TradesIndustryPage() {
         <div className="bw-cta-band">
           <h2>Start with one branch and a few referral partners.</h2>
           <p>We’ll walk through your card handoff, workspace setup, and the first referral workflow.</p>
-          <Link className="bw-btn bw-btn-light" href="/contact">Request a walkthrough →</Link>
+          <Link className="bw-btn bw-btn-light" href="/signup?plan=workspace">Get started →</Link>
         </div>
       </section>
     </main>

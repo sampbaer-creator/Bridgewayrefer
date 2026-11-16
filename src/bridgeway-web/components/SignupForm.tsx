@@ -52,10 +52,10 @@ export default function SignupForm() {
   return (
     <section className="bw-access-card" aria-label="Business signup">
       {error && <p role="alert" className="bw-form-alert">{error}</p>}
-      {!state && !error && <p role="status" className="bw-form-note">Checking signup availability…</p>}
-      {state && !state.enabled && <p>Online subscriptions are currently unavailable.</p>}
+      {!state && !error && <p role="status" className="bw-form-note">Loading…</p>}
+      {state && !state.enabled && <p>Sign-up is unavailable right now. Please try again soon or contact us.</p>}
       {state?.enabled && !state.signedIn && <>
-        <p>Sign in with the account you’ll use to manage your business.</p>
+        <p>Sign in with the account you will use to manage your business.</p>
         <a className="bw-btn bw-btn-primary" href="/staff/login?flow=signup">Continue with Microsoft</a>
       </>}
       {state?.enabled && state.signedIn && <form onSubmit={startCheckout} className="bw-contact-form">
@@ -63,19 +63,19 @@ export default function SignupForm() {
           <legend>Choose a monthly plan</legend>
           <label className={plan === "workspace" ? "bw-plan-option selected" : "bw-plan-option"}>
             <input type="radio" name="plan" value="workspace" checked={plan === "workspace"} onChange={() => setPlan("workspace")} />
-            <span><b>Workspace · ${state.plans.workspace.amountUsd}/month</b><small>Referral tracking, offices, partners, staff access, and reports.</small></span>
+            <span><b>Workspace · ${state.plans.workspace.amountUsd}/location/month</b><small>Referral tracking, partners, staff access, reports and NFC cards.</small></span>
           </label>
           <label className={plan === "managed-calling" ? "bw-plan-option selected" : "bw-plan-option"}>
             <input type="radio" name="plan" value="managed-calling" checked={plan === "managed-calling"} disabled={!state.plans.managedCalling.available} onChange={() => setPlan("managed-calling")} />
-            <span><b>Managed Calling · ${state.plans.managedCalling.amountUsd}/month</b><small>Includes the workspace plan. Our team calls your referrals and records follow-up in your workspace.{!state.plans.managedCalling.available ? " Online checkout is not configured yet; contact Bridgewayrefer." : ""}</small></span>
+            <span><b>Managed Calling · ${state.plans.managedCalling.amountUsd}/location/month</b><small>Includes Workspace. We call your referrals and record follow-up.{!state.plans.managedCalling.available ? " Not available online yet. Contact us." : ""}</small></span>
           </label>
         </fieldset>
         <label className="bw-field">Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
         <div className="bw-name-row">
-          <label className="bw-field">Main office name<span className="hint">Optional</span><input name="officeName" autoComplete="organization-title" maxLength={120} /></label>
+          <label className="bw-field">Main location name<span className="hint">Optional</span><input name="officeName" autoComplete="organization-title" maxLength={120} /></label>
           <label className="bw-field">Alert email<span className="hint">Optional</span><input name="alertEmail" type="email" autoComplete="email" maxLength={254} /></label>
         </div>
-        <button className="bw-btn bw-btn-primary bw-btn-lg" disabled={busy}>{busy ? "Opening Stripe…" : "Continue to Stripe checkout →"}</button>
+        <button className="bw-btn bw-btn-primary bw-btn-lg" disabled={busy}>{busy ? "Opening checkout…" : "Continue to Stripe checkout →"}</button>
       </form>}
     </section>
   );
