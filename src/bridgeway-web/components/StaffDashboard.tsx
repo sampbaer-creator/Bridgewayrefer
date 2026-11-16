@@ -333,7 +333,7 @@ export default function StaffDashboard() {
     {!workspace ? <section className="workspace-empty">Choose a workspace to see its referrals.</section> : selectedBusiness?.signupPending ?
       <section className="card access-form">
         <h2>Finish setting up your subscription</h2>
-        <p>{billing?.plan === "managed-calling" ? "Managed Calling, billed per location." : "Referral Workspace, billed per location."} Your dashboard opens once payment is confirmed.</p>
+        <p>{billing?.plan === "managed-calling" ? "Managed Calling, billed per business." : "Referral Workspace, billed per business."} Your dashboard opens once payment is confirmed.</p>
         <div className="billing-actions">
           {isAdmin && <button className="primary" disabled={!billing?.configured || busy === "billing"} onClick={() => void subscribe()}>Continue to checkout</button>}
           <button className="secondary" disabled={refreshing} onClick={() => void refresh()}>Check payment status</button>

@@ -52,7 +52,13 @@ export default function SignupForm() {
   return (
     <section className="bw-access-card" aria-label="Business signup">
       {error && <p role="alert" className="bw-form-alert">{error}</p>}
-      {!state && !error && <p role="status" className="bw-form-note">Loading…</p>}
+      {!state && !error && (
+        <div className="bw-form-skeleton" role="status" aria-label="Checking signup availability">
+          <span className="bw-skeleton-line" style={{ width: "72%" }} />
+          <span className="bw-skeleton-line" style={{ width: "48%" }} />
+          <span className="bw-skeleton-line bw-skeleton-btn" />
+        </div>
+      )}
       {state && !state.enabled && <p>Sign-up is unavailable right now. Please try again soon or contact us.</p>}
       {state?.enabled && !state.signedIn && <>
         <p>Sign in with the account you will use to manage your business.</p>

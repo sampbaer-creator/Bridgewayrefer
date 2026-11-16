@@ -9,7 +9,7 @@ export default function SignupPage() {
         <div className="bw-section-head">
           <p className="eyebrow">GET STARTED</p>
           <h1>Create your workspace</h1>
-          <p className="muted">Pick a plan, add your offices and partners, and test alerts before going live. NFC cards are included.</p>
+          <p className="muted">Pick a plan, add your offices and partners, and test alerts before going live. Order NFC cards from your workspace.</p>
         </div>
         <SignupForm />
         <p className="bw-form-note"><a href="/pricing">Pricing details</a> · <a href="/contact">Prefer a walkthrough first?</a></p>

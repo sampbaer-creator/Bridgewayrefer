@@ -6,14 +6,14 @@ const CHECK_ICON = (
   </svg>
 );
 
-export const metadata = { title: "Pricing", alternates: { canonical: "/pricing" } };
+export const metadata = { title: "Pricing", description: "Referral Workspace is $50 per business per month with all locations included, unlimited referrals and partners, and NFC cards for your partners. Managed Calling adds follow-up calls for $400 per business per month.", alternates: { canonical: "/pricing" } };
 
 export default function PricingPage() {
   return (
     <main className="bw-page" id="main-content">
       <section className="bw-page-hero">
         <p className="eyebrow">PRICING</p>
-        <h1>Simple monthly plans.<br />NFC cards included.</h1>
+        <h1>Simple monthly plans.<br />No per-referral fees.</h1>
         <p className="muted">Track referrals yourself, or let us make the follow-up calls.</p>
       </section>
 
@@ -24,10 +24,11 @@ export default function PricingPage() {
             <div className="bw-plan-price">
               <span className="bw-currency">$</span>
               <strong>50</strong>
-              <span className="bw-per">/ location / month</span>
+              <span className="bw-per">/ business / month</span>
             </div>
             <ul className="bw-plan-list">
-              <li>{CHECK_ICON}NFC cards included</li>
+              <li>{CHECK_ICON}All locations included</li>
+              <li>{CHECK_ICON}NFC cards for your partners</li>
               <li>{CHECK_ICON}Referral tracking</li>
               <li>{CHECK_ICON}Unlimited partners</li>
               <li>{CHECK_ICON}Staff invitations</li>
@@ -43,7 +44,7 @@ export default function PricingPage() {
               <span className="bw-per">/ location / month</span>
             </div>
             <ul className="bw-plan-list">
-              <li>{CHECK_ICON}Includes the $50 workspace plan per location</li>
+              <li>{CHECK_ICON}Includes the full $50 workspace plan</li>
               <li>{CHECK_ICON}Our team calls your referrals</li>
               <li>{CHECK_ICON}Follow-up recorded in your workspace</li>
               <li>{CHECK_ICON}Calling hours confirmed during setup</li>
@@ -57,7 +58,7 @@ export default function PricingPage() {
               <li>{CHECK_ICON}For corporate groups and many locations</li>
               <li>{CHECK_ICON}Volume pricing</li>
               <li>{CHECK_ICON}Guided setup</li>
-              <li>{CHECK_ICON}NFC cards included</li>
+              <li>{CHECK_ICON}NFC cards for every location</li>
             </ul>
             <Link className="bw-btn bw-btn-primary bw-btn-block" href="/contact">Request a custom quote</Link>
           </article>
@@ -85,8 +86,8 @@ export default function PricingPage() {
         <div className="bw-two-col">
           <div>
             <p className="eyebrow">NFC CARDS</p>
-            <h2>NFC cards come with your plan.</h2>
-            <p>Your subscription includes your NFC cards. Need more or replacements? Request them from your workspace.</p>
+            <h2>NFC cards for your partners.</h2>
+            <p>Order your first set of NFC cards from your workspace. Replacements and additional cards are quoted per order — request them any time.</p>
           </div>
           <div>
             <p className="eyebrow">BILLING</p>

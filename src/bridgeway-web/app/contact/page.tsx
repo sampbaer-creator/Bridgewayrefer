@@ -1,6 +1,6 @@
 import DemoRequestForm from "../../components/DemoRequestForm";
 
-export const metadata = { title: "Contact", alternates: { canonical: "/contact" } };
+export const metadata = { title: "Contact", description: "Ask about BridgeWay referral tracking, NFC card orders, walkthroughs, service terms, or healthcare and data-handling agreements.", alternates: { canonical: "/contact" } };
 
 export default function ContactPage() {
   return (

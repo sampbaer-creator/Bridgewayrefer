@@ -132,7 +132,7 @@ body:has(.staff-shell) > .site-footer { display: none; }
 .bw-page a:not(.bw-btn):not(.brand) { color: var(--bw-link); text-decoration: none; }
 .bw-page a:not(.bw-btn):not(.brand):hover { text-decoration: underline; text-underline-offset: 3px; }
 .bw-page :focus-visible { outline: 3px solid var(--bw-ink-blue); outline-offset: 3px; border-radius: 4px; }
-.bw-accent { color: var(--bw-navy); }
+.bw-accent { color: #8F6A2F; }
 
 /* ============ Page scaffolding ============ */
 .bw-page-hero {
@@ -221,6 +221,15 @@ body:has(.staff-shell) > .site-footer { display: none; }
 .bw-check input { width: 16px; height: 16px; min-width: 16px; margin-top: 0.2rem; accent-color: var(--bw-accent); }
 .bw-check span { font-size: 0.85rem; color: var(--bw-muted); line-height: 1.6; }
 .bw-form-note { font-size: 0.82rem; color: var(--bw-muted); margin-top: 1rem; }
+.bw-form-skeleton { display: grid; gap: 0.9rem; margin-top: 1.2rem; }
+.bw-skeleton-line {
+  height: 16px; border-radius: var(--bw-radius-sm);
+  background: linear-gradient(90deg, var(--bw-pale) 25%, var(--bw-offwhite) 50%, var(--bw-pale) 75%);
+  background-size: 200% 100%; animation: bw-shimmer 1.4s ease infinite;
+}
+.bw-skeleton-btn { height: 44px; width: 60%; }
+@keyframes bw-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .bw-skeleton-line { animation: none; } }
 .bw-form-alert { color: #a6323e; font-size: 0.9rem; margin-top: 0.8rem; }
 .bw-form-alert:empty { display: none; }
 .bw-form-success h2 { font-size: 1.6rem; }
@@ -302,8 +311,8 @@ body:has(.staff-shell) > .site-footer { display: none; }
 .bw-intake-form .bw-btn { margin-top: 1.6rem; }
 .bw-name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
 .bw-intake-notice {
-  background: #fff8e9; border: 1px solid #e7d9b0; border-left: 3px solid #b58b46;
-  border-radius: var(--bw-radius-sm); padding: 0.9rem 1rem; color: #5f4a25; font-size: 0.9rem; margin-top: 1rem;
+  background: var(--ecru); border: 1px solid var(--sand); border-left: 3px solid var(--amber);
+  border-radius: var(--bw-radius-sm); padding: 0.9rem 1rem; color: #7D5A28; font-size: 0.9rem; margin-top: 1rem;
 }
 .bw-intake-success { text-align: left; }
 .bw-intake-success .bw-success-icon {
