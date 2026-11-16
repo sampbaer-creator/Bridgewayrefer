@@ -1,5 +1,6 @@
 name: Verify C# and React
-on: [push, pull_request, workflow_dispatch]
+# Manual only: local Codex deployment runs the required checks without GitHub Actions minutes.
+on: [workflow_dispatch]
 permissions:
   contents: read
 jobs:

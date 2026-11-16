@@ -1,12 +1,8 @@
 name: Deploy production
 
-# Runs only after the Verify workflow succeeds for a push to main.
-# Pull requests never reach this workflow, so they stay verification-only.
-on:
-  workflow_run:
-    workflows: ["Verify C# and React"]
-    types: [completed]
-    branches: [main]
+# Disabled: production deployments are initiated from the local Codex workflow.
+# Keep the workflow definition for reference, but do not invoke a deployment job.
+on: {}
 
 permissions:
   contents: read
@@ -18,7 +14,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    if: ${{ false }}
     runs-on: ubuntu-latest
     environment: production
     permissions:
