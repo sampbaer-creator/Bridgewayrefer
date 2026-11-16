@@ -32,9 +32,7 @@ body:has(.bw-landing) > .site-header { display: none; }
   color: var(--navy); line-height: 1; text-decoration: none;
 }
 .brand:hover { text-decoration: none; }
-.brand-mark { width: 32px; height: 32px; border-radius: 8px; display: block; }
-.brand-name { font-weight: 800; font-size: 1.22rem; letter-spacing: -0.02em; color: var(--navy); }
-.brand-accent { color: var(--ink-blue); }
+.brand-logo { height: 40px; width: auto; display: block; }
 .public-nav { display: flex; align-items: center; gap: 1.6rem; }
 .public-nav > a {
   color: var(--ink); font-size: 0.92rem; font-weight: 600; text-decoration: none;
@@ -81,9 +79,7 @@ body:has(.staff-shell) > .site-footer { display: none; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem 2.4rem;
 }
 .footer-brand { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; }
-.footer-brand-mark { width: 30px; height: 30px; border-radius: 8px; display: block; }
-.footer-brand-name { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em; color: var(--navy); }
-.footer-brand-accent { color: var(--ink-blue); }
+.footer-brand-logo { height: 34px; width: auto; display: block; }
 .footer-tag { margin: 0; font-size: 0.95rem; }
 .site-footer nav { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-left: auto; }
 .site-footer nav a { color: var(--ink-blue); font-size: 0.85rem; text-decoration: none; }
@@ -237,6 +233,7 @@ body:has(.staff-shell) > .site-footer { display: none; }
   min-height: 55vh;
 }
 .bw-access-card { display: flex; flex-direction: column; }
+.bw-access-logo { height: 40px; width: auto; align-self: flex-start; display: block; margin-bottom: 1.2rem; }
 .bw-access-card h1, .bw-access-card h2 { font-size: 1.5rem; margin-top: 0.3rem; }
 .bw-access-card > p:last-child { color: var(--bw-muted); font-size: 0.9rem; margin-top: 1.2rem; }
 .bw-access-card .bw-btn { margin-top: 1.6rem; }
@@ -272,10 +269,6 @@ body:has(.staff-shell) > .site-footer { display: none; }
 }
 .bw-intake-brand { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; }
 .bw-intake-brand img { max-width: 180px; max-height: 48px; object-fit: contain; display: block; }
-.bw-intake-brand-text {
-  width: 34px; height: 34px; border-radius: 8px; background: var(--bw-navy); color: #fff;
-  display: grid; place-items: center; font-weight: 800; font-size: 1rem;
-}
 .bw-intake-brand-name { font-weight: 800; color: var(--bw-navy); font-size: 1.05rem; letter-spacing: -0.01em; }
 .bw-intake-label {
   font-size: 0.82rem; font-weight: 700; letter-spacing: 0.1em; color: var(--bw-ink-blue);

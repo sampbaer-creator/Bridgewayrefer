@@ -134,10 +134,7 @@ body:has(.bw-landing) > .site-footer {
 }
 .bw-brand { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--bw-navy); line-height: 1; text-decoration: none; }
 .bw-brand:hover { text-decoration: none; }
-.bw-brand-mark { width: 34px; height: 34px; border-radius: 8px; display: block; }
-.bw-brand-name { font-weight: 800; font-size: 1.22rem; letter-spacing: -0.02em; }
-.bw-brand-accent { color: var(--ink-blue); }
-.bw-brand-accent-footer { color: var(--ink-blue); }
+.bw-brand-logo { height: 38px; width: auto; display: block; }
 .bw-nav { display: flex; gap: 1.7rem; }
 .bw-nav a { color: var(--bw-muted); font-size: 0.92rem; font-weight: 500; }
 .bw-nav a:hover { color: var(--bw-navy); text-decoration: none; border-bottom: 2px solid var(--bw-accent); padding-bottom: 2px; }
@@ -626,7 +623,7 @@ body:has(.bw-landing) > .site-footer {
   display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem 2.5rem;
 }
 .bw-brand-footer { color: var(--navy); }
-.bw-brand-footer .bw-brand-mark { width: 30px; height: 30px; }
+.bw-brand-footer .bw-brand-logo { height: 34px; }
 .bw-footer-tag { font-size: 0.9rem; }
 .bw-footer-nav { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-left: auto; }
 .bw-footer-nav a { color: var(--ink-blue); font-size: 0.87rem; }

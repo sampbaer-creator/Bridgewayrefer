@@ -5,6 +5,7 @@ description: Design and review BridgeWay Staff and Admin dashboards, referral in
 
 # BridgeWay dashboard design
 
+- Use the BridgeWayRefer suspension-bridge logo everywhere the brand appears. Assets live in `src/bridgeway-web/public`: `brand-logo.png` (full logo, light surfaces), `brand-mark.png` (icon only), `brand-mark-white.png` (dark surfaces), and `brand-mark-square.png` (compact slots like the staff rail). The original source file is `docs/brand/`. Never reintroduce a text-only wordmark next to the logo image.
 - Use Sneat for navigation, card hierarchy and settings layouts. Implement patterns in the existing React components and staff stylesheet.
 - Use light blue for selection, white for cards and warm neutrals for the workspace background. Keep status text visible and use existing color tokens.
 - Use AdminX as a reference for search and filters and Adminator for queue and detail layouts. Keep next action and deadline visible in the inbox. Preserve search and pagination when returning from a referral.
