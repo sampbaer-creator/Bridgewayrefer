@@ -50,6 +50,21 @@ body:has(.bw-landing) > .site-header { display: none; }
   background: var(--accent); color: var(--navy); font-weight: 600; border: 1px solid var(--accent);
 }
 .public-nav .public-nav-cta:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--navy); }
+.menu-toggle {
+  display: none; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; color: var(--navy); font-size: 1.15rem; cursor: pointer;
+}
+.mobile-menu {
+  display: flex; flex-direction: column; padding: 0.4rem 1.2rem 1.2rem;
+  background: #fff; border-top: 1px solid var(--line); box-shadow: 0 16px 30px rgba(8, 26, 43, 0.12);
+}
+.mobile-menu a { padding: 0.9rem 0.2rem; font-weight: 600; color: var(--ink); border-bottom: 1px solid var(--line); text-decoration: none; }
+.mobile-menu .mobile-menu-cta {
+  margin-top: 0.9rem; padding: 0.85rem 1rem; text-align: center; border-radius: 8px; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--navy);
+}
+@media (min-width: 861px) { .mobile-menu { display: none; } }
 .staff-header-actions { display: flex; align-items: center; gap: 1.2rem; }
 .portal-label { color: var(--ink-blue); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; }
 .header-signout {
@@ -314,6 +329,7 @@ body:has(.staff-shell) > .site-footer { display: none; }
 }
 @media (max-width: 860px) {
   .public-nav { display: none; }
+  .menu-toggle { display: inline-flex; }
   .header-inner { padding: 0 1.2rem; }
   .bw-flow { grid-template-columns: 1fr; }
   .bw-flow-arrow { transform: rotate(90deg); justify-self: center; }

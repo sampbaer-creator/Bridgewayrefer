@@ -29,7 +29,7 @@ export default function PatientForm({ config, code = "" }: { config: PublicConfi
   const callback = config.phone ? <a href={"tel:" + config.phone.replace(/[^\d]/g, "")}>{config.phone}</a> : null;
   return <>
     <header className="bw-intake-header">
-      <a className="bw-intake-brand" href="/" aria-label="Bridgewayrefer home">
+      <a className="bw-intake-brand" href="/" aria-label="BridgeWay home">
         {config.logoUrl ? <img src={config.logoUrl} alt={config.businessName || config.officeName} /> : <span className="bw-intake-brand-text" aria-hidden="true">B</span>}
         <span className="bw-intake-brand-name">{config.logoUrl ? "" : config.businessName || config.officeName}</span>
       </a>

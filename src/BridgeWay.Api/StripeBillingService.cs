@@ -74,6 +74,8 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         {
             ["mode"] = "subscription", ["customer"] = customerId, ["client_reference_id"] = businessId,
             ["line_items[0][price]"] = settings.StripePriceFor(plan), ["line_items[0][quantity]"] = "1",
+            // Billed per location: the customer sets the number of locations at Checkout.
+            ["line_items[0][adjustable_quantity][enabled]"] = "true", ["line_items[0][adjustable_quantity][minimum]"] = "1", ["line_items[0][adjustable_quantity][maximum]"] = "50",
             ["success_url"] = successUrl, ["cancel_url"] = cancelUrl,
             ["metadata[businessId]"] = businessId, ["metadata[businessName]"] = businessName, ["metadata[plan]"] = plan,
             ["subscription_data[metadata][businessId]"] = businessId, ["subscription_data[metadata][plan]"] = plan,

@@ -144,6 +144,18 @@ body:has(.bw-landing) > .site-footer {
 .bw-header-actions { display: flex; align-items: center; gap: 1.2rem; }
 .bw-signin { color: var(--bw-ink); font-size: 0.92rem; font-weight: 600; }
 .bw-signin:hover { color: var(--bw-navy); text-decoration: none; }
+.bw-menu-toggle {
+  display: none; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border: 1px solid var(--bw-line); border-radius: 10px;
+  background: #fff; color: var(--bw-navy); font-size: 1.15rem; cursor: pointer;
+}
+.bw-mobile-menu {
+  display: none; flex-direction: column; gap: 0.2rem;
+  padding: 0.6rem 1.2rem 1.2rem; background: var(--bw-paper, #fff);
+  border-top: 1px solid var(--bw-line); box-shadow: 0 16px 30px rgba(8, 26, 43, 0.12);
+}
+.bw-mobile-menu a:not(.bw-btn) { padding: 0.9rem 0.2rem; font-weight: 600; color: var(--bw-ink); border-bottom: 1px solid var(--bw-line); text-decoration: none; }
+.bw-mobile-menu .bw-btn { margin-top: 0.9rem; justify-content: center; }
 
 /* ============ Hero ============ */
 .bw-hero { position: relative; overflow: hidden; }
@@ -153,6 +165,7 @@ body:has(.bw-landing) > .site-footer {
     radial-gradient(46rem 30rem at 88% -8%, rgba(72, 178, 230, 0.1), transparent 62%),
     radial-gradient(38rem 26rem at -6% 108%, rgba(72, 178, 230, 0.16), transparent 60%);
 }
+.bw-hero-copy, .bw-hero-visual { min-width: 0; }
 .bw-hero-inner {
   max-width: 1200px; margin: 0 auto;
   padding: clamp(3.5rem, 8vw, 6.5rem) 2rem clamp(3rem, 6vw, 5rem);
@@ -462,8 +475,8 @@ body:has(.bw-landing) > .site-footer {
 /* ============ Pricing ============ */
 .bw-pricing { padding: var(--bw-section-y) 0 0; }
 .bw-pricing-grid {
-  max-width: 1000px; margin: 0 auto; padding: 0 2rem;
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; align-items: stretch;
+  max-width: 1200px; margin: 0 auto; padding: 0 2rem;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem; align-items: stretch;
 }
 .bw-plan-card {
   position: relative;
@@ -652,6 +665,8 @@ body:has(.bw-landing) > .site-footer {
 
 @media (max-width: 860px) {
   .bw-nav, .bw-signin { display: none; }
+  .bw-menu-toggle { display: inline-flex; }
+  .bw-mobile-menu { display: flex; }
   .bw-header-inner { padding: 0 1.2rem; }
   .bw-hero-inner { grid-template-columns: 1fr; padding-top: 2.8rem; }
   .bw-hero-visual { order: -1; }
@@ -671,11 +686,14 @@ body:has(.bw-landing) > .site-footer {
 }
 
 @media (max-width: 430px) {
-  .bw-mockup { zoom: 0.78; }
+  .bw-tap-card { width: 138px; height: 88px; margin-right: -6px; }
+  .bw-tap-phone { width: 210px; padding-left: 1.6rem; }
+  .bw-mockup { max-width: 100%; }
 }
 
 @media (max-width: 620px) {
-  .bw-header-actions .bw-btn { display: none; }
+  .bw-header-actions { gap: 0.6rem; }
+  .bw-header-actions .bw-btn { padding: 0.55rem 0.9rem; }
   .bw-feature-grid { grid-template-columns: 1fr; }
   .bw-proof-inner { grid-template-columns: 1fr 1fr; padding: 1.6rem 1.2rem; }
   .bw-proof-item + .bw-proof-item { border-left: 0; padding-left: 0; }
@@ -690,3 +708,4 @@ body:has(.bw-landing) > .site-footer {
   }
   .bw-landing .reveal { opacity: 1; transform: none; }
 }
+@media (max-width: 620px) { .bw-pricing-grid { padding: 0 1rem; } }

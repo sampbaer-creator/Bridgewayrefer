@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Faustina } from "next/font/google";
 import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
@@ -10,6 +10,8 @@ import "./landing.css";
 import "./site.css";
 
 const faustina = Faustina({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800"], style: ["normal", "italic"], display: "swap", variable: "--font-body" });
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),

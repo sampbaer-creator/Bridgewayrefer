@@ -15,7 +15,7 @@ const faqSchema = {
     ["Do customers need an app?", "No. The referral form opens in the phone's web browser — nothing to download, nothing to sign up for."],
     ["Who can see our referrals?", "Only authorized members of your business workspace can access its private referral dashboard."],
     ["Can I cancel anytime?", "Manage your subscription and cancellation from Billing in your workspace."],
-    ["How do I add more offices?", "Add offices from Setup in your workspace, then issue card links for the correct office. Unlimited offices on every plan."],
+    ["How do I add more offices?", "Add each location in your workspace, then request cards for it. Each location is billed at your plan rate."],
   ].map(([name, answer]) => ({
     "@type": "Question",
     name,
@@ -32,14 +32,14 @@ export default function HomePage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            name: "Bridgewayrefer",
+            name: "BridgeWay",
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
             url: "https://bridgewayrefer.com",
             description: "NFC referral cards, partner attribution, and referral follow-up for businesses",
             offers: [
-              { "@type": "Offer", name: "Referral Workspace", price: "50", priceCurrency: "USD", description: "Per business per month. NFC cards sold separately." },
-              { "@type": "Offer", name: "Managed Calling", price: "400", priceCurrency: "USD", description: "Per business per month, including the Referral Workspace." },
+              { "@type": "Offer", name: "Referral Workspace", price: "50", priceCurrency: "USD", description: "Per location per month. NFC cards included." },
+              { "@type": "Offer", name: "Managed Calling", price: "400", priceCurrency: "USD", description: "Per location per month, including the Referral Workspace." },
             ],
           }),
         }}
