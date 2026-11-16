@@ -696,6 +696,9 @@ export default function LandingPage() {
             <Link className="bw-btn bw-btn-primary bw-btn-block" href="/signup?plan=workspace">
               Start your workspace <span aria-hidden="true">→</span>
             </Link>
+            <Link className="bw-btn bw-btn-secondary bw-btn-block" href="/signup?plan=workspace">
+              Start 15-day free trial <span aria-hidden="true">→</span>
+            </Link>
             <p className="bw-plan-note">
               NFC cards sold separately. <Link href="/pricing">See card and setup details</Link>.
             </p>
