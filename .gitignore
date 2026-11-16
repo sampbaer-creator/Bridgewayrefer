@@ -20,3 +20,5 @@ test-results/
 **/appsettings.*.local.json
 **/legacy-export*.json
 .playwright-mcp/
+
+playwright/.auth/

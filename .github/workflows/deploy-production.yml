@@ -1,67 +1,84 @@
+
 name: Deploy production
 
-# Runs only after the Verify workflow succeeds for a push to main.
-# Pull requests never reach this workflow, so they stay verification-only.
+# Deploy only when manually triggered from GitHub Actions.
 on:
-  workflow_run:
-    workflows: ["Verify C# and React"]
-    types: [completed]
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-# One production rollout at a time. Never cancel an in-flight rollout.
+# Only one production deployment at a time.
+# Never cancel an active deployment.
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
+
     permissions:
       contents: read
-      id-token: write   # GitHub OIDC to Azure; no stored Azure secret
+      id-token: write
+
     env:
-      SHA: ${{ github.event.workflow_run.head_sha }}
+      SHA: ${{ github.sha }}
       ACR_NAME: ${{ vars.ACR_NAME }}
       RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
       API_APP: ${{ vars.API_APP }}
       WEB_APP: ${{ vars.WEB_APP }}
       PUBLIC_ORIGIN: ${{ vars.PUBLIC_ORIGIN }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.SHA }}
 
-      - name: Refuse to deploy a superseded commit
+      - name: Verify this is the latest main commit
+        shell: bash
         run: |
           latest=$(git ls-remote origin refs/heads/main | cut -f1)
+
           if [ "$latest" != "$SHA" ]; then
-            echo "::error::$SHA is no longer the head of main ($latest). Not deploying an older release."
+            echo "::error::$SHA is no longer the latest commit on main."
             exit 1
           fi
 
-      - uses: azure/login@v2
+      - name: Sign in to Azure
+        uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build API and web images tagged with the commit SHA
+      - name: Build API and web images in Azure
+        shell: bash
         run: |
-          az acr build --registry "$ACR_NAME" --image "bridgeway-api:$SHA" --file src/BridgeWay.Api/Dockerfile .
-          az acr build --registry "$ACR_NAME" --image "bridgeway-web:$SHA" --file src/bridgeway-web/Dockerfile .
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "bridgeway-api:$SHA" \
+            --file src/BridgeWay.Api/Dockerfile .
 
-      - name: Stage candidates, verify, promote, smoke test
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "bridgeway-web:$SHA" \
+            --file src/bridgeway-web/Dockerfile .
+
+      - name: Deploy and verify production
         id: rollout
+        shell: bash
         env:
           ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
-        run: bash scripts/deploy-production.sh
-
-      - name: Record outcome
-        if: always()
         run: |
-          echo "Rollout result: ${{ steps.rollout.outcome }} (commit $SHA)"
+          bash scripts/deploy-production.sh
+
+      - name: Record deployment result
+        if: always()
+        shell: bash
+        run: |
+          echo "Deployment result: ${{ steps.rollout.outcome }}"
+          echo "Commit: $SHA"
