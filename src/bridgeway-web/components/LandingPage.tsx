@@ -370,10 +370,7 @@ export default function LandingPage() {
       <header className="bw-header">
         <div className="bw-header-inner">
           <Link className="bw-brand" href="/" aria-label="BridgeWay home">
-            <img className="bw-brand-mark" src="/brand-mark.png" alt="" width={34} height={34} />
-            <span className="bw-brand-name">
-              Bridge<span className="bw-brand-accent">Way</span>
-            </span>
+            <img className="bw-brand-logo" src="/bridgeway-logo.png" alt="BridgeWay" width={180} height={61} />
           </Link>
           <nav className="bw-nav" aria-label="Main navigation">
             <a href="#how-it-works">How it works</a>
@@ -907,10 +904,7 @@ export default function LandingPage() {
       <footer className="bw-footer">
         <div className="bw-footer-inner">
           <Link className="bw-brand bw-brand-footer" href="/" aria-label="BridgeWay home">
-            <img className="bw-brand-mark" src="/brand-mark.png" alt="" width={30} height={30} />
-            <span className="bw-brand-name">
-              Bridge<span className="bw-brand-accent-footer">Way</span>
-            </span>
+            <img className="bw-brand-logo bw-brand-logo-footer" src="/bridgeway-logo.png" alt="BridgeWay" width={180} height={61} />
           </Link>
           <p className="bw-footer-tag">Referrals, followed through.</p>
           <nav className="bw-footer-nav" aria-label="Footer">

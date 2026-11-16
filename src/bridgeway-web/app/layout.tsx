@@ -31,10 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <footer className="site-footer">
           <div className="footer-inner">
             <Link className="footer-brand" href="/" aria-label="BridgeWay home">
-              <img className="footer-brand-mark" src="/brand-mark.png" alt="" width={30} height={30} />
-              <span className="footer-brand-name">
-                Bridge<span className="footer-brand-accent">Way</span>
-              </span>
+              <img className="footer-brand-logo" src="/bridgeway-logo.png" alt="BridgeWay" width={180} height={61} />
             </Link>
             <p className="footer-tag">Referrals, followed through.</p>
             <nav aria-label="Footer">

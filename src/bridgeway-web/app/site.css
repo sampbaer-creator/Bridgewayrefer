@@ -341,3 +341,9 @@ body:has(.staff-shell) > .site-footer { display: none; }
   .bw-page-hero, .bw-section { padding-left: 1.3rem; padding-right: 1.3rem; }
   .bw-contact-grid, .bw-doc, .bw-access, .bw-intake { padding-left: 1.3rem; padding-right: 1.3rem; }
 }
+
+/* Brand logo (wordmark image on a white background; multiply blends it into tinted bars) */
+.brand-logo,.footer-brand-logo,.bw-brand-logo{display:block;width:auto;height:44px}
+.footer-brand-logo,.bw-brand-logo-footer{height:40px}
+.staff-sidebar-brand img{width:44px;height:auto;border-radius:0}
+@media(max-width:620px){.brand-logo,.bw-brand-logo{height:38px}}
