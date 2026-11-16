@@ -69,11 +69,15 @@ function Test-Http {
 }
 
 function Test-JsonHealth {
-    param([string] $Uri, [string] $ExpectedStatus)
-    try {
-        $response = Invoke-RestMethod -Uri $Uri -TimeoutSec 25 -UseBasicParsing
-        return ($response.status -eq $ExpectedStatus)
-    } catch { return $false }
+    param([string] $Uri, [string] $ExpectedStatus, [int] $Attempts = 1)
+    for ($i = 0; $i -lt $Attempts; $i++) {
+        try {
+            $response = Invoke-RestMethod -Uri $Uri -TimeoutSec 25 -UseBasicParsing
+            if ($response.status -eq $ExpectedStatus) { return $true }
+        } catch { }
+        if ($i + 1 -lt $Attempts) { Start-Sleep -Seconds 10 }
+    }
+    return $false
 }
 
 function Show-Status {
@@ -146,6 +150,11 @@ function Invoke-Deploy {
     param([string[]] $Apps)
     Assert-ProductionBranch
     Assert-Preflight
+    $baselineWeb = Test-Http "$PublicOrigin/" 3
+    $baselineApi = Test-JsonHealth "$PublicOrigin/health/cosmos" 'connected' 3
+    if (-not $baselineWeb -or -not $baselineApi) {
+        throw "Production baseline is unhealthy (website=$baselineWeb, API/Cosmos=$baselineApi). Resolve the public health issue before deployment; no image will be built or deployed."
+    }
     if ($Apps -contains $ApiApp) { Invoke-Native 'dotnet' @('test','tests/BridgeWay.Api.Tests','--configuration','Release') }
     Push-Location (Join-Path $RepoRoot 'src/bridgeway-web')
     try {
@@ -222,7 +231,7 @@ function Invoke-Deploy {
         }
         Start-Sleep -Seconds 20
         $webOk = Test-Http "$PublicOrigin/" 3
-        $apiOk = Test-JsonHealth "$PublicOrigin/health/cosmos" 'connected'
+        $apiOk = Test-JsonHealth "$PublicOrigin/health/cosmos" 'connected' 3
         if (($webCandidate -and -not $webOk) -or ($apiCandidate -and -not $apiOk)) { throw "Post-promotion public health check failed (web=$webOk, API/Cosmos=$apiOk)." }
         foreach ($candidate in $staged) {
             $script:DeployResults += [pscustomobject]@{ App=$candidate.App; Image=$candidate.Item.Image; Revision=$candidate.Revision }
