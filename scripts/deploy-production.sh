@@ -11,7 +11,7 @@ set -euo pipefail
 
 : "${SHA:?}" "${ACR_LOGIN_SERVER:?}" "${ACR_NAME:?}" "${RESOURCE_GROUP:?}" "${API_APP:?}" "${WEB_APP:?}" "${PUBLIC_ORIGIN:?}"
 SHORT="${SHA:0:8}"
-REV_SUFFIX="s${SHORT}a${GITHUB_RUN_ATTEMPT:-1}"
+REV_SUFFIX="s${SHORT}a${DEPLOYMENT_ID:-${GITHUB_RUN_ID:-manual}-${GITHUB_RUN_ATTEMPT:-1}}"
 CAND_LABEL="candidate"
 # Azure Container Apps revision names separate the app name and suffix with "--".
 API_CAND="${API_APP}--${REV_SUFFIX}"
@@ -84,12 +84,11 @@ snapshot "$WEB_APP" "$PREV_WEB"
 log "Previous API traffic: $(tr '\n' ' ' < "$PREV_API")"
 log "Previous web traffic: $(tr '\n' ' ' < "$PREV_WEB")"
 
-# 1. API candidate: one replica, so a single worker per revision. Worker overlap during the
-#    brief rollout window is covered by the Cosmos etag claim in AlertWorker.
+# 1. Stage the API using the existing replica settings.
 log "Staging API candidate $API_CAND"
 az containerapp update -n "$API_APP" -g "$RESOURCE_GROUP" \
   --image "$ACR_LOGIN_SERVER/bridgeway-api:$SHA" --revision-suffix "$REV_SUFFIX" \
-  --min-replicas 1 --max-replicas 1 -o none
+  -o none
 wait_healthy "$API_APP" "$API_CAND"
 az containerapp revision label add -n "$API_APP" -g "$RESOURCE_GROUP" --revision "$API_CAND" --label "$CAND_LABEL" -o none --yes
 API_CAND_ORIGIN="$(az containerapp revision show -n "$API_APP" -g "$RESOURCE_GROUP" --revision "$API_CAND" --query properties.fqdn -o tsv)"
