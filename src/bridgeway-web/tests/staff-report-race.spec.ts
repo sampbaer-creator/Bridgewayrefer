@@ -41,7 +41,7 @@ async function dashboard(page: Page) {
     else if (url.pathname.endsWith("/alerts")) await route.fulfill({ json: { enabled: false, recipient: "", waiting: 0, retrying: 0 } });
     else throw new Error(`Unexpected staff request: ${url.pathname}`);
   });
-  await page.goto("/staff");
+  await page.goto("/staff#office-report");
   const total = page.locator(".summary-primary strong");
   await expect(total).toHaveText("11");
   const waitForMonth = async (month: string, count = 1) => {
@@ -103,7 +103,7 @@ test("rapid dropdown changes discard stale failures and keep refresh tied to the
   await expect(total).toHaveText("8");
   await expect(page.getByLabel("Reporting month")).toHaveValue("2026-08");
   await expect(page.locator("main .error-message")).toBeEmpty();
-  await page.getByRole("button", { name: "Refresh inbox" }).click();
+  await page.getByRole("button", { name: "Refresh analytics" }).click();
   await waitForMonth("2026-08", 2);
   await complete("2026-08", 200, 1);
   await expect(total).toHaveText("8");
@@ -120,7 +120,7 @@ test("latest-month failures stay visible until a successful retry, despite stale
   await complete("2026-10");
   await expect(total).toHaveText("—");
   await expect(page.locator("main .error-message")).toHaveText("2026-09 unavailable");
-  await page.getByRole("button", { name: "Refresh inbox" }).click();
+  await page.getByRole("button", { name: "Refresh analytics" }).click();
   await waitForMonth("2026-09", 2);
   await complete("2026-09", 200, 1);
   await expect(total).toHaveText("9");
