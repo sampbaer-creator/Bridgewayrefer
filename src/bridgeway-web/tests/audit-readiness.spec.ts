@@ -70,7 +70,7 @@ test("server search and continuation pages retrieve historical referrals", async
     }
     return route.fulfill({ json: { partners: [], offices: [], cards: [], members: [], name: "Fictional Practice", enabled: false, waiting: 0, retrying: 0 } });
   });
-  await page.goto("/staff");
+  await page.goto("/staff#inbox");
   await page.getByRole("button", { name: "Load more referrals" }).click();
   await expect(page.getByRole("heading", { name: old.name })).toBeVisible();
   await expect(page.getByText("Overdue", { exact: true })).toHaveCount(0);
