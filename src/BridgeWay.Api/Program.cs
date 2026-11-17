@@ -81,7 +81,15 @@ if (settings.IdentityConfigured) auth.AddOpenIdConnect(OpenIdConnectDefaults.Aut
     options.ResponseType = OpenIdConnectResponseType.Code; options.UsePkce = true;
     options.Scope.Add("email");
     options.SaveTokens = false; options.MapInboundClaims = false; options.CallbackPath = "/signin-oidc";
-    options.Events.OnRedirectToIdentityProvider = ctx => { ctx.ProtocolMessage.RedirectUri = settings.PublicOrigin + "/signin-oidc"; return Task.CompletedTask; };
+    options.Events.OnRedirectToIdentityProvider = ctx =>
+    {
+        ctx.ProtocolMessage.RedirectUri = settings.PublicOrigin + "/signin-oidc";
+        // Invited email-code guests must authenticate in the resource directory.
+        // The common endpoint cannot discover an email-only guest identity.
+        if (ctx.Properties.RedirectUri == settings.PublicOrigin + "/admin")
+            ctx.ProtocolMessage.IssuerAddress = $"https://login.microsoftonline.com/{settings.TenantId}/oauth2/v2.0/authorize";
+        return Task.CompletedTask;
+    };
     options.Events.OnAuthorizationCodeReceived = ctx => { if (ctx.TokenEndpointRequest is not null) ctx.TokenEndpointRequest.RedirectUri = settings.PublicOrigin + "/signin-oidc"; return Task.CompletedTask; };
     options.Events.OnRemoteFailure = ctx => { ctx.HandleResponse(); ctx.Response.Redirect("/sign-in?error=signin"); return Task.CompletedTask; };
 });
