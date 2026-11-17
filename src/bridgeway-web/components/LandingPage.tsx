@@ -150,7 +150,7 @@ export default function LandingPage() {
           </Link>
           <nav className="bw-nav" aria-label="Main navigation">
             <a href="#how-it-works">How it works</a>
-            <Link href="/industries/dental">Dental</Link>
+            <Link href="/industries/healthcare">Healthcare</Link>
             <Link href="/industries/trades">Trades</Link>
             <Link href="/pricing">Pricing</Link>
             <a href="#faq">FAQ</a>
@@ -177,7 +177,7 @@ export default function LandingPage() {
         {menuOpen && (
           <nav className="bw-mobile-menu" id="bw-mobile-menu" aria-label="Mobile navigation" onClick={() => setMenuOpen(false)}>
             <a href="#how-it-works">How it works</a>
-            <Link href="/industries/dental">Dental</Link>
+            <Link href="/industries/healthcare">Healthcare</Link>
             <Link href="/industries/trades">Trades</Link>
             <Link href="/pricing">Pricing</Link>
             <a href="#faq">FAQ</a>
@@ -196,3 +196,4 @@ export default function LandingPage() {
     </main>
   );
 }
+

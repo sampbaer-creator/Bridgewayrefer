@@ -82,7 +82,7 @@ export default function Story() {
           </h2>
         </div>
         <div className="bw-industry-grid">
-          <Link className="bw-industry-card reveal" href="/industries/dental">
+          <Link className="bw-industry-card reveal" href="/industries/healthcare">
             <span className="bw-industry-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M11 2v2" />
@@ -92,12 +92,12 @@ export default function Story() {
                 <circle cx="20" cy="10" r="2" />
               </svg>
             </span>
-            <h3>Dental & orthodontics</h3>
+            <h3>Healthcare</h3>
             <p>
-              A dentist refers a patient to an orthodontist. The receiving practice sees who sent the referral and who is
+              A healthcare provider refers a patient to a medical or dental specialist. The receiving practice sees who sent the referral and who is
               following up.
             </p>
-            <span className="bw-industry-link">Explore dental referrals →</span>
+            <span className="bw-industry-link">Explore healthcare referrals →</span>
           </Link>
           <Link className="bw-industry-card reveal" href="/industries/trades">
             <span className="bw-industry-icon">
@@ -206,3 +206,4 @@ export default function Story() {
     </>
   );
 }
+

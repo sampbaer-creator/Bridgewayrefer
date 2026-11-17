@@ -20,10 +20,11 @@ test("marketing routes expose metadata and private routes are excluded from inde
   const robots = await request.get("/robots.txt"); expect(robots.status()).toBe(200);
   expect(await robots.text()).toContain("sitemap.xml");
   const sitemap = await request.get("/sitemap.xml");
-  expect(await sitemap.text()).toContain("/pricing"); expect(await sitemap.text()).toContain("/industries/dental"); expect(await sitemap.text()).toContain("/industries/trades"); expect(await sitemap.text()).not.toContain("/staff");
+  expect(await sitemap.text()).toContain("/pricing"); expect(await sitemap.text()).toContain("/industries/healthcare"); expect(await sitemap.text()).toContain("/industries/trades"); expect(await sitemap.text()).not.toContain("/staff");
   await page.goto("/industries/dental");
+  await expect(page).toHaveURL(/\/industries\/healthcare$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("referring office");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/dental");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/healthcare");
   await page.goto("/industries/trades");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("next job");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/trades");
@@ -82,3 +83,4 @@ test("server search and continuation pages retrieve historical referrals", async
   await page.getByLabel("Next action", { exact: true }).fill("Call patient");
   await page.getByRole("button", { name: "Save follow-up" }).click();
 });
+

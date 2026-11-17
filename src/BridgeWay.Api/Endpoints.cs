@@ -129,6 +129,7 @@ public static class Endpoints
             var (tenant, objectId) = RequireIdentity(ctx, settings);
             if (!settings.CustomerSignupEnabled || !settings.StripeConfigured || !stripe.KeyReady)
                 throw new ApiError(503, "Subscription signup is currently unavailable.");
+            data.ValidateBusinessType();
             var name = data.Name?.Trim() ?? "";
             var plan = BillingPlans.Normalize(data.Plan);
             if (plan == BillingPlans.ManagedCalling && !settings.ManagedCallingConfigured)
@@ -150,6 +151,7 @@ public static class Endpoints
                 var business = store.Document("business", "business");
                 business["name"] = name; business["officeName"] = officeName.Length > 0 ? officeName : name; business["welcomeText"] = "Share a few details and our team will be in touch.";
                 business["acceptReferrals"] = false; business["customerSignup"] = true;
+                business["industry"] = data.Industry?.Trim(); business["specialty"] = data.Specialty?.Trim();
                 if (alertEmail.Length > 0) business["alertEmail"] = alertEmail;
                 business["selectedPlan"] = plan; business["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan); business["billingStatus"] = "not_configured";
                 var office = store.Document("office", "office-main");
@@ -170,6 +172,10 @@ public static class Endpoints
                 if (existing.Value<string>("checkoutSessionUrl") is not null && DateTimeOffset.TryParse(existing.Value<string>("checkoutSessionExpiresAt"), out var checkoutExpires) && checkoutExpires > DateTimeOffset.UtcNow &&
                     !BillingPlans.MatchesCheckout(existing.Value<string>("checkoutSessionPlan"), plan))
                     throw new ApiError(409, "A Stripe Checkout for another plan is already open. Finish or cancel that Checkout before choosing a different plan.");
+                if (!string.IsNullOrWhiteSpace(data.Industry))
+                {
+                    existing["industry"] = data.Industry.Trim(); existing["specialty"] = data.Specialty!.Trim();
+                }
                 existing["selectedPlan"] = plan; existing["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan);
                 await store.Operations.ReplaceItemAsync(existing, "business", store.BusinessKey, new ItemRequestOptions { IfMatchEtag = existing.Value<string>("_etag") }, ct);
             }
@@ -255,7 +261,7 @@ public static class Endpoints
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>
         {
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
-            return Results.Ok(new { name = business.Value<string>("name"), officeName = business.Value<string>("officeName"), welcomeText = business.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", phone = business.Value<string>("phone") ?? "", logoUrl = business.Value<string>("logoUrl") ?? "", acceptReferrals = business.Value<bool?>("acceptReferrals") ?? false, accepting = BusinessRules.AcceptsReferrals(settings, business), suspended = business.Value<bool?>("suspended") ?? false, alertEmail = business.Value<string>("alertEmail") ?? "", billingStatus = business.Value<string>("billingStatus") ?? business.Value<string>("subscriptionStatus") ?? "not_configured", monthlyPriceUsd = business.Value<int?>("monthlyPriceUsd") ?? settings.MonthlyPriceUsd, etag = business.Value<string>("_etag") });
+            return Results.Ok(new { industry = business.Value<string>("industry"), specialty = business.Value<string>("specialty"), name = business.Value<string>("name"), officeName = business.Value<string>("officeName"), welcomeText = business.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", phone = business.Value<string>("phone") ?? "", logoUrl = business.Value<string>("logoUrl") ?? "", acceptReferrals = business.Value<bool?>("acceptReferrals") ?? false, accepting = BusinessRules.AcceptsReferrals(settings, business), suspended = business.Value<bool?>("suspended") ?? false, alertEmail = business.Value<string>("alertEmail") ?? "", billingStatus = business.Value<string>("billingStatus") ?? business.Value<string>("subscriptionStatus") ?? "not_configured", monthlyPriceUsd = business.Value<int?>("monthlyPriceUsd") ?? settings.MonthlyPriceUsd, etag = business.Value<string>("_etag") });
         });
         staff.MapPatch("/business/profile", async (BusinessProfileUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
@@ -550,5 +556,6 @@ public static class Endpoints
         });
     }
 }
+
 
 
