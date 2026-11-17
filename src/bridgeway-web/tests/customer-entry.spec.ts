@@ -74,7 +74,7 @@ test("Managed Calling signup carries the $400 plan through resumed Stripe Checko
     await route.fulfill(checkoutCalls === 1 ? { status: 503, json: { error: "Temporary Checkout issue" } } : { json: { url: "/signup?checkout=managed-calling" } });
   });
   await page.goto("/signup?plan=managed-calling");
-  await expect(page.getByRole("radio", { name: /Managed Calling.*\$400\/location\/month/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /Managed Calling.*\$400\/business\/month/ })).toBeChecked();
   await page.getByLabel("Business name").fill("Calling Practice");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page.getByText("Temporary Checkout issue", { exact: true })).toBeVisible();
