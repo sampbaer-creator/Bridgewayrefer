@@ -518,6 +518,70 @@ button.primary:hover{border-color:var(--accent-strong);background:var(--accent-s
   }
   .staff-shell .staff-nav-label { display: inline; }
 }
+
+/* Staff workspace overview and inbox */
+.staff-shell .staff-overview-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.staff-shell .staff-overview-metrics {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: auto;
+  gap: 16px;
+}
+
+.staff-shell .staff-overview-metric {
+  min-height: 116px;
+  border: 1px solid var(--line);
+}
+
+.staff-shell .staff-activity-panel {
+  border: 1px solid var(--line);
+}
+
+.staff-shell .staff-attention {
+  min-width: 0;
+  padding: 16px 20px;
+}
+
+.staff-attention-heading,
+.staff-attention li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.staff-attention h2 { margin: 0; font-size: 1rem; }
+.staff-attention ul { list-style: none; padding: 0; margin: 12px 0; }
+.staff-attention li { border-top: 1px solid var(--line); padding: 8px 0; }
+.staff-attention li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.staff-attention li small { display: block; }
+.staff-attention .staff-badge { flex-shrink: 0; margin: 0; }
+.staff-attention > a { display: inline-block; margin-top: 8px; }
+
+.staff-shell #inbox > .metrics {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.staff-shell #inbox > .metrics .metric {
+  flex: 0 0 auto;
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+  .staff-shell .staff-overview-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .staff-shell .staff-overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
 /* Staff dashboard: Materio card rhythm, Sneat navigation, Adminator queue hierarchy. */
 .staff-shell .staff-content{gap:24px;max-width:1480px;padding:32px}
 .staff-shell .staff-overview{order:0}
