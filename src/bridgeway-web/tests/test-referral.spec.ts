@@ -27,12 +27,14 @@ test("workspace admin can verify a card with a separate synthetic referral", asy
     if (url.pathname.endsWith("/analytics")) return route.fulfill({ json: { month: "2026-11", monthLabel: "November 2026", timezone: "America/Denver", availableMonths: ["2026-11"], days: [1], calendarDays: 30, isCurrentMonth: true, total: 0, outcomes: 0, outcomeLabel: "Completed requests this month", hasSubmissions: false, linkOpens: 0, referringOffices: 0, offices: [], invalidDates: 0, previousTotal: 0, trend: [] } });
     throw new Error(`Unexpected staff request: ${url.pathname}`);
   });
-  await page.goto("/staff");
+  await page.goto("/staff#workspace-setup");
   await expect(page.getByText("No test referrals yet.")).toBeVisible();
   await page.getByRole("button", { name: "Run test referral" }).click();
   await expect(page.getByText("Synthetic test referral created for General Dentist", { exact: false })).toBeVisible();
   await expect(page.locator("#test-referrals").getByText("General Dentist")).toBeVisible();
   await expect(page.locator("#test-referrals").getByText("card-code-a")).toBeVisible();
-  await expect(page.getByText("No requests match these filters.")).toBeVisible();
   await expect(page.getByText("It is excluded from the normal inbox, alerts, and reports.", { exact: false })).toBeVisible();
+  await page.getByRole("link", { name: "Referrals", exact: true }).click();
+  await expect(page.getByText("No requests match these filters.")).toBeVisible();
+
 });
