@@ -143,7 +143,7 @@ for (const industry of ["healthcare", "trades", "other"]) {
     expect(posted).toBe(false);
     await page.getByLabel("Your business specialty").fill("  Custom practice  ");
     await page.getByRole("button", { name: "Continue to Stripe" }).click();
-    await expect(page.getByRole("alert")).toHaveText("Saved request verified");
+    await expect(page.getByRole("region", { name: "Business signup" }).getByRole("alert")).toHaveText("Saved request verified");
     expect(posted).toBe(true);
     await page.getByLabel("Industry", { exact: true }).selectOption(industry === "healthcare" ? "trades" : "healthcare");
     await expect(page.getByLabel("Business specialty", { exact: true })).toHaveValue("");
