@@ -48,7 +48,7 @@ public static class Endpoints
         if (ctx.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
         var tenant = ctx.User.FindFirstValue("tid");
         var objectId = ctx.User.FindFirstValue("oid");
-        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(objectId) || !settings.AcceptsTenant(tenant))
+        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(objectId) || !settings.AcceptsStaffTenant(tenant))
             throw new ApiError(403, "Access denied.");
         return (tenant, objectId);
     }
@@ -185,8 +185,10 @@ public static class Endpoints
             {
                 if (http.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
                 var oid = http.User.FindFirstValue("oid"); var tid = http.User.FindFirstValue("tid");
-                if (string.IsNullOrWhiteSpace(oid) || string.IsNullOrWhiteSpace(tid) || !settings.AcceptsTenant(tid)) throw new ApiError(403, "Access denied.");
+                if (string.IsNullOrWhiteSpace(oid) || string.IsNullOrWhiteSpace(tid) || !settings.AcceptsStaffTenant(tid)) throw new ApiError(403, "Access denied.");
                 var email = (http.User.FindFirstValue("email") ?? http.User.FindFirstValue("preferred_username") ?? "").Trim().ToLowerInvariant();
+                if (tid == Settings.GoogleTenant && http.User.FindFirstValue("bridgeway_google_email_authoritative") != "true")
+                    email = "";
                 var memberships = await store.Memberships(oid, tid, http.RequestAborted);
                 var requested = RequestedBusiness(http);
                 if (requested is null && memberships.Count == 0 && email.Length > 0)

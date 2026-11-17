@@ -3,7 +3,7 @@ const origin = process.env.BRIDGEWAYREFER_API_ORIGIN || process.env.BRIDGEWAY_AP
 const config: NextConfig = {
   output: "standalone",
   async rewrites() {
-    return ["/api/:path*", "/health/:path*", "/staff/login", "/admin/login", "/signin-oidc"].map(source => ({ source, destination: origin + source }));
+    return ["/api/:path*", "/health/:path*", "/staff/login", "/admin/login", "/signin-oidc", "/signin-google"].map(source => ({ source, destination: origin + source }));
   },
   async headers() {
     return [{ source: "/:path*", headers: [
