@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import GoogleSignIn from "./GoogleSignIn";
 import { api, WORKSPACE_KEY } from "../lib/api";
 
@@ -66,17 +67,21 @@ export default function SignupForm() {
         <a className="bw-btn bw-btn-primary" href="/staff/login?flow=signup">Continue with Microsoft</a>
         <GoogleSignIn signup />
       </>}
+      {state && (!state.enabled || !state.signedIn) && <p><Link href="/contact">Request a Corporate quote</Link></p>}
       {state?.enabled && state.signedIn && <form onSubmit={startCheckout} className="bw-contact-form">
         <fieldset className="bw-plan-select">
-          <legend>Choose a monthly plan</legend>
+          <legend>Choose a plan</legend>
           <label className={plan === "workspace" ? "bw-plan-option selected" : "bw-plan-option"}>
             <input type="radio" name="plan" value="workspace" checked={plan === "workspace"} onChange={() => setPlan("workspace")} />
-            <span><b>Workspace · ${state.plans.workspace.amountUsd}/location/month</b><small>Referral tracking, partners, staff access, reports and NFC cards.</small></span>
+            <span><b>Referral Workspace · ${state.plans.workspace.amountUsd}/business/month</b><small>Referral tracking, partners, staff access, reports and NFC cards.</small></span>
           </label>
           <label className={plan === "managed-calling" ? "bw-plan-option selected" : "bw-plan-option"}>
             <input type="radio" name="plan" value="managed-calling" checked={plan === "managed-calling"} disabled={!state.plans.managedCalling.available} onChange={() => setPlan("managed-calling")} />
-            <span><b>Managed Calling · ${state.plans.managedCalling.amountUsd}/location/month</b><small>Includes Workspace. We call your referrals and record follow-up.{!state.plans.managedCalling.available ? " Not available online yet. Contact us." : ""}</small></span>
+            <span><b>Managed Calling · ${state.plans.managedCalling.amountUsd}/business/month</b><small>Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay.{!state.plans.managedCalling.available ? " Not available online yet. Contact us." : ""}</small></span>
           </label>
+          <Link href="/contact" className="bw-plan-option">
+            <span><b>Corporate · Custom pricing</b><small>Request a quote tailored to your business.</small></span>
+          </Link>
         </fieldset>
         <label className="bw-field">Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
         <div className="bw-name-row">
