@@ -95,16 +95,16 @@ export default function SignupForm() {
           </Link>
         </fieldset>
         <label className="bw-field">Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
-        <label className="bw-field">Industry
-          <select name="industry" value={industry} required onChange={event => { setIndustry(event.target.value); setSpecialty(""); }}>
+        <label className="bw-field"><span id="signup-industry-label">Industry</span>
+          <select aria-labelledby="signup-industry-label" name="industry" value={industry} required onChange={event => { setIndustry(event.target.value); setSpecialty(""); }}>
             <option value="" disabled>Choose your industry</option>
             <option value="healthcare">Healthcare (includes dental)</option>
             <option value="trades">Home service trades</option>
             <option value="other">Other industry</option>
           </select>
         </label>
-        {industry && <label className="bw-field">Business specialty
-          <select name="specialty" value={specialty} required onChange={event => setSpecialty(event.target.value)}>
+        {industry && <label className="bw-field"><span id="signup-specialty-label">Business specialty</span>
+          <select aria-labelledby="signup-specialty-label" name="specialty" value={specialty} required onChange={event => setSpecialty(event.target.value)}>
             <option value="" disabled>Choose your specialty</option>
             {industry === "healthcare" && Object.entries(healthcareSpecialties).map(([group, options]) => (
               <optgroup label={group} key={group}>{options.map(option => <option key={option} value={option}>{option}</option>)}</optgroup>
