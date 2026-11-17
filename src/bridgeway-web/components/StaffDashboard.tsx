@@ -296,6 +296,10 @@ export default function StaffDashboard() {
     const priority = (r: Referral) => ["Completed", "Won", "Closed"].includes(r.status) ? 3 : r.status === "New" ? 0 : !r.ownerId ? 1 : overdue(r) ? 2 : 3;
     return priority(a) - priority(b) || (priority(a) < 3 ? Date.parse(a.createdAt) - Date.parse(b.createdAt) : Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }), [referrals, filter, partnerFilter, query, fromDate, toDate]);
+  const attentionReferrals = referrals.filter(referral =>
+    !["Completed", "Won", "Closed"].includes(referral.status) &&
+    (referral.status === "New" || !referral.ownerId || overdueReferral(referral))
+  ).sort((a, b) => Number(overdueReferral(b)) - Number(overdueReferral(a)) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
   const testableCards = cards.filter(card => card.active && partners.some(partner => partner.active && partner.id === card.partnerId) && offices.some(office => office.active && office.id === card.officeId));
   const selectedTestCard = testableCards.find(card => card.id === testCardId) || testableCards[0];
   if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your session has ended. Sign in to continue." : "Your account does not have access to this workspace. Contact its administrator."}</p><a className="session-sign-in" href="/staff/login">Sign in</a></section></main>;
@@ -326,14 +330,14 @@ export default function StaffDashboard() {
         <div className="staff-topbar-user">{platformAdmin && <a className="staff-admin-link" href="/admin">Platform admin</a>}</div>
       </header>
       <div className="staff-content">
-    {activeSection === "overview" && <>    <section className="staff-overview" id="overview" aria-labelledby="overview-title">
+    {activeSection === "overview" && <section className="staff-overview" id="overview" aria-labelledby="overview-title">
       <div className="staff-page-heading"><h1 id="overview-title">Overview</h1><div className="staff-overview-month"><label className="sr-only" htmlFor="overview-month">Overview month</label><select id="overview-month" value={month || selectedReport?.month || ""} onChange={e => selectMonth(e.target.value)} disabled={!report?.availableMonths?.length}>{!report?.availableMonths?.length && <option value="">Loading months…</option>}{report?.availableMonths?.map(value => <option key={value} value={value}>{new Date(value + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select></div></div>
       <div className="staff-overview-grid">
         <div className="staff-overview-metrics" aria-live="polite">
           <article className="staff-overview-metric"><span>Card taps</span><strong>{selectedReport?.linkOpens ?? "—"}</strong></article>
           <article className="staff-overview-metric"><span>Forms received</span><strong>{selectedReport?.total ?? "—"}</strong></article>
           <article className="staff-overview-metric"><span>Completed outcomes</span><strong>{selectedReport?.outcomes ?? "—"}</strong></article>
-          <article className="staff-overview-metric"><span>Needs follow-up</span><strong>{referrals.filter(r => !["Completed", "Won", "Closed"].includes(r.status) && (r.status === "New" || !r.ownerId || overdueReferral(r))).length}</strong><small>Loaded referrals</small></article>
+          <article className="staff-overview-metric"><span>Needs follow-up</span><strong>{attentionReferrals.length}</strong><small>Loaded referrals</small></article>
         </div>
         <section className="staff-activity-panel" aria-labelledby="staff-activity-title">
           <div className="staff-activity-heading"><h2 id="staff-activity-title">Monthly referral activity</h2><div className="staff-chart-legend"><span><i className="opens-key"/>Card taps</span><span><i className="forms-key"/>Forms received</span></div></div>
@@ -343,8 +347,25 @@ export default function StaffDashboard() {
             </div>; })}
           </div>}
         </section>
+        <section className="card staff-attention" aria-labelledby="staff-attention-title">
+          <div className="staff-attention-heading">
+            <h2 id="staff-attention-title">Needs attention</h2>
+            <span>{attentionReferrals.length}</span>
+          </div>
+          {attentionReferrals.length ? (
+            <ul>{attentionReferrals.slice(0, 5).map(referral => (
+              <li key={referral.id}>
+                <span><strong>{referral.name}</strong><small>{referral.partnerName || "Direct request"}</small></span>
+                <span className={overdueReferral(referral) ? "staff-badge is-overdue" : "staff-badge"}>
+                  {overdueReferral(referral) ? "Overdue" : referral.status === "New" ? "New" : "Unassigned"}
+                </span>
+              </li>
+            ))}</ul>
+          ) : <p className="muted">No loaded referrals need follow-up.</p>}
+          <a href="#inbox">Open referral inbox →</a>
+        </section>
       </div>
-    </section><section className="card"><h2>Needs attention</h2><p className="muted">New, unassigned and overdue referrals</p>{referrals.filter(referral => !["Completed", "Won", "Closed"].includes(referral.status) && (referral.status === "New" || !referral.ownerId || overdueReferral(referral))).slice(0, 5).map(referral => <p key={referral.id}>{referral.name} · {overdueReferral(referral) ? "Overdue" : referral.status === "New" ? "New" : "Unassigned"}</p>)}<a href="#inbox">Open referral inbox →</a></section></>}
+    </section>}
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {!workspace ? <section className="workspace-empty">Choose a workspace to see its referrals.</section> : selectedBusiness?.signupPending ?
       <section className="card access-form">
