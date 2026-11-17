@@ -554,3 +554,39 @@ button.primary:hover{border-color:var(--accent-strong);background:var(--accent-s
 }
 @media(max-width:1000px){.staff-shell .staff-overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.staff-shell .staff-content{padding:20px 16px;gap:18px}.staff-shell .staff-overview-metrics{gap:12px}.staff-shell .staff-overview-metric{padding:16px;min-height:150px}.staff-shell .staff-activity-panel,.staff-shell #inbox,.staff-shell .staff-attention{padding:18px}.staff-shell .staff-bar-chart{height:190px}.staff-shell .staff-topbar{height:64px}.staff-shell .staff-attention-row{flex-wrap:wrap}.staff-shell .staff-referral-table th,.staff-shell .staff-referral-table td{padding:8px 0}}
+
+/* Frosted workspace surfaces, with solid fallbacks for unsupported browsers. */
+.staff-shell {
+  background: radial-gradient(ellipse at 12% 8%, var(--sky), transparent 48%),
+    radial-gradient(ellipse at 90% 45%, var(--pale), transparent 55%), var(--offwhite);
+  background-attachment: fixed;
+}
+.staff-shell :is(.staff-overview-metric, .staff-activity-panel, .card, #inbox) {
+  background: rgb(255 255 255 / 94%);
+  border: 1px solid rgb(255 255 255 / 85%);
+  box-shadow: inset 0 1px 0 #fff, 0 8px 28px rgb(23 45 69 / 6%);
+}
+.staff-shell :is(.staff-sidebar, .staff-topbar) {
+  background: rgb(255 255 255 / 96%);
+  border-color: rgb(255 255 255 / 80%);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .staff-shell :is(.staff-overview-metric, .staff-activity-panel, .card, #inbox) {
+    background: rgb(255 255 255 / 66%);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
+    backdrop-filter: blur(18px) saturate(125%);
+  }
+  .staff-shell :is(.staff-sidebar, .staff-topbar) {
+    background: rgb(255 255 255 / 76%);
+    -webkit-backdrop-filter: blur(24px) saturate(130%);
+    backdrop-filter: blur(24px) saturate(130%);
+  }
+  .staff-shell dialog.card { background: rgb(255 255 255 / 96%); backdrop-filter: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .staff-shell :is(.staff-overview-metric, .staff-activity-panel, .card, #inbox, .staff-sidebar, .staff-topbar) {
+    background: #fff;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
