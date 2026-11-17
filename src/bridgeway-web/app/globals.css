@@ -120,3 +120,31 @@ button.secondary:hover { background: var(--silver); }
   html { scroll-behavior: auto; }
   button { transition: none; }
 }
+
+/* Account provider choices */
+.bw-auth-providers {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0 0;
+}
+
+.bw-auth-provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 16px;
+  border: 1px solid #9299a3;
+  border-radius: 8px;
+  background: #fff;
+  color: #17202b;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.bw-auth-provider:hover { background: #f4f7fb; }
+.bw-auth-provider:focus-visible { outline: 2px solid #285b89; outline-offset: 3px; }
+.bw-auth-provider svg { flex: 0 0 20px; }

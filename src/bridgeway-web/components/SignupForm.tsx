@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import GoogleSignIn, { ProviderButton } from "./GoogleSignIn";
 import Link from "next/link";
-import GoogleSignIn from "./GoogleSignIn";
 import { api, WORKSPACE_KEY } from "../lib/api";
 
 type Plan = "workspace" | "managed-calling";
@@ -64,8 +64,10 @@ export default function SignupForm() {
       {state && !state.enabled && <p>Sign-up is unavailable right now. Please try again soon or contact us.</p>}
       {state?.enabled && !state.signedIn && <>
         <p>Sign in with the account you will use to manage your business.</p>
-        <a className="bw-btn bw-btn-primary" href="/staff/login?flow=signup">Continue with Microsoft</a>
-        <GoogleSignIn signup />
+        <div className="bw-auth-providers">
+          <ProviderButton provider="microsoft" signup />
+          <GoogleSignIn signup outlined />
+        </div>
       </>}
       {state && (!state.enabled || !state.signedIn) && <p><Link href="/contact">Request a Corporate quote</Link></p>}
       {state?.enabled && state.signedIn && <form onSubmit={startCheckout} className="bw-contact-form">
