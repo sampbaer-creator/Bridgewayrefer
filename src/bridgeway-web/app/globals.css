@@ -6,32 +6,38 @@
    ============================================================ */
 
 :root {
+  /* Cool core — sky-blue ramp from the brand mark */
   --navy: #0D2339;
   --navy-deep: #7BC8ED;
   --blue: #7BC8ED;
-  --ink-blue: #183E52;
+  --ink-blue: #39687B;   /* deep ocean slate */
   --accent: #48B2E6;
   --accent-strong: #7BC8ED;
   --sky: #B0DEF4;
   --silver: #B0DEF4;
   --offwhite: #EEF7FA;
   --paper: #FFFFFF;
-  --ink: #192C37;
-  --muted: #536168;
+  --ink: #324D59;        /* deep petrol */
+  --muted: #4A6577;      /* petrol gray */
   --accent-text: #0D2339;
-  --line: #B0DEF4;
+  --line: #C2CED8;       /* cool slate */
   --pale: #D2ECF8;
   --error: #a6323e;
   --radius: 16px;
   --radius-sm: 8px;
-  --warm-brown: #826148;
+  /* Warm coastal accents — bridge-cable gold + sand neutrals */
+  --warm-brown: #8F6A2F; /* deep amber (text-safe) */
+  --amber: #CB9D5C;      /* golden amber accent */
+  --sand: #C5B494;       /* warm sand */
+  --ecru: #F1ECE0;       /* warm linen */
+  --slate: #A8B5BD;      /* light silver-slate */
   --font-body: "Faustina", serif;
   --font-display: var(--font-body);
 }
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 
 body {
   margin: 0;
@@ -98,7 +104,7 @@ button.secondary:hover { background: var(--silver); }
 .form-grid .span-two { grid-column: 1 / -1; }
 .inline { display: flex; align-items: end; gap: 0.75rem; margin: 1.2rem 0; flex-wrap: wrap; }
 .empty { padding: 1.8rem 1.2rem; text-align: center; border: 1px dashed var(--line); border-radius: var(--radius-sm); color: var(--muted); font-size: 0.9rem; }
-.notice { background: #fff8e9; border-left: 3px solid #b58b46; padding: 0.9rem 1rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 0.9rem; }
+.notice { background: var(--ecru); border-left: 3px solid var(--amber); padding: 0.9rem 1rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 0.9rem; }
 .error-message, #form-error, #staff-error { color: var(--error); font-size: 0.9rem; }
 .error-message:empty, #form-error:empty, #staff-error:empty { display: none; }
 .text-link { font-size: 0.85rem; font-weight: 650; }

@@ -22,6 +22,11 @@
   --bw-line: var(--line);
   --bw-pale: var(--pale);
   --bw-warm-brown: var(--warm-brown);
+  --bw-amber: var(--amber);
+  --bw-amber-deep: var(--warm-brown);
+  --bw-sand: var(--sand);
+  --bw-ecru: var(--ecru);
+  --bw-slate: var(--slate);
   --bw-radius: 16px;
   --bw-radius-sm: 8px;
   --bw-shadow-sm: 0 1px 2px rgba(13, 35, 57, 0.06);
@@ -68,7 +73,7 @@ body:has(.bw-landing) > .site-footer {
 .bw-landing #industries,
 .bw-landing #features { scroll-margin-top: calc(var(--bw-header-h) + 20px); }
 
-.bw-accent { color: var(--bw-navy); }
+.bw-accent { color: var(--bw-amber-deep); }
 .bw-accent-light { color: var(--bw-navy); }
 
 .bw-eyebrow {
@@ -161,7 +166,7 @@ body:has(.bw-landing) > .site-footer {
   background:
     linear-gradient(105deg, rgba(123, 200, 237, 0.42) 0%, rgba(210, 236, 248, 0.14) 44%, rgba(238, 247, 250, 0) 72%),
     radial-gradient(46rem 30rem at 88% -8%, rgba(72, 178, 230, 0.1), transparent 62%),
-    radial-gradient(38rem 26rem at -6% 108%, rgba(72, 178, 230, 0.16), transparent 60%);
+    radial-gradient(38rem 26rem at -6% 108%, rgba(203, 157, 92, 0.14), transparent 60%);
 }
 .bw-hero-copy, .bw-hero-visual { min-width: 0; }
 .bw-hero-inner {
@@ -471,7 +476,10 @@ body:has(.bw-landing) > .site-footer {
 @keyframes bw-marquee { to { transform: translateX(-50%); } }
 
 /* ============ Pricing ============ */
-.bw-pricing { padding: var(--bw-section-y) 0 0; }
+.bw-pricing {
+  padding: var(--bw-section-y) 0 0;
+  background: linear-gradient(180deg, var(--bw-ecru) 0%, var(--bw-offwhite) 100%);
+}
 .bw-pricing-grid {
   max-width: 1200px; margin: 0 auto; padding: 0 2rem;
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem; align-items: stretch;
