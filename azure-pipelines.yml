@@ -17,7 +17,6 @@ variables:
 
 stages:
 - stage: Validate
-  displayName: Validate source
   jobs:
   - job: TestsAndBuildChecks
     steps:
@@ -70,8 +69,8 @@ stages:
           docker push $ACR_LOGIN_SERVER/$(apiImage):$BUILD_TAG
           docker push $ACR_LOGIN_SERVER/$(webImage):$COMMIT
           docker push $ACR_LOGIN_SERVER/$(webImage):$BUILD_TAG
-          echo ##vso[task.setvariable variable=acrLoginServer;isOutput=true]$ACR_LOGIN_SERVER
-          echo ##vso[task.setvariable variable=commit;isOutput=true]$COMMIT
+          echo "##vso[task.setvariable variable=acrLoginServer;isOutput=true]$ACR_LOGIN_SERVER"
+          echo "##vso[task.setvariable variable=commit;isOutput=true]$COMMIT"
       name: imageMetadata
 
 - stage: Deploy
@@ -112,10 +111,10 @@ stages:
                 WEB_REV=$(az containerapp revision list -n $WEB_APP -g $RESOURCE_GROUP --query '[?properties.trafficWeight==100].name | [0]' -o tsv)
                 API_HEALTH=$(curl --fail --silent --show-error --max-time 30 $PUBLIC_ORIGIN/health/cosmos)
                 curl --fail --silent --show-error --max-time 30 $PUBLIC_ORIGIN/ > /dev/null
-                echo Deployed commit: $SHA
-                echo API image: $ACR_LOGIN_SERVER/$apiImage:$SHA
-                echo Web image: $ACR_LOGIN_SERVER/$webImage:$SHA
-                echo API revision: $API_REV
-                echo Web revision: $WEB_REV
-                echo API health: $API_HEALTH
-                echo Web health: HTTP 200
+                echo "Deployed commit: $SHA"
+                echo "API image: $ACR_LOGIN_SERVER/$apiImage:$SHA"
+                echo "Web image: $ACR_LOGIN_SERVER/$webImage:$SHA"
+                echo "API revision: $API_REV"
+                echo "Web revision: $WEB_REV"
+                echo "API health: $API_HEALTH"
+                echo "Web health: HTTP 200"
