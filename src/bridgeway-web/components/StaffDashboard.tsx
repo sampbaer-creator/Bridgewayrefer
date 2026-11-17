@@ -304,7 +304,7 @@ export default function StaffDashboard() {
   return <main className="staff-shell" id="main-content" aria-busy={session === "loading" || refreshing}>
     <button className={`staff-sidebar-scrim${sidebarOpen ? " is-visible" : ""}`} aria-label="Dismiss navigation overlay" tabIndex={sidebarOpen ? 0 : -1} onClick={() => setSidebarOpen(false)} />
     <aside className={`staff-sidebar${sidebarOpen ? " is-open" : ""}`} aria-label="Staff workspace navigation">
-      <a className="staff-sidebar-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-mark-square.png" alt="" width={40} height={40} /><span className="staff-nav-label">BridgeWayRefer</span></a>
+      <a className="staff-sidebar-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="BridgeWayRefer" width={196} height={64} /></a>
       <nav className="staff-sidebar-nav" aria-label="Workspace sections">
         <a href="#overview" className={activeSection === "overview" ? "is-active" : undefined} aria-current={activeSection === "overview" ? "location" : undefined} aria-label="Overview" title="Overview" onClick={() => setSidebarOpen(false)}><NavIcon name="overview" /><span className="staff-nav-label">Overview</span></a>
         <a href="#inbox" className={activeSection === "inbox" ? "is-active" : undefined} aria-current={activeSection === "inbox" ? "location" : undefined} aria-label="Referrals" title="Referrals" onClick={() => setSidebarOpen(false)}><NavIcon name="inbox" /><span className="staff-nav-label">Referral inbox</span></a>
@@ -327,7 +327,7 @@ export default function StaffDashboard() {
       </header>
       <div className="staff-content">
     {activeSection === "overview" && <>    <section className="staff-overview" id="overview" aria-labelledby="overview-title">
-      <div className="staff-page-heading"><h1 id="overview-title">Overview</h1><div className="staff-overview-month"><label className="sr-only" htmlFor="overview-month">Overview month</label><select id="overview-month" value={month || selectedReport?.month || ""} onChange={e => selectMonth(e.target.value)} disabled={!report?.availableMonths?.length}>{!report?.availableMonths?.length && <option value="">Loading months…</option>}{report?.availableMonths?.map(value => <option key={value} value={value}>{new Date(value + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select></div></div>
+      <div className="staff-page-heading"><div><p className="eyebrow">YOUR WORKSPACE AT A GLANCE</p><h1 id="overview-title">Referral overview</h1><p>Track your referral activity and keep the next conversation moving.</p></div><div className="staff-overview-month"><label className="sr-only" htmlFor="overview-month">Overview month</label><select id="overview-month" value={month || selectedReport?.month || ""} onChange={e => selectMonth(e.target.value)} disabled={!report?.availableMonths?.length}>{!report?.availableMonths?.length && <option value="">Loading months…</option>}{report?.availableMonths?.map(value => <option key={value} value={value}>{new Date(value + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select></div></div>
       <div className="staff-overview-grid">
         <div className="staff-overview-metrics" aria-live="polite">
           <article className="staff-overview-metric"><span>Card taps</span><strong>{selectedReport?.linkOpens ?? "—"}</strong></article>
@@ -344,7 +344,7 @@ export default function StaffDashboard() {
           </div>}
         </section>
       </div>
-    </section><section className="card"><h2>Needs attention</h2><p className="muted">New, unassigned and overdue referrals</p>{referrals.filter(referral => !["Completed", "Won", "Closed"].includes(referral.status) && (referral.status === "New" || !referral.ownerId || overdueReferral(referral))).slice(0, 5).map(referral => <p key={referral.id}>{referral.name} · {overdueReferral(referral) ? "Overdue" : referral.status === "New" ? "New" : "Unassigned"}</p>)}<a href="#inbox">Open referral inbox →</a></section></>}
+    </section><section className="card staff-attention"><h2>Needs attention</h2><p className="muted">New, unassigned and overdue referrals</p>{referrals.filter(referral => !["Completed", "Won", "Closed"].includes(referral.status) && (referral.status === "New" || !referral.ownerId || overdueReferral(referral))).slice(0, 5).map(referral => <div className="staff-attention-row" key={referral.id}><strong>{referral.name}</strong><span className="staff-badge">{overdueReferral(referral) ? "Overdue" : referral.status === "New" ? "New" : "Unassigned"}</span></div>)}<a href="#inbox">Open referral inbox →</a></section></>}
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {!workspace ? <section className="workspace-empty">Choose a workspace to see its referrals.</section> : selectedBusiness?.signupPending ?
       <section className="card access-form">
