@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Faustina } from "next/font/google";
+import { PT_Serif } from "next/font/google";
 import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
@@ -9,7 +9,7 @@ import "./staff.css";
 import "./landing.css";
 import "./site.css";
 
-const faustina = Faustina({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800"], style: ["normal", "italic"], display: "swap", variable: "--font-body" });
+const ptSerif = PT_Serif({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], display: "swap", variable: "--font-body" });
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
 
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={faustina.variable}>
+      <body className={ptSerif.variable}>
         <a className="skip-link" href="#main-content">Skip to content</a>
         <Header />
         {children}
