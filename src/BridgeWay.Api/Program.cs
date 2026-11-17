@@ -206,7 +206,7 @@ app.MapGet("/admin/login", () => settings.IdentityConfigured
 app.MapGet("/api/auth/providers", () => Results.Ok(new { google = googleConfigured }));
 app.MapGet("/staff/login", (string? workspace, string? flow, string? provider) =>
 {
-    var useGoogle = provider == "google" && flow != "admin";
+    var useGoogle = provider == "google";
     if (useGoogle ? !googleConfigured : !settings.IdentityConfigured)
         return Results.Redirect("/sign-in?error=configuration");
     var destination = flow switch

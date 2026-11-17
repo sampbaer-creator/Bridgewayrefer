@@ -17,6 +17,13 @@ public sealed class Settings
     public string ClientSecret { get; set; } = "";
     /// <summary>Entra object IDs allowed into the platform admin console (/admin).</summary>
     public string[] PlatformAdminObjectIds { get; set; } = [];
+    public string[] PlatformAdminGoogleEmails { get; set; } = [];
+    public bool IsPlatformAdmin(System.Security.Claims.ClaimsPrincipal user) =>
+        user.Identity?.IsAuthenticated == true &&
+        (IsPlatformAdmin(user.FindFirst("tid")?.Value, user.FindFirst("oid")?.Value) ||
+         (user.FindFirst("tid")?.Value == GoogleTenant &&
+          user.FindFirst("bridgeway_google_email_authoritative")?.Value == "true" &&
+          PlatformAdminGoogleEmails.Contains(user.FindFirst("email")?.Value ?? "", StringComparer.OrdinalIgnoreCase)));
     public bool CustomerSignupEnabled { get; set; }
     public bool AlertsEnabled { get; set; }
     /// <summary>

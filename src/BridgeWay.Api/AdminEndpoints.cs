@@ -49,7 +49,7 @@ public static class AdminEndpoints
         {
             var user = context.HttpContext.User;
             if (user.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
-            if (!settings.IsPlatformAdmin(user.FindFirstValue("tid"), user.FindFirstValue("oid"))) throw new ApiError(403, "Platform administrator access is required.");
+            if (!settings.IsPlatformAdmin(user)) throw new ApiError(403, "Platform administrator access is required.");
             return await next(context);
         });
 

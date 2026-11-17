@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export default function GoogleSignIn({ signup = false }: { signup?: boolean }) {
+export default function GoogleSignIn({ signup = false, admin = false }: { signup?: boolean; admin?: boolean }) {
   const [available, setAvailable] = useState(false);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function GoogleSignIn({ signup = false }: { signup?: boolean }) {
 
   return (
     <div>
-      <a className="bw-btn bw-btn-secondary" href={signup ? "/staff/login?flow=signup&provider=google" : "/staff/login?provider=google"}>
+      <a className="bw-btn bw-btn-secondary" href={admin ? "/staff/login?flow=admin&provider=google" : signup ? "/staff/login?flow=signup&provider=google" : "/staff/login?provider=google"}>
         Continue with Google
       </a>
     </div>

@@ -250,7 +250,7 @@ public static class Endpoints
                     signupPending = BusinessRules.SignupPending(profile)
                 };
             }));
-            return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User.FindFirstValue("tid"), ctx.User.FindFirstValue("oid")), businessId = scope.BusinessId, role = scope.Role, businesses });
+            return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User), businessId = scope.BusinessId, role = scope.Role, businesses });
         });
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>
         {
