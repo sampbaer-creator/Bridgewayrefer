@@ -26,7 +26,7 @@ stages:
     - task: UseDotNet@2
       inputs:
         packageType: sdk
-        version: 10.x
+        version: 10.0.x
     - task: DotNetCoreCLI@2
       displayName: Run API tests
       inputs:
@@ -45,6 +45,7 @@ stages:
 
 - stage: BuildAndPush
   dependsOn: Validate
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
   - job: BuildPush
     steps:
@@ -75,6 +76,7 @@ stages:
 
 - stage: Deploy
   dependsOn: BuildAndPush
+  lockBehavior: sequential
   variables:
     acrLoginServer: $[ stageDependencies.BuildAndPush.BuildPush.outputs['imageMetadata.acrLoginServer'] ]
     commit: $[ stageDependencies.BuildAndPush.BuildPush.outputs['imageMetadata.commit'] ]
@@ -104,7 +106,7 @@ stages:
                 export API_APP=$(apiApp)
                 export WEB_APP=$(webApp)
                 export PUBLIC_ORIGIN=$(publicOrigin)
-                export GITHUB_RUN_ATTEMPT=$(System.JobAttempt)
+                export DEPLOYMENT_ID=$(Build.BuildId)-$(System.JobAttempt)
                 chmod +x scripts/deploy-production.sh
                 scripts/deploy-production.sh
                 API_REV=$(az containerapp revision list -n $API_APP -g $RESOURCE_GROUP --query '[?properties.trafficWeight==100].name | [0]' -o tsv)
@@ -112,8 +114,8 @@ stages:
                 API_HEALTH=$(curl --fail --silent --show-error --max-time 30 $PUBLIC_ORIGIN/health/cosmos)
                 curl --fail --silent --show-error --max-time 30 $PUBLIC_ORIGIN/ > /dev/null
                 echo "Deployed commit: $SHA"
-                echo "API image: $ACR_LOGIN_SERVER/$apiImage:$SHA"
-                echo "Web image: $ACR_LOGIN_SERVER/$webImage:$SHA"
+                echo "API image: $ACR_LOGIN_SERVER/$(apiImage):$SHA"
+                echo "Web image: $ACR_LOGIN_SERVER/$(webImage):$SHA"
                 echo "API revision: $API_REV"
                 echo "Web revision: $WEB_REV"
                 echo "API health: $API_HEALTH"
