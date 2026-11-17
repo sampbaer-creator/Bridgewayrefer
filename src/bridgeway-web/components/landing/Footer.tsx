@@ -17,7 +17,7 @@ export default function Footer() {
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
           </nav>
-          <p className="bw-footer-fine">© {new Date().getFullYear()} BridgeWay · Built for dental, orthodontic, and home service teams.</p>
+          <p className="bw-footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
         </div>
       </footer>
 
@@ -34,3 +34,4 @@ export default function Footer() {
     </>
   );
 }
+

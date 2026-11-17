@@ -7,7 +7,7 @@ test("the homepage has customer paths for both industries, pricing, and walkthro
   await page.getByRole("button", { name: "Open menu" }).click();
   await expect(page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
   await page.getByRole("button", { name: "Close menu" }).click();
-  await expect(page.getByRole("link", { name: /Explore dental referrals/ })).toHaveAttribute("href", "/industries/dental");
+  await expect(page.getByRole("link", { name: /Explore healthcare referrals/ })).toHaveAttribute("href", "/industries/healthcare");
   await expect(page.getByRole("link", { name: /Explore trades referrals/ })).toHaveAttribute("href", "/industries/trades");
   await expect(page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "/pricing");
   await expect(page.getByRole("link", { name: "Get started" }).first()).toHaveAttribute("href", "/signup?plan=workspace");
@@ -23,7 +23,7 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
     if (route.request().method() === "GET") {
       await route.fulfill({ json: { signedIn: true, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: true } } } });
     } else {
-      expect(route.request().postDataJSON()).toEqual({ name: "Test Practice", plan: "workspace" });
+      expect(route.request().postDataJSON()).toEqual({ name: "Test Practice", industry: "healthcare", specialty: "Orthodontics", plan: "workspace" });
       await route.fulfill({ json: { businessId: "signup-test", signupPending: true } });
     }
   });
@@ -34,6 +34,8 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
   });
   await page.goto("/signup");
   await page.getByLabel("Business name").fill("Test Practice");
+  await page.getByLabel("Industry", { exact: true }).selectOption("healthcare");
+  await page.getByLabel("Business specialty", { exact: true }).selectOption("Orthodontics");
   const primary = page.getByRole("button", { name: "Continue to Stripe" });
   await expect(primary).toHaveCSS("background-color", "rgb(72, 178, 230)");
   await expect(primary).toHaveCSS("color", "rgb(13, 35, 57)");
@@ -44,7 +46,7 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
 test("resuming signup reuses its pending workspace and opens Checkout without a preset", async ({ page }) => {
   await page.route("**/api/signup", async route => {
     if (route.request().method() === "GET") return route.fulfill({ json: { signedIn: true, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: true } } } });
-    expect(route.request().postDataJSON()).toEqual({ name: "Another Business", plan: "workspace" });
+    expect(route.request().postDataJSON()).toEqual({ name: "Another Business", industry: "trades", specialty: "Plumbing", plan: "workspace" });
     await route.fulfill({ json: { businessId: "signup-resumed", signupPending: true } });
   });
   await page.route("**/api/staff/billing/checkout", async route => {
@@ -54,6 +56,8 @@ test("resuming signup reuses its pending workspace and opens Checkout without a 
   });
   await page.goto("/signup");
   await page.getByLabel("Business name").fill("Another Business");
+  await page.getByLabel("Industry", { exact: true }).selectOption("trades");
+  await page.getByLabel("Business specialty", { exact: true }).selectOption("Plumbing");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page).toHaveURL(/checkout=verified/);
 });
@@ -63,7 +67,7 @@ test("Managed Calling signup carries the $400 plan through resumed Stripe Checko
   let checkoutCalls = 0;
   await page.route("**/api/signup", async route => {
     if (route.request().method() === "GET") return route.fulfill({ json: { signedIn: true, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: true } } } });
-    expect(route.request().postDataJSON()).toEqual({ name: "Calling Practice", plan: "managed-calling" });
+    expect(route.request().postDataJSON()).toEqual({ name: "Calling Practice", industry: "healthcare", specialty: "Cardiology", plan: "managed-calling" });
     signupCalls++;
     await route.fulfill({ json: { businessId: "signup-calling", signupPending: true } });
   });
@@ -76,6 +80,8 @@ test("Managed Calling signup carries the $400 plan through resumed Stripe Checko
   await page.goto("/signup?plan=managed-calling");
   await expect(page.getByRole("radio", { name: /Managed Calling.*\$400\/business\/month/ })).toBeChecked();
   await page.getByLabel("Business name").fill("Calling Practice");
+  await page.getByLabel("Industry", { exact: true }).selectOption("healthcare");
+  await page.getByLabel("Business specialty", { exact: true }).selectOption("Cardiology");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page.getByText("Temporary Checkout issue", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
@@ -115,3 +121,32 @@ test("platform admin issues a card for the selected office", async ({ page }) =>
   await page.getByRole("button", { name: "Issue card links" }).click();
   await expect(page.getByText("/r/test-card", { exact: true })).toBeVisible();
 });
+
+
+for (const industry of ["healthcare", "trades", "other"]) {
+  test(`signup saves a custom specialty for ${industry}`, async ({ page }) => {
+    let posted = false;
+    await page.route("**/api/signup", async route => {
+      if (route.request().method() === "GET") return route.fulfill({ json: { signedIn: true, enabled: true } });
+      expect(route.request().postDataJSON()).toMatchObject({ industry, specialty: "Custom practice" });
+      posted = true;
+      return route.fulfill({ status: 503, json: { error: "Saved request verified" } });
+    });
+    await page.goto("/signup");
+    await page.getByLabel("Business name").fill("Custom Business");
+    await page.getByLabel("Industry", { exact: true }).selectOption(industry);
+    await page.getByLabel("Business specialty", { exact: true }).selectOption("custom");
+    await page.getByRole("button", { name: "Continue to Stripe" }).click();
+    expect(posted).toBe(false);
+    await page.getByLabel("Your business specialty").fill("   ");
+    await page.getByRole("button", { name: "Continue to Stripe" }).click();
+    expect(posted).toBe(false);
+    await page.getByLabel("Your business specialty").fill("  Custom practice  ");
+    await page.getByRole("button", { name: "Continue to Stripe" }).click();
+    await expect(page.getByRole("alert")).toHaveText("Saved request verified");
+    expect(posted).toBe(true);
+    await page.getByLabel("Industry", { exact: true }).selectOption(industry === "healthcare" ? "trades" : "healthcare");
+    await expect(page.getByLabel("Business specialty", { exact: true })).toHaveValue("");
+    await expect(page.getByLabel("Your business specialty")).toHaveCount(0);
+  });
+}

@@ -82,7 +82,7 @@ export default function LeadCapture() {
               Talk to us, or get our checklist<span className="bw-accent-light">.</span>
             </h2>
             <p className="bw-lead-sub">
-              Book a 15-minute walkthrough, or get the follow-up checklist dental and trades teams use.
+              Book a 15-minute walkthrough, or get the follow-up checklist healthcare and trades teams use.
             </p>
           </div>
           <div className="bw-lead-forms">
@@ -171,3 +171,4 @@ export default function LeadCapture() {
       </section>
   );
 }
+

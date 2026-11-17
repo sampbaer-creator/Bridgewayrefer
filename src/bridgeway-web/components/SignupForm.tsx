@@ -5,6 +5,8 @@ import GoogleSignIn, { ProviderButton } from "./GoogleSignIn";
 import Link from "next/link";
 import { api, WORKSPACE_KEY } from "../lib/api";
 
+import { healthcareSpecialties, tradeSpecialties } from "../lib/business-specialties";
+
 type Plan = "workspace" | "managed-calling";
 type SignupState = { signedIn: boolean; enabled: boolean; plans: { workspace: { amountUsd: number; available: boolean }; managedCalling: { amountUsd: number; available: boolean } } };
 
@@ -12,6 +14,8 @@ export default function SignupForm() {
   const [state, setState] = useState<SignupState>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [specialty, setSpecialty] = useState("");
   const [plan, setPlan] = useState<Plan>("workspace");
 
   useEffect(() => {
@@ -30,11 +34,16 @@ export default function SignupForm() {
   async function startCheckout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const businessSpecialty = (specialty === "custom" ? String(data.get("customSpecialty") || "") : specialty).trim();
+    if (!businessSpecialty) {
+      setError("Enter your business specialty.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const signup = await api<{ businessId: string; signupPending: boolean }>("/api/signup", {
-        method: "POST", body: JSON.stringify({ name: data.get("name"), officeName: String(data.get("officeName") || "").trim() || undefined, alertEmail: String(data.get("alertEmail") || "").trim() || undefined, plan }),
+        method: "POST", body: JSON.stringify({ name: data.get("name"), industry, specialty: businessSpecialty, officeName: String(data.get("officeName") || "").trim() || undefined, alertEmail: String(data.get("alertEmail") || "").trim() || undefined, plan }),
       });
       window.localStorage.setItem(WORKSPACE_KEY, signup.businessId);
       if (!signup.signupPending) {
@@ -86,6 +95,27 @@ export default function SignupForm() {
           </Link>
         </fieldset>
         <label className="bw-field">Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
+        <label className="bw-field">Industry
+          <select name="industry" value={industry} required onChange={event => { setIndustry(event.target.value); setSpecialty(""); }}>
+            <option value="" disabled>Choose your industry</option>
+            <option value="healthcare">Healthcare (includes dental)</option>
+            <option value="trades">Home service trades</option>
+            <option value="other">Other industry</option>
+          </select>
+        </label>
+        {industry && <label className="bw-field">Business specialty
+          <select name="specialty" value={specialty} required onChange={event => setSpecialty(event.target.value)}>
+            <option value="" disabled>Choose your specialty</option>
+            {industry === "healthcare" && Object.entries(healthcareSpecialties).map(([group, options]) => (
+              <optgroup label={group} key={group}>{options.map(option => <option key={option} value={option}>{option}</option>)}</optgroup>
+            ))}
+            {industry === "trades" && tradeSpecialties.map(option => <option key={option} value={option}>{option}</option>)}
+            <option value="custom">Other / Type your own</option>
+          </select>
+        </label>}
+        {industry && specialty === "custom" && <label className="bw-field">Your business specialty
+          <input name="customSpecialty" required maxLength={120} pattern=".*\S.*" placeholder="Type your specialty" />
+        </label>}
         <div className="bw-name-row">
           <label className="bw-field">Main location name<span className="hint">Optional</span><input name="officeName" autoComplete="organization-title" maxLength={120} /></label>
           <label className="bw-field">Alert email<span className="hint">Optional</span><input name="alertEmail" type="email" autoComplete="email" maxLength={254} /></label>
@@ -95,3 +125,4 @@ export default function SignupForm() {
     </section>
   );
 }
+

@@ -17,7 +17,18 @@ public sealed record TestReferralCreate(string CardCode, string SubmissionId);
 public sealed record LinkOpen(string Code, string EventId);
 public sealed record StatusUpdate(string Status, string Etag, string? NextActionAt = null, string? NextAction = null);
 public sealed record CardUpdate(bool Active, string Etag);
-public sealed record CustomerSignup(string Name, string? OfficeName = null, string? AlertEmail = null, string? Plan = null);
+public sealed record CustomerSignup(string Name, string? OfficeName = null, string? AlertEmail = null, string? Plan = null, string? Industry = null, string? Specialty = null)
+{
+    public void ValidateBusinessType()
+    {
+        var industry = Industry?.Trim() ?? "";
+        var specialty = Specialty?.Trim() ?? "";
+        // Older clients can omit both fields; new signups supply both.
+        if (industry.Length == 0 && specialty.Length == 0) return;
+        if (industry is not ("healthcare" or "trades" or "other") || specialty.Length is < 1 or > 120 || specialty.Any(char.IsControl))
+            throw new ApiError(400, "Choose an industry and enter a business specialty, up to 120 characters.");
+    }
+}
 public sealed record BillingCheckout(string? Plan = null);
 public sealed record BusinessCreate(string Name, string AdminEmail, string? AlertEmail = null, bool BillingExempt = false);
 public sealed record PartnerCreate(string Name);
@@ -33,4 +44,5 @@ public sealed record OfficeCreate(string Name);
 
 
 public sealed record FollowUpUpdate(string? NextAction, string? NextActionAt, string Etag);
+
 

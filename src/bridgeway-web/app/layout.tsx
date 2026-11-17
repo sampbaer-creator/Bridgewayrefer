@@ -41,10 +41,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/privacy">Privacy</a>
               <a href="/terms">Terms</a>
             </nav>
-            <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for dental, orthodontic, and home service teams.</p>
+            <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
           </div>
         </footer>
       </body>
     </html>
   );
 }
+

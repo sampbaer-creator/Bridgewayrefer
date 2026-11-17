@@ -1,6 +1,6 @@
 # Bridgewayrefer pilot readiness
 
-Dental specialists are the initial website audience. Businesses use the same workspace and referral workflow.
+Healthcare, including dental and medical specialties, and home service trades are the website audiences. Businesses use the same workspace and referral workflow.
 
 ## Sign-in and custom domain
 
@@ -18,3 +18,4 @@ Verify HTTPS on bridgewayrefer.com and register its exact /signin-oidc callback 
 6. Define trial activation and expiry across billing, workspace access and card fulfillment before offering a trial. Require verified recipient access before exposing partner feedback.
 
 Use Search Console URL Inspection for indexing. Treat link opens as page loads and report monthly activity separately from referral cohort outcomes.
+
