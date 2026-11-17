@@ -71,7 +71,9 @@ for (const order of ["old-first", "latest-first"] as const) {
     if (order === "old-first") {
       await complete("2026-10");
       await expect(total).toHaveText("—");
-      await expect(page.getByRole("button", { name: "Refreshing…" })).toBeDisabled();
+      const refreshAnalytics = page.getByRole("button", { name: "Refresh analytics" });
+      await expect(refreshAnalytics).toBeDisabled();
+      await expect(refreshAnalytics).toHaveText("Refreshing…");
       // Focus refresh still runs while the button is disabled. The older request must not release the newer lock.
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));

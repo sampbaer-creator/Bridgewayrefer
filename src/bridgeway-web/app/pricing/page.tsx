@@ -6,7 +6,7 @@ const CHECK_ICON = (
   </svg>
 );
 
-export const metadata = { title: "Pricing", description: "Referral Workspace is $50 per business per month with all locations included, unlimited referrals and partners, and NFC cards for your partners. Managed Calling adds follow-up calls for $400 per business per month.", alternates: { canonical: "/pricing" } };
+export const metadata = { title: "Pricing", description: "Referral Workspace is $50 per business per month with all locations included, unlimited referrals and partners, and NFC cards for your partners. Managed Calling adds cold calling and CRM support for $400 per business per month.", alternates: { canonical: "/pricing" } };
 
 export default function PricingPage() {
   return (
@@ -44,7 +44,8 @@ export default function PricingPage() {
               <span className="bw-per">/ location / month</span>
             </div>
             <ul className="bw-plan-list">
-              <li>{CHECK_ICON}Includes the full $50 workspace plan</li>
+              <li>{CHECK_ICON}Includes the full $50 Referral Workspace plan</li>
+              <li>{CHECK_ICON}BridgeWay handles cold calling and CRM follow-up</li>
               <li>{CHECK_ICON}Our team calls your referrals</li>
               <li>{CHECK_ICON}Follow-up recorded in your workspace</li>
               <li>{CHECK_ICON}Calling hours confirmed during setup</li>
@@ -52,7 +53,7 @@ export default function PricingPage() {
             <Link className="bw-btn bw-btn-primary bw-btn-block" href="/signup?plan=managed-calling">Get Managed Calling</Link>
           </article>
           <article className="bw-plan-card">
-            <h3>Custom</h3>
+            <h3>Corporate</h3>
             <div className="bw-plan-price"><strong>Let&rsquo;s talk</strong></div>
             <ul className="bw-plan-list">
               <li>{CHECK_ICON}For corporate groups and many locations</li>
