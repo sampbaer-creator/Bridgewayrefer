@@ -61,6 +61,8 @@ public sealed class Settings
         PlatformAdminObjectIds.Contains(oid, StringComparer.OrdinalIgnoreCase);
     /// <summary>When true, any Microsoft Entra tenant (and personal Microsoft accounts) may sign in. Access still requires an active membership keyed by tenant and object ID.</summary>
     public bool MultiTenantSignIn { get; set; }
+    internal const string GoogleTenant = "google";
+    public bool AcceptsStaffTenant(string? tenantId) => tenantId == GoogleTenant || AcceptsTenant(tenantId);
     public bool AcceptsTenant(string? tenantId) =>
         !string.IsNullOrWhiteSpace(tenantId) && (MultiTenantSignIn
             ? System.Text.RegularExpressions.Regex.IsMatch(tenantId, @"\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z")

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Azure.Identity;
 using BridgeWay.Api;
@@ -84,6 +85,65 @@ if (settings.IdentityConfigured) auth.AddOpenIdConnect(OpenIdConnectDefaults.Aut
     options.Events.OnAuthorizationCodeReceived = ctx => { if (ctx.TokenEndpointRequest is not null) ctx.TokenEndpointRequest.RedirectUri = settings.PublicOrigin + "/signin-oidc"; return Task.CompletedTask; };
     options.Events.OnRemoteFailure = ctx => { ctx.HandleResponse(); ctx.Response.Redirect("/sign-in?error=signin"); return Task.CompletedTask; };
 });
+const string googleScheme = "Google";
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+var googleConfigured = !string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret);
+if (googleConfigured)
+{
+    auth.AddOpenIdConnect(googleScheme, options =>
+    {
+        options.Authority = "https://accounts.google.com";
+        options.ClientId = googleClientId!;
+        options.ClientSecret = googleClientSecret!;
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.ResponseMode = OpenIdConnectResponseMode.Query;
+        options.UsePkce = true;
+        options.MapInboundClaims = false;
+        options.SaveTokens = false;
+        options.Scope.Add("email");
+        options.CallbackPath = "/signin-google";
+        options.Events.OnRedirectToIdentityProvider = ctx =>
+        {
+            ctx.ProtocolMessage.RedirectUri = settings.PublicOrigin + "/signin-google";
+            return Task.CompletedTask;
+        };
+        options.Events.OnAuthorizationCodeReceived = ctx =>
+        {
+            if (ctx.TokenEndpointRequest is not null)
+                ctx.TokenEndpointRequest.RedirectUri = settings.PublicOrigin + "/signin-google";
+            return Task.CompletedTask;
+        };
+        options.Events.OnTokenValidated = ctx =>
+        {
+            var subject = ctx.Principal?.FindFirstValue("sub");
+            var email = ctx.Principal?.FindFirstValue("email");
+            var verified = ctx.Principal?.FindFirstValue("email_verified");
+            if (string.IsNullOrWhiteSpace(subject) || !Endpoints.ValidEmail(email) ||
+                !string.Equals(verified, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                ctx.Fail("Google must provide a verified email.");
+                return Task.CompletedTask;
+            }
+            var identity = new ClaimsIdentity(googleScheme);
+            identity.AddClaim(new Claim("tid", Settings.GoogleTenant));
+            // Encode the subject so the existing case-insensitive membership lookup retains exact identity.
+            identity.AddClaim(new Claim("oid", "google-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(subject))));
+            identity.AddClaim(new Claim("email", email!));
+            if (email!.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase) ||
+                !string.IsNullOrWhiteSpace(ctx.Principal?.FindFirstValue("hd")))
+                identity.AddClaim(new Claim("bridgeway_google_email_authoritative", "true"));
+            ctx.Principal = new ClaimsPrincipal(identity);
+            return Task.CompletedTask;
+        };
+        options.Events.OnRemoteFailure = ctx =>
+        {
+            ctx.HandleResponse();
+            ctx.Response.Redirect("/sign-in?error=signin");
+            return Task.CompletedTask;
+        };
+    });
+}
 builder.Services.AddAuthorization();
 var app = builder.Build();
 if (args.Contains("--purge-demo-data"))
@@ -135,16 +195,19 @@ app.MapGet("/health/cosmos", async (CosmosStore store, CancellationToken ct) =>
 app.MapGet("/admin/login", () => settings.IdentityConfigured
     ? Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + "/admin" }, [OpenIdConnectDefaults.AuthenticationScheme])
     : Results.Redirect("/sign-in?error=configuration"));
-app.MapGet("/staff/login", (string? workspace, string? flow) =>
+app.MapGet("/api/auth/providers", () => Results.Ok(new { google = googleConfigured }));
+app.MapGet("/staff/login", (string? workspace, string? flow, string? provider) =>
 {
-    if (!settings.IdentityConfigured) return Results.Redirect("/sign-in?error=configuration");
+    var useGoogle = provider == "google" && flow != "admin";
+    if (useGoogle ? !googleConfigured : !settings.IdentityConfigured)
+        return Results.Redirect("/sign-in?error=configuration");
     var destination = flow switch
     {
         "signup" => "/signup",
         "admin" => "/admin",
         _ => "/staff" + (string.IsNullOrWhiteSpace(workspace) ? "" : "?workspace=" + Uri.EscapeDataString(workspace))
     };
-    return Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + destination }, [OpenIdConnectDefaults.AuthenticationScheme]);
+    return Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + destination }, [useGoogle ? googleScheme : OpenIdConnectDefaults.AuthenticationScheme]);
 });
 app.MapPost("/api/logout", async (HttpContext ctx) => { await ctx.SignOutAsync(); return Results.Ok(new { ok = true }); });
 app.MapBridgeWay(settings);

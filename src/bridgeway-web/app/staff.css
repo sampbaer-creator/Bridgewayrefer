@@ -582,5 +582,75 @@ button.primary:hover{border-color:var(--accent-strong);background:var(--accent-s
   .staff-shell .staff-overview-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+/* Staff dashboard: Materio card rhythm, Sneat navigation, Adminator queue hierarchy. */
+.staff-shell .staff-content{gap:24px;max-width:1480px;padding:32px}
+.staff-shell .staff-overview{order:0}
+.staff-shell .staff-page-heading h1{font-size:28px;letter-spacing:-.7px}
+.staff-shell .staff-page-heading p{margin:7px 0 0;color:var(--muted);font-size:14px}
+.staff-shell .staff-overview-month select{border:1px solid var(--line);border-radius:8px;background:#fff;text-align:left;padding:10px 14px}
+.staff-shell .staff-overview-grid{grid-template-columns:1fr;gap:24px}
+.staff-shell .staff-overview-metrics{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:auto;gap:20px}
+.staff-shell .staff-overview-metric{position:relative;min-height:160px;padding:22px;gap:12px;border:1px solid var(--line);box-shadow:0 3px 12px rgb(23 45 69 / 4%)}
+.staff-shell .staff-overview-metric:before{content:'';width:32px;height:4px;border-radius:4px;background:var(--blue)}
+.staff-shell .staff-overview-metric strong{font-size:34px;font-weight:600}
+.staff-shell .staff-overview-metric small{font-size:12px;color:var(--muted)}
+.staff-shell .staff-activity-panel{padding:24px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 3px 12px rgb(23 45 69 / 4%)}
+.staff-shell .staff-activity-heading{margin-bottom:24px}
+.staff-shell .staff-bar-chart{height:240px;background:repeating-linear-gradient(to top,transparent 0,transparent 47px,var(--line) 48px,transparent 49px)}
+.staff-shell .staff-bars{gap:6px}
+.staff-shell .staff-bar{border-radius:5px 5px 0 0}
+.staff-shell .staff-attention{margin-top:0;padding:24px;border:1px solid var(--line)}
+.staff-shell .staff-attention-row{display:flex;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}
+.staff-shell .staff-attention>a{display:inline-flex;margin-top:18px;font-weight:600;color:var(--ink-blue)}
+.staff-shell #inbox{margin:0;padding:24px;border:1px solid var(--line);border-radius:12px}
+.staff-shell .staff-referral-table thead{background:var(--offwhite)}
+.staff-shell .staff-referral-table th,.staff-shell .staff-referral-table td{padding:18px 16px}
+.staff-shell .staff-topbar{height:76px;background:var(--offwhite);border-bottom:1px solid var(--line)}
+@media(min-width:1024px){
+.staff-shell{grid-template-columns:248px minmax(0,1fr)}
+.staff-shell .staff-sidebar{width:248px;padding:24px 16px;background:#fff}
+.staff-shell .staff-sidebar-brand{height:64px;margin-bottom:26px}
+.staff-shell .staff-sidebar-brand img{width:196px;height:auto;max-height:64px;object-fit:contain;border-radius:0}
+.staff-shell .staff-sidebar-brand>.staff-nav-label{display:none}
+.staff-shell .staff-sidebar-nav{gap:8px}
+.staff-shell .staff-sidebar-nav a{height:46px;padding:0 14px;font-size:14px;font-weight:500;border-radius:8px}
+.staff-shell .staff-sidebar-nav a.is-active{box-shadow:0 2px 7px rgb(23 45 69 / 8%)}
+}
+@media(max-width:1000px){.staff-shell .staff-overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.staff-shell .staff-content{padding:20px 16px;gap:18px}.staff-shell .staff-overview-metrics{gap:12px}.staff-shell .staff-overview-metric{padding:16px;min-height:150px}.staff-shell .staff-activity-panel,.staff-shell #inbox,.staff-shell .staff-attention{padding:18px}.staff-shell .staff-bar-chart{height:190px}.staff-shell .staff-topbar{height:64px}.staff-shell .staff-attention-row{flex-wrap:wrap}.staff-shell .staff-referral-table th,.staff-shell .staff-referral-table td{padding:8px 0}}
+
+/* Frosted workspace surfaces, with solid fallbacks for unsupported browsers. */
+.staff-shell {
+  background: radial-gradient(ellipse at 12% 8%, var(--sky), transparent 48%),
+    radial-gradient(ellipse at 90% 45%, var(--pale), transparent 55%), var(--offwhite);
+  background-attachment: fixed;
+}
+.staff-shell :is(.staff-overview-metric, .staff-activity-panel, .card, #inbox) {
+  background: rgb(255 255 255 / 94%);
+  border: 1px solid rgb(255 255 255 / 85%);
+  box-shadow: inset 0 1px 0 #fff, 0 8px 28px rgb(23 45 69 / 6%);
+}
+.staff-shell :is(.staff-sidebar, .staff-topbar) {
+  background: rgb(255 255 255 / 96%);
+  border-color: rgb(255 255 255 / 80%);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .staff-shell :is(.staff-overview-metric, .staff-activity-panel, .card, #inbox) {
+    background: rgb(255 255 255 / 66%);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
+    backdrop-filter: blur(18px) saturate(125%);
+  }
+  .staff-shell :is(.staff-sidebar, .staff-topbar) {
+    background: rgb(255 255 255 / 76%);
+    -webkit-backdrop-filter: blur(24px) saturate(130%);
+    backdrop-filter: blur(24px) saturate(130%);
+  }
+  .staff-shell dialog.card { background: rgb(255 255 255 / 96%); backdrop-filter: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .staff-shell :is(.staff-overview-metric, .staff-activity-panel, .card, #inbox, .staff-sidebar, .staff-topbar) {
+    background: #fff;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

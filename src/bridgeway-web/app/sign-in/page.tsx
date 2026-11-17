@@ -1,3 +1,5 @@
+import GoogleSignIn from "../../components/GoogleSignIn";
+
 export default function SignIn() {
   return (
     <main className="bw-page" id="main-content">
@@ -7,7 +9,8 @@ export default function SignIn() {
           <p className="eyebrow">STAFF ACCESS</p>
           <h1>Sign in to the office dashboard</h1>
           <p className="muted">Need access? Ask your workspace owner for an invite.</p>
-          <a className="bw-btn bw-btn-primary" href="/staff/login">Continue with Microsoft (Entra)</a>
+          <a className="bw-btn bw-btn-primary" href="/staff/login">Continue with Microsoft</a>
+          <GoogleSignIn />
         </div>
       </section>
     </main>
