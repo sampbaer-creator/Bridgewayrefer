@@ -367,7 +367,7 @@ public static class Endpoints
             var args = ctx.Request.Query;
             bool unresolved = args["unresolved"] == "true", attention = args["attention"] == "true";
             var now = DateTimeOffset.UtcNow;
-            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], unresolved, attention, now);
+            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], unresolved, attention, now, args["owner"]);
             var cursor = args["cursor"].FirstOrDefault();
             if (cursor?.Length > 16000) throw new ApiError(400, "The page token is invalid. Restart your search.");
             await store.AuditRead(Actor(ctx), "list-referrals", ct);
@@ -379,7 +379,7 @@ public static class Endpoints
             object? totals = null;
             if (cursor is null)
             {
-                var byStatus = await ReadAll<JObject>(store, ReferralSearch.BuildStatusCounts(store.BusinessId, args["q"], args["partner"], args["from"], args["to"], unresolved, attention, now), ct);
+                var byStatus = await ReadAll<JObject>(store, ReferralSearch.BuildStatusCounts(store.BusinessId, args["q"], args["partner"], args["from"], args["to"], unresolved, attention, now, args["owner"]), ct);
                 var needsAttention = (await ReadAll<long>(store, ReferralSearch.BuildAttentionCount(store.BusinessId, now), ct)).Sum();
                 totals = new { byStatus = byStatus.ToDictionary(row => row.Value<string>("status") ?? "", row => row.Value<long>("total")), needsAttention };
             }
