@@ -1,0 +1,9 @@
+root = true
+
+# Keep source UTF-8 so dashboard text (…, ·, →, ✓) is not garbled by Windows editors.
+[*]
+charset = utf-8
+insert_final_newline = true
+
+[*.{ts,tsx,css,mjs,js,json,md}]
+indent_style = space

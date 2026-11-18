@@ -11,6 +11,8 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 export type PublicConfig = { officeName: string; partnerName?: string; welcomeText: string; accepting: boolean; businessName?: string; logoUrl?: string; phone?: string };
 export const statuses = ["New", "Contacted", "Scheduled", "Completed", "Quoted", "Won", "Closed"] as const;
 export type Referral = { id: string; name: string; firstName?: string; lastName?: string; email: string; phone: string; notes: string; doctorCode: string; doctorName: string; partnerId?: string; partnerName?: string; officeId?: string; cardId?: string; ownerId?: string; ownerName?: string; serviceType?: string; postalCode?: string; status: string; createdAt: string; updatedAt?: string; nextAction?: string; nextActionAt?: string | null; etag: string };
+/** Totals for every referral matching the current search (status chips ignore the status filter). Sent with the first page only. */
+export type ReferralTotals = { byStatus: Record<string, number>; needsAttention: number };
 export type Doctor = { id: string; name: string; active: boolean; etag: string; url: string };
 export type Partner = { id: string; name: string; active: boolean; etag?: string };
 export type Business = { businessId: string; name: string; role: "Admin" | "Staff"; signupPending?: boolean };

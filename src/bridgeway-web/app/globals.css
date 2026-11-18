@@ -8,7 +8,7 @@
 :root {
   /* Cool core — sky-blue ramp from the brand mark */
   --navy: #0D2339;
-  --navy-deep: #7BC8ED;
+  --navy-deep: #081A2B;  /* darker than --navy; was light blue, which failed contrast wherever used as a dark surface */
   --blue: #7BC8ED;
   --ink-blue: #39687B;   /* deep ocean slate */
   --accent: #48B2E6;
@@ -83,7 +83,7 @@ button {
   cursor: pointer; font-weight: 600; font-size: 0.9rem;
   transition: background 0.15s, transform 0.15s, border-color 0.15s;
 }
-button:hover { background: var(--pale); }
+button:hover { background: var(--pale); color: var(--navy); }
 button:disabled { opacity: 0.6; cursor: wait; }
 button:not(:disabled):active { transform: translateY(1px); }
 button.primary { background: var(--accent); color: var(--navy); }
