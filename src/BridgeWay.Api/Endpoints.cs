@@ -42,6 +42,13 @@ public static class Endpoints
         }
         CosmosStore.Check(batch); return null;
     }
+    static async Task<List<T>> ReadAll<T>(CosmosStore store, QueryDefinition query, CancellationToken ct)
+    {
+        var rows = new List<T>();
+        using var iterator = store.Operations.GetItemQueryIterator<T>(query, requestOptions: new QueryRequestOptions { PartitionKey = store.BusinessKey });
+        while (iterator.HasMoreResults) rows.AddRange(await iterator.ReadNextAsync(ct));
+        return rows;
+    }
     static object PatientView(JObject row) => new { id = row.Value<string>("id"), name = row.Value<string>("name"), firstName = row.Value<string>("firstName"), lastName = row.Value<string>("lastName"), email = row.Value<string>("email"), phone = row.Value<string>("phone"), notes = row.Value<string>("notes"), businessId = row.Value<string>("businessId"), officeId = row.Value<string>("officeId"), cardId = row.Value<string>("cardId"), doctorCode = row.Value<string>("doctorCode"), doctorName = row.Value<string>("doctorName"), partnerId = row.Value<string>("partnerId"), partnerName = row.Value<string>("partnerName") ?? row.Value<string>("doctorName"), ownerId = row.Value<string>("ownerId"), ownerName = row.Value<string>("ownerName"), serviceType = row.Value<string>("serviceType"), postalCode = row.Value<string>("postalCode"), status = row.Value<string>("status"), createdAt = row.Value<string>("createdAt"), updatedAt = row.Value<string>("updatedAt"), nextAction = row.Value<string>("nextAction"), nextActionAt = row.Value<string>("nextActionAt"), etag = row.Value<string>("_etag") };
     static (string Tenant, string ObjectId) RequireIdentity(HttpContext ctx, Settings settings)
     {
@@ -358,7 +365,9 @@ public static class Endpoints
         staff.MapGet("/referrals", async (HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             var args = ctx.Request.Query;
-            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], args["unresolved"] == "true");
+            bool unresolved = args["unresolved"] == "true", attention = args["attention"] == "true";
+            var now = DateTimeOffset.UtcNow;
+            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], unresolved, attention, now);
             var cursor = args["cursor"].FirstOrDefault();
             if (cursor?.Length > 16000) throw new ApiError(400, "The page token is invalid. Restart your search.");
             await store.AuditRead(Actor(ctx), "list-referrals", ct);
@@ -366,7 +375,15 @@ public static class Endpoints
             FeedResponse<JObject> page;
             try { page = await iterator.ReadNextAsync(ct); }
             catch (CosmosException e) when (e.StatusCode == HttpStatusCode.BadRequest) { throw new ApiError(400, "This search page expired. Restart your search."); }
-            return Json(new { referrals = page.Select(PatientView), limited = page.ContinuationToken is not null, nextCursor = page.ContinuationToken });
+            // Totals describe every matching referral, not just the loaded page. Only the first page pays for them.
+            object? totals = null;
+            if (cursor is null)
+            {
+                var byStatus = await ReadAll<JObject>(store, ReferralSearch.BuildStatusCounts(store.BusinessId, args["q"], args["partner"], args["from"], args["to"], unresolved, attention, now), ct);
+                var needsAttention = (await ReadAll<long>(store, ReferralSearch.BuildAttentionCount(store.BusinessId, now), ct)).Sum();
+                totals = new { byStatus = byStatus.ToDictionary(row => row.Value<string>("status") ?? "", row => row.Value<long>("total")), needsAttention };
+            }
+            return Json(new { referrals = page.Select(PatientView), limited = page.ContinuationToken is not null, nextCursor = page.ContinuationToken, totals });
         });
         staff.MapPatch("/referrals/{id}/follow-up", async (string id, FollowUpUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
