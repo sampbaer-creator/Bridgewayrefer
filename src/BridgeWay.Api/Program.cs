@@ -18,6 +18,7 @@ var settings = new Settings();
 builder.Configuration.GetSection("BridgeWay").Bind(settings); // Preserve existing deployment settings.
 builder.Configuration.GetSection("Bridgewayrefer").Bind(settings);
 var production = !builder.Environment.IsDevelopment();
+if (!production) settings.AllowStripeTestMode = true;
 if (settings.BusinessId.Length > 0 && !Regex.IsMatch(settings.BusinessId, @"\A[A-Za-z0-9_-]{1,80}\z")) throw new InvalidOperationException("BusinessId contains invalid characters.");
 if (!Uri.TryCreate(settings.PublicOrigin, UriKind.Absolute, out var origin) || origin.AbsolutePath != "/" || origin.Query.Length > 0 || origin.Fragment.Length > 0 || origin.UserInfo.Length > 0) throw new InvalidOperationException("PublicOrigin must be an origin without a path.");
 if (production && origin.Scheme != "https") throw new InvalidOperationException("Production requires an HTTPS PublicOrigin.");
