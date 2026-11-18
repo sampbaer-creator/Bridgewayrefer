@@ -41,6 +41,11 @@ public sealed class Settings
     public string ManagedCallingStripePriceId { get; set; } = "";
     public string StripeWebhookSecret { get; set; } = "";
     public string StripeContext { get; set; } = "";
+    /// <summary>
+    /// Stripe test-mode keys accept fake cards, so a test key in production would unlock paid workspaces for free.
+    /// Off by default outside Development; set Bridgewayrefer:AllowStripeTestMode=true only on staging or candidate revisions.
+    /// </summary>
+    public bool AllowStripeTestMode { get; set; }
     public string StripeApiVersion { get; set; } = "";
     public int MonthlyPriceUsd { get; set; } = 50;
     public bool StripeConfigured => StripeSecretKey.Length > 0 && StripePriceId.StartsWith("price_", StringComparison.Ordinal) && StripeWebhookSecret.StartsWith("whsec_", StringComparison.Ordinal);

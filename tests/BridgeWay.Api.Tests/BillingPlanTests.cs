@@ -12,7 +12,18 @@ public class BillingPlanTests
         StripePriceId = "price_workspace",
         ManagedCallingStripePriceId = "price_managed_calling",
         StripeWebhookSecret = "whsec_example",
+        AllowStripeTestMode = true,
     };
+
+    [Fact]
+    public void StripeTestKeysDoNotUnlockBillingUnlessTestModeIsAllowed()
+    {
+        var production = Config(); production.AllowStripeTestMode = false;
+        Assert.False(new StripeBillingService(new HttpClient(), production).KeyReady);
+        Assert.True(new StripeBillingService(new HttpClient(), Config()).KeyReady);
+        production.StripeSecretKey = "sk_live_example";
+        Assert.True(new StripeBillingService(new HttpClient(), production).KeyReady);
+    }
 
     [Fact]
     public void WorkspaceRemainsDefaultAndManagedCallingIsAnOptionalSeparatePrice()
