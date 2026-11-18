@@ -62,13 +62,6 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
     public Task<List<JObject>> Memberships(string oid, string tenantId, CancellationToken ct = default) => Collect(Operations,
         new QueryDefinition("SELECT * FROM c WHERE c.type = 'membership' AND c.oid = @oid AND c.tenantId = @tenant AND c.active = true")
             .WithParameter("@oid", oid).WithParameter("@tenant", tenantId), null, null, ct);
-    public Task<List<JObject>> PendingInvites(string email, string? businessId = null, CancellationToken ct = default)
-    {
-        var query = new QueryDefinition("SELECT * FROM c WHERE c.type = 'membership-invite' AND c.email = @email AND c.state = 'Pending' AND c.expiresAt > @now" + (businessId is null ? "" : " AND c.businessId = @business"))
-            .WithParameter("@email", email.Trim().ToLowerInvariant()).WithParameter("@now", DateTimeOffset.UtcNow.ToString("O"));
-        if (businessId is not null) query.WithParameter("@business", businessId);
-        return Collect(Operations, query, null, null, ct);
-    }
     public static string MembershipId(string tenantId, string oid) => "member-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(tenantId + ":" + oid))).ToLowerInvariant();
     public JObject Membership(string businessId, string tenantId, string oid, string email, string role, bool active = true, string businessName = "")
     {
@@ -83,6 +76,14 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
             .WithParameter("@business", BusinessId).WithParameter("@type", type);
         return await Collect(Operations, query, BusinessKey, limit, ct);
     }
+    public Task<List<JObject>> ReferralHistory(string referralId, CancellationToken ct) => Collect(Operations,
+        new QueryDefinition("""
+            SELECT c.type, c.status, c.actor, c.changedAt, c.createdAt, c.action, c.ownerName FROM c
+            WHERE c.businessId = @business AND (
+                (c.type = 'status-history' AND c.referralId = @referral AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false))
+                OR (c.type = 'audit' AND c.target = @referral AND STARTSWITH(c.action, 'assignment:'))
+            )
+            """).WithParameter("@business", BusinessId).WithParameter("@referral", referralId), BusinessKey, null, ct);
     public Task<List<JObject>> TestReferrals(CancellationToken ct = default) => Collect(Operations,
         new QueryDefinition("SELECT TOP 201 * FROM c WHERE c.businessId = @business AND c.type = 'referral' AND c.isTest = true ORDER BY c.createdAt DESC")
             .WithParameter("@business", BusinessId), BusinessKey, 201, ct);

@@ -38,6 +38,37 @@ public static class StripeBillingEndpoints
         session.Value<string>("customer") == customerId &&
         session.Value<string>("subscription") == subscriptionId;
 
+    public static void ApplySubscription(JObject business, JObject subscription, Settings settings, DateTimeOffset now)
+    {
+        var subscriptionId = subscription.Value<string>("id");
+        var newSubscription = business.Value<string>("stripeSubscriptionId") != subscriptionId;
+        business["stripeSubscriptionId"] = subscriptionId;
+        var status = subscription.Value<string>("status") ?? "unknown";
+        business["billingStatus"] = status;
+        var priceId = (subscription["items"]?["data"] as JArray)?.OfType<JObject>().Select(item => item["price"]?.Value<string>("id")).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
+        var subscriptionPlan = settings.PlanForPrice(priceId) ?? subscription["metadata"]?.Value<string>("plan");
+        if (subscriptionPlan is BillingPlans.Workspace or BillingPlans.ManagedCalling)
+        {
+            business["subscriptionPlan"] = subscriptionPlan; business["selectedPlan"] = subscriptionPlan;
+            business["monthlyPriceUsd"] = settings.MonthlyPriceFor(subscriptionPlan);
+            if (!string.IsNullOrWhiteSpace(priceId)) business["subscriptionPriceId"] = priceId;
+        }
+        if (business.Value<bool?>("customerSignup") == true && (status is "active" or "trialing"))
+            business["signupCompleted"] = true;
+        business["billingCancelAtPeriodEnd"] = subscription.Value<bool?>("cancel_at_period_end") ?? false;
+        var periodEnd = RenewalAt(subscription);
+        business["billingRenewalAt"] = periodEnd is null ? JValue.CreateNull() : periodEnd.Value.ToString("O");
+        business["billingUpdatedAt"] = now.ToString("O");
+        // Events for the existing subscription must leave a pending replacement checkout intact.
+        if (newSubscription)
+        {
+            business.Remove("checkoutSessionId");
+            business.Remove("checkoutSessionPlan");
+            business.Remove("checkoutSessionUrl");
+            business.Remove("checkoutSessionExpiresAt");
+        }
+    }
+
     public static void MapStripeWebhook(this WebApplication app)
     {
         app.MapPost("/api/stripe/webhook", async (HttpRequest request, CosmosStore store, StripeBillingService stripe, Settings settings, CancellationToken ct) =>
@@ -87,31 +118,7 @@ public static class StripeBillingEndpoints
                     if (!MatchesReplacementCheckout(session, sessionId, businessId, customerId, subscriptionId, stripe.LiveMode))
                         return Results.Ok(new { received = true });
                 }
-                business["stripeCustomerId"] = customerId; business["stripeSubscriptionId"] = subscriptionId;
-                var status = subscription.Value<string>("status") ?? "unknown";
-                business["billingStatus"] = status;
-                var priceId = (subscription["items"]?["data"] as JArray)?.OfType<JObject>().Select(item => item["price"]?.Value<string>("id")).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
-                var subscriptionPlan = settings.PlanForPrice(priceId) ?? subscription["metadata"]?.Value<string>("plan");
-                if (subscriptionPlan is BillingPlans.Workspace or BillingPlans.ManagedCalling)
-                {
-                    business["subscriptionPlan"] = subscriptionPlan; business["selectedPlan"] = subscriptionPlan;
-                    business["monthlyPriceUsd"] = settings.MonthlyPriceFor(subscriptionPlan);
-                    if (!string.IsNullOrWhiteSpace(priceId)) business["subscriptionPriceId"] = priceId;
-                }
-                if (business.Value<bool?>("customerSignup") == true && (status is "active" or "trialing"))
-                    business["signupCompleted"] = true;
-                business["billingCancelAtPeriodEnd"] = subscription.Value<bool?>("cancel_at_period_end") ?? false;
-                var periodEnd = RenewalAt(subscription);
-                business["billingRenewalAt"] = periodEnd is null ? JValue.CreateNull() : periodEnd.Value.ToString("O");
-                business["billingUpdatedAt"] = DateTimeOffset.UtcNow.ToString("O");
-                // Events for the existing subscription must leave a pending replacement checkout intact.
-                if (newSubscription)
-                {
-                    business.Remove("checkoutSessionId");
-                    business.Remove("checkoutSessionPlan");
-                    business.Remove("checkoutSessionUrl");
-                    business.Remove("checkoutSessionExpiresAt");
-                }
+                ApplySubscription(business, subscription, settings, DateTimeOffset.UtcNow);
                 var eventDoc = new JObject { ["id"] = eventDocumentId, ["businessId"] = businessId, ["type"] = "stripe-event", ["eventId"] = eventId, ["eventType"] = eventType, ["createdAt"] = DateTimeOffset.UtcNow.ToString("O"), ["ttl"] = 7776000 };
                 using var batch = await store.Operations.CreateTransactionalBatch(businessKey)
                     .CreateItem(eventDoc)

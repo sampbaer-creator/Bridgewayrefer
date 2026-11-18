@@ -111,7 +111,7 @@ log "Candidate API origin: $API_CAND_ORIGIN"
 log "Staging web candidate $WEB_CAND against the candidate API"
 az containerapp update -n "$WEB_APP" -g "$RESOURCE_GROUP" \
   --image "$ACR_LOGIN_SERVER/bridgeway-web:$SHA" --revision-suffix "$REV_SUFFIX" \
-  --set-env-vars "BRIDGEWAY_API_ORIGIN=https://$API_CAND_ORIGIN" -o none
+  --set-env-vars "BRIDGEWAYREFER_API_ORIGIN=https://$API_CAND_ORIGIN" -o none
 wait_healthy "$WEB_APP" "$WEB_CAND"
 az containerapp revision label add -n "$WEB_APP" -g "$RESOURCE_GROUP" --revision "$WEB_CAND" --label "$CAND_LABEL" -o none --yes
 WEB_APP_FQDN="$(az containerapp show -n "$WEB_APP" -g "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)"
@@ -121,7 +121,7 @@ WEB_CAND_HOST="${WEB_APP}---${CAND_LABEL}.${WEB_ENV_DOMAIN}"
 # 3. Smoke the candidate pair through the labelled web URL, before any public traffic moves.
 log "Smoke testing candidate pair at https://$WEB_CAND_HOST"
 smoke_check "https://$WEB_CAND_HOST/"
-smoke_check "https://$WEB_CAND_HOST/health/cosmos" '"connected"'
+smoke_check "https://$WEB_CAND_HOST/health/cosmos" "\"revision\":\"$API_CAND\""
 smoke_check "https://$WEB_CAND_HOST/robots.txt" "sitemap"
 
 # 4. Promote both apps together.
@@ -134,7 +134,7 @@ az containerapp ingress traffic set -n "$WEB_APP" -g "$RESOURCE_GROUP" --revisio
 log "Public smoke checks on $PUBLIC_ORIGIN"
 sleep 20
 smoke_check "$PUBLIC_ORIGIN/"
-smoke_check "$PUBLIC_ORIGIN/health/cosmos" '"connected"'
+smoke_check "$PUBLIC_ORIGIN/health/cosmos" "\"revision\":\"$API_CAND\""
 smoke_check "$PUBLIC_ORIGIN/robots.txt" "sitemap"
 smoke_check "$PUBLIC_ORIGIN/signup"
 log "Rollout complete. Previous revisions kept inactive-but-present for rollback."

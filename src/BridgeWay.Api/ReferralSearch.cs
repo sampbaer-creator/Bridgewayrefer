@@ -5,20 +5,21 @@ namespace BridgeWay.Api;
 
 public static class ReferralSearch
 {
+    static readonly TimeZoneInfo OfficeTime = TimeZoneInfo.FindSystemTimeZoneById("America/Denver");
     const string Unresolved = "c.status NOT IN ('Completed', 'Won', 'Closed')";
     // Mirrors isOverdue/attention rules in bridgeway-web/lib/follow-up.ts.
     const string Attention = "(" + Unresolved + " AND (c.status = 'New' OR NOT IS_DEFINED(c.ownerId) OR IS_NULL(c.ownerId) OR c.ownerId = '' OR (IS_STRING(c.nextActionAt) AND c.nextActionAt < @now)))";
 
-    public static QueryDefinition Build(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null, string? owner = null)
+    public static QueryDefinition Build(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null, string? owner = null, string? due = null)
     {
-        var (where, parameters) = Filters(businessId, search, status, partner, from, to, unresolved, attention, now, owner);
-        return Create("SELECT * FROM c WHERE " + where + " ORDER BY c.createdAt DESC", parameters);
+        var (where, parameters) = Filters(businessId, search, status, partner, from, to, unresolved, attention, now, owner, due);
+        return Create("SELECT * FROM c WHERE " + where + (string.IsNullOrEmpty(due) ? " ORDER BY c.createdAt DESC" : " ORDER BY c.nextActionAt ASC"), parameters);
     }
 
     /// <summary>Per-status totals for every referral matching the filters other than status, so the status chips stay stable while paging.</summary>
-    public static QueryDefinition BuildStatusCounts(string businessId, string? search, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null, string? owner = null)
+    public static QueryDefinition BuildStatusCounts(string businessId, string? search, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null, string? owner = null, string? due = null)
     {
-        var (where, parameters) = Filters(businessId, search, null, partner, from, to, unresolved, attention, now, owner);
+        var (where, parameters) = Filters(businessId, search, null, partner, from, to, unresolved, attention, now, owner, due);
         return Create("SELECT c.status AS status, COUNT(1) AS total FROM c WHERE " + where + " GROUP BY c.status", parameters);
     }
 
@@ -36,7 +37,7 @@ public static class ReferralSearch
         return query;
     }
 
-    static (string Where, Dictionary<string, object> Parameters) Filters(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention, DateTimeOffset? now, string? owner = null)
+    static (string Where, Dictionary<string, object> Parameters) Filters(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention, DateTimeOffset? now, string? owner = null, string? due = null)
     {
         var text = "c.businessId = @business AND c.type = 'referral' AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false)";
         var parameters = new Dictionary<string, object> { ["@business"] = businessId };
@@ -66,7 +67,32 @@ public static class ReferralSearch
         if (attention)
         {
             text += " AND " + Attention;
-            parameters["@now"] = (now ?? DateTimeOffset.UtcNow).UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
+            parameters["@now"] = (now ?? DateTimeOffset.UtcNow).ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+        }
+        if (!string.IsNullOrEmpty(due))
+        {
+            var current = (now ?? DateTimeOffset.UtcNow).ToUniversalTime();
+            var tomorrow = TimeZoneInfo.ConvertTime(current, OfficeTime).Date.AddDays(1);
+            var cutoff = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(tomorrow, OfficeTime)).ToString("O", CultureInfo.InvariantCulture);
+            text += " AND " + Unresolved + " AND IS_STRING(c.nextActionAt)";
+            switch (due)
+            {
+                case "overdue":
+                    text += " AND c.nextActionAt < @now";
+                    parameters["@now"] = current.ToString("O", CultureInfo.InvariantCulture);
+                    break;
+                case "today":
+                    text += " AND c.nextActionAt >= @now AND c.nextActionAt < @tomorrow";
+                    parameters["@now"] = current.ToString("O", CultureInfo.InvariantCulture);
+                    parameters["@tomorrow"] = cutoff;
+                    break;
+                case "upcoming":
+                    text += " AND c.nextActionAt >= @tomorrow";
+                    parameters["@tomorrow"] = cutoff;
+                    break;
+                default:
+                    throw new ApiError(400, "Choose a valid follow-up queue.");
+            }
         }
         foreach (var (value, name, comparison) in new[] { (from, "@from", ">="), (to, "@to", "<") })
         {

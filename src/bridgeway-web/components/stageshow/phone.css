@@ -232,6 +232,7 @@
     font-family: -apple-system, system-ui, sans-serif;
     font-size: 15px;
     letter-spacing: -0.015em;
+    transform: scale(var(--ss-phone-scale, 1));
     transform-origin: 0 0;
     -webkit-font-smoothing: antialiased;
   }

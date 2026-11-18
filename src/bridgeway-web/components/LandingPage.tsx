@@ -156,7 +156,7 @@ export default function LandingPage() {
             <a href="#faq">FAQ</a>
           </nav>
           <div className="bw-header-actions">
-            <Link className="bw-signin" href="/staff/login">
+            <Link className="bw-signin" href="/sign-in">
               Sign in
             </Link>
             <Link className="bw-btn bw-btn-primary bw-btn-sm" href="/signup?plan=workspace">
@@ -181,7 +181,7 @@ export default function LandingPage() {
             <Link href="/industries/trades">Trades</Link>
             <Link href="/pricing">Pricing</Link>
             <a href="#faq">FAQ</a>
-            <Link href="/staff/login">Sign in</Link>
+            <Link href="/sign-in">Sign in</Link>
             <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started</Link>
           </nav>
         )}

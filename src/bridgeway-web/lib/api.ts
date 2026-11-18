@@ -17,7 +17,7 @@ export type Doctor = { id: string; name: string; active: boolean; etag: string; 
 export type Partner = { id: string; name: string; active: boolean; etag?: string };
 export type Business = { businessId: string; name: string; role: "Admin" | "Staff"; signupPending?: boolean };
 export type Alerts = { enabled: boolean; recipient: string; waiting: number; retrying: number; smtpConfigured?: boolean; failed?: number; stalled?: number; oldestWaitingAt?: string; failures?: { id: string; attempts: number }[] };
-export type ReferralHistory = { status: string; actor: string; changedAt: string };
+export type ReferralHistory = { kind?: "status" | "assignment"; status?: string | null; ownerName?: string | null; unassigned?: boolean; actor: string; changedAt: string };
 export type Report = { month: string; monthLabel: string; availableMonths: string[]; total: number; linkOpens: number; referringOffices: number; previousTotal: number; invalidDates: number;
   hasSubmissions: boolean; outcomes: number; outcomeLabel: string;
   offices: { officeId: string; name: string; active: boolean; count: number; opens: number; outcomes: number }[];

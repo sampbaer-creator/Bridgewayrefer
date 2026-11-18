@@ -23,25 +23,6 @@ public static class Endpoints
     static bool IsSession(HttpContext ctx) => ctx.Request.Path.Equals("/api/staff/session", StringComparison.OrdinalIgnoreCase);
     static string? RequestedBusiness(HttpContext ctx) => ctx.Request.Headers["X-Bridgewayrefer-Business"].FirstOrDefault() ?? ctx.Request.Headers["X-BridgeWay-Business"].FirstOrDefault();
 
-    static async Task<JObject?> AcceptInvite(CosmosStore store, string businessId, string oid, string tenant, string email, CancellationToken ct)
-    {
-        var invite = (await store.PendingInvites(email, businessId, ct)).FirstOrDefault();
-        if (invite is null || !TenantAuthorization.IsValidInvite(invite, businessId, email, DateTimeOffset.UtcNow)) return null;
-        if (!Regex.IsMatch(businessId, @"\A[A-Za-z0-9_-]{1,80}\z")) return null;
-        var business = await store.Business(businessId, ct);
-        if (business is null) return null;
-        var member = store.Membership(businessId, tenant, oid, email, invite.Value<string>("role") ?? "Staff", businessName: business?.Value<string>("name") ?? businessId);
-        invite["state"] = "Accepted"; invite["acceptedAt"] = DateTimeOffset.UtcNow.ToString("O"); invite["acceptedBy"] = oid;
-        using var batch = await store.Operations.CreateTransactionalBatch(new Microsoft.Azure.Cosmos.PartitionKey(businessId))
-            .CreateItem(member).ReplaceItem(invite.Value<string>("id")!, invite, new Microsoft.Azure.Cosmos.TransactionalBatchItemRequestOptions { IfMatchEtag = invite.Value<string>("_etag") }).ExecuteAsync(ct);
-        if (batch.IsSuccessStatusCode) return member;
-        if (batch.Any(x => x.StatusCode == HttpStatusCode.Conflict))
-        {
-            var raced = await store.Read(store.Operations, member.Value<string>("id")!, new Microsoft.Azure.Cosmos.PartitionKey(businessId), ct);
-            return TenantAuthorization.IsActiveMembershipFor(raced, businessId, tenant, oid) ? raced : null;
-        }
-        CosmosStore.Check(batch); return null;
-    }
     static async Task<List<T>> ReadAll<T>(CosmosStore store, QueryDefinition query, CancellationToken ct)
     {
         var rows = new List<T>();
@@ -189,6 +170,8 @@ public static class Endpoints
             return Results.Ok(new { businessId, signupPending = BusinessRules.SignupPending(existing) });
         });
 
+        app.MapPost("/api/invitations/accept", InvitationLinks.Accept);
+
         var staff = app.MapGroup("/api/staff");
         staff.AddEndpointFilter(async (context, next) =>
         {
@@ -199,33 +182,10 @@ public static class Endpoints
                 if (http.User.Identity?.IsAuthenticated != true) throw new ApiError(401, "Please sign in.");
                 var oid = http.User.FindFirstValue("oid"); var tid = http.User.FindFirstValue("tid");
                 if (string.IsNullOrWhiteSpace(oid) || string.IsNullOrWhiteSpace(tid) || !settings.AcceptsStaffTenant(tid)) throw new ApiError(403, "Access denied.");
-                var email = (http.User.FindFirstValue("email") ?? http.User.FindFirstValue("preferred_username") ?? "").Trim().ToLowerInvariant();
-                if (tid == Settings.GoogleTenant && http.User.FindFirstValue("bridgeway_google_email_authoritative") != "true")
-                    email = "";
                 var memberships = await store.Memberships(oid, tid, http.RequestAborted);
                 var requested = RequestedBusiness(http);
-                if (requested is null && memberships.Count == 0 && email.Length > 0)
-                {
-                    var invitations = await store.PendingInvites(email, ct: http.RequestAborted);
-                    if (invitations.Count == 1) requested = invitations[0].Value<string>("businessId");
-                }
                 var selected = TenantAuthorization.SelectActiveMembership(memberships, requested);
-                if (selected is null && requested is not null)
-                {
-                    var claimed = await AcceptInvite(store, requested, oid, tid, email, http.RequestAborted);
-                    if (claimed is not null) { memberships.Add(claimed); selected = claimed; }
-                }
                 if (selected is null && requested is null && memberships.Count == 1) selected = memberships[0];
-                if (selected is null && requested is null && memberships.Count == 0)
-                {
-                    var claimedInvites = email.Length == 0 ? [] : await store.PendingInvites(email, ct: http.RequestAborted);
-                    if (claimedInvites.Count == 1)
-                    {
-                        var businessId = claimedInvites[0].Value<string>("businessId")!;
-                        selected = await AcceptInvite(store, businessId, oid, tid, email, http.RequestAborted);
-                        if (selected is not null) memberships.Add(selected);
-                    }
-                }
                 if (selected is null && memberships.Count > 1 && !IsSession(http)) throw new ApiError(409, "Choose a workspace before continuing.");
                 if (selected is null && !IsSession(http)) throw new ApiError(403, "No active membership was found for this workspace.");
                 var selectedBusinessId = selected?.Value<string>("businessId");
@@ -316,13 +276,13 @@ public static class Endpoints
             RequireAdmin(ctx);
             var email = data.Email?.Trim().ToLowerInvariant() ?? "";
             if (!ValidEmail(email) || data.Role is not ("Admin" or "Staff")) throw new ApiError(400, "Enter a valid email and choose Admin or Staff.");
-            var invite = store.Document("membership-invite", "invite-" + Guid.NewGuid().ToString("N")); invite["email"] = email; invite["role"] = data.Role; invite["state"] = "Pending"; invite["expiresAt"] = DateTimeOffset.UtcNow.AddDays(7).ToString("O"); invite["createdBy"] = Actor(ctx);
+            var (invite, url) = InvitationLinks.Create(store, settings, email, data.Role, Actor(ctx), 7);
             await store.Create(invite, ct);
-            return Results.Json(new { invitationId = invite.Value<string>("id"), email, role = data.Role, expiresAt = invite.Value<string>("expiresAt"), inviteUrl = settings.PublicOrigin + "/staff/login?workspace=" + Uri.EscapeDataString(store.BusinessId) }, statusCode: 201);
+            return Results.Json(new { invitationId = invite.Value<string>("id"), email, role = data.Role, expiresAt = invite.Value<string>("expiresAt"), inviteUrl = url }, statusCode: 201);
         });
         staff.MapDelete("/invitations/{id}", async (string id, [FromBody] InvitationCancel data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            if (!Regex.IsMatch(id, @"\Ainvite-[A-Za-z0-9]{16,40}\z") || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the invitation cancellation.");
+            if (!Regex.IsMatch(id, @"\Ainvite-[A-Za-z0-9]{16,64}\z") || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the invitation cancellation.");
             if (ctx.RequestServices.GetRequiredService<BusinessContext>().Role != "Admin") throw new ApiError(403, "Administrator access is required.");
             var invite = await store.Read(store.Operations, id, store.BusinessKey, ct);
             if (invite?.Value<string>("type") != "membership-invite" || invite.Value<string>("businessId") != store.BusinessId || invite.Value<string>("state") != "Pending") throw new ApiError(404, "Pending invitation not found.");
@@ -367,7 +327,9 @@ public static class Endpoints
             var args = ctx.Request.Query;
             bool unresolved = args["unresolved"] == "true", attention = args["attention"] == "true";
             var now = DateTimeOffset.UtcNow;
-            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], unresolved, attention, now, args["owner"]);
+            var owner = args["owner"].ToString();
+            if (owner == "mine") owner = Actor(ctx);
+            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], unresolved, attention, now, owner, args["due"]);
             var cursor = args["cursor"].FirstOrDefault();
             if (cursor?.Length > 16000) throw new ApiError(400, "The page token is invalid. Restart your search.");
             await store.AuditRead(Actor(ctx), "list-referrals", ct);
@@ -379,7 +341,7 @@ public static class Endpoints
             object? totals = null;
             if (cursor is null)
             {
-                var byStatus = await ReadAll<JObject>(store, ReferralSearch.BuildStatusCounts(store.BusinessId, args["q"], args["partner"], args["from"], args["to"], unresolved, attention, now, args["owner"]), ct);
+                var byStatus = await ReadAll<JObject>(store, ReferralSearch.BuildStatusCounts(store.BusinessId, args["q"], args["partner"], args["from"], args["to"], unresolved, attention, now, owner, args["due"]), ct);
                 var needsAttention = (await ReadAll<long>(store, ReferralSearch.BuildAttentionCount(store.BusinessId, now), ct)).Sum();
                 totals = new { byStatus = byStatus.ToDictionary(row => row.Value<string>("status") ?? "", row => row.Value<long>("total")), needsAttention };
             }
@@ -428,7 +390,15 @@ public static class Endpoints
         {
             if (!id.StartsWith("ref-", StringComparison.Ordinal)) throw new ApiError(404, "Not found.");
             var referral = await store.Read(id, ct); if (referral?.Value<string>("type") != "referral" || referral.Value<bool?>("isTest") == true) throw new ApiError(404, "Not found.");
-            var history = (await store.Query("status-history", ct: ct)).Where(x => x.Value<string>("referralId") == id).OrderBy(x => x.Value<string>("changedAt"), StringComparer.Ordinal).Select(x => new { status = x.Value<string>("status"), actor = x.Value<string>("actor"), changedAt = x.Value<string>("changedAt") });
+            var history = (await store.ReferralHistory(id, ct)).Select(x => new
+            {
+                kind = x.Value<string>("type") == "audit" ? "assignment" : "status",
+                status = x.Value<string>("status"),
+                ownerName = x.Value<string>("ownerName"),
+                unassigned = x.Value<string>("action") == "assignment:unassigned",
+                actor = x.Value<string>("actor"),
+                changedAt = x.Value<string>("changedAt") ?? x.Value<string>("createdAt")
+            }).OrderBy(x => x.changedAt, StringComparer.Ordinal);
             return Results.Ok(new { history });
         });
         staff.MapPatch("/referrals/{id}/assignment", async (string id, AssignmentUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
@@ -444,7 +414,9 @@ public static class Endpoints
                 referral["ownerId"] = owner.Value<string>("oid"); referral["ownerName"] = owner.Value<string>("email") ?? owner.Value<string>("businessName") ?? "Staff member";
             }
             referral["updatedAt"] = DateTimeOffset.UtcNow.ToString("O");
-            using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(id, referral, new Microsoft.Azure.Cosmos.TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "assignment:" + (data.OwnerId ?? "unassigned"), id)).ExecuteAsync(ct);
+            var assignmentAudit = store.Audit(Actor(ctx), "assignment:" + (referral.Value<string>("ownerId") ?? "unassigned"), id);
+            assignmentAudit["ownerName"] = referral.Value<string>("ownerName");
+            using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem(id, referral, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(assignmentAudit).ExecuteAsync(ct);
             CosmosStore.Check(batch); return Results.Ok(new { ok = true });
         });
         staff.MapGet("/analytics", async (string? month, HttpContext ctx, CosmosStore store, CancellationToken ct) =>

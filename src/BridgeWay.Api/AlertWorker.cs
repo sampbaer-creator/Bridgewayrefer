@@ -69,7 +69,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 var message = new MimeMessage(); message.From.Add(MailboxAddress.Parse(settings.SmtpUsername)); message.To.Add(MailboxAddress.Parse(recipient));
                 message.Subject = "New referral received - Bridgewayrefer";
                 message.MessageId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(businessId + ":" + id))) + "@" + new Uri(settings.PublicOrigin).Host;
-                message.Body = new TextPart("plain") { Text = "A new referral is waiting in your secure office dashboard.\n\nSign in to review it:\n" + settings.PublicOrigin + "/staff/login\n\nPatient details are available only in the dashboard." };
+                message.Body = new TextPart("plain") { Text = "A new referral is waiting in your secure office dashboard.\n\nSign in to review it:\n" + settings.PublicOrigin + "/sign-in\n\nPatient details are available only in the dashboard." };
                 using var smtp = new SmtpClient { Timeout = 20000 };
                 await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, settings.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls, ct);
                 await smtp.AuthenticateAsync(settings.SmtpUsername, settings.SmtpPassword, ct);

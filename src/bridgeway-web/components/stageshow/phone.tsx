@@ -204,7 +204,7 @@ export function Phone({ width, frame: asked = 'pro', time = '9:41', island, stat
         >
           <div
             className="ss-phone__screen"
-            style={{ width: SCREEN.w, height: SCREEN.h, transform: `scale(${s})`, ['--ss-screen-r' as string]: `${SCREEN.r}px`, ...(wallpaper ? ({ background: wallpaper } as CSSProperties) : null) }}
+            style={{ width: SCREEN.w, height: SCREEN.h, ['--ss-phone-scale' as string]: s, ['--ss-screen-r' as string]: `${SCREEN.r}px`, ...(wallpaper ? ({ background: wallpaper } as CSSProperties) : null) }}
           >
             {showStatus && (
               <div className="ss-phone__status">

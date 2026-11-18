@@ -36,17 +36,33 @@ public class AuditReadinessTests
         var now = new DateTimeOffset(2026, 11, 18, 12, 0, 0, TimeSpan.Zero);
         var counts = ReferralSearch.BuildStatusCounts("business-a", "' OR true --", "partner-a", null, null, true, true, now, owner: "staff-a");
         Assert.Contains("c.ownerId = @owner", counts.QueryText);
-        Assert.Equal("staff-a", counts.GetQueryParameters().Single(p => p.Name == "@owner").Value);
         Assert.Contains("GROUP BY c.status", counts.QueryText);
+        Assert.Equal("staff-a", counts.GetQueryParameters().Single(p => p.Name == "@owner").Value);
         Assert.DoesNotContain("@status", counts.QueryText);
         Assert.DoesNotContain("' OR true --", counts.QueryText);
         Assert.Contains("c.nextActionAt < @now", counts.QueryText);
-        Assert.Equal("2026-11-18T12:00:00.0000000Z", counts.GetQueryParameters().Single(p => p.Name == "@now").Value);
+        Assert.Equal("2026-11-18T12:00:00.0000000+00:00", counts.GetQueryParameters().Single(p => p.Name == "@now").Value);
         var attention = ReferralSearch.BuildAttentionCount("business-a", now);
         Assert.StartsWith("SELECT VALUE COUNT(1)", attention.QueryText);
         Assert.Contains("c.status = 'New'", attention.QueryText);
         Assert.Contains("IS_NULL(c.ownerId)", attention.QueryText);
         Assert.DoesNotContain("@now", ReferralSearch.Build("business-a", null, null, null, null, null, false).QueryText);
+    }
+
+    [Fact]
+    public void DueQueuesSortOldestDeadlineFirstAndUseMountainMidnightAcrossDst()
+    {
+        var now = new DateTimeOffset(2026, 3, 8, 8, 0, 0, TimeSpan.Zero);
+        var today = ReferralSearch.Build("business-a", null, null, null, null, null, false, now: now, due: "today");
+        Assert.Contains("c.status NOT IN ('Completed', 'Won', 'Closed')", today.QueryText);
+        Assert.Contains("c.nextActionAt >= @now AND c.nextActionAt < @tomorrow", today.QueryText);
+        Assert.EndsWith("ORDER BY c.nextActionAt ASC", today.QueryText);
+        Assert.Equal("2026-03-09T06:00:00.0000000+00:00", today.GetQueryParameters().Single(p => p.Name == "@tomorrow").Value);
+        var upcoming = ReferralSearch.BuildStatusCounts("business-a", null, null, null, null, false, now: now, due: "upcoming");
+        Assert.Contains("c.nextActionAt >= @tomorrow", upcoming.QueryText);
+        var overdue = ReferralSearch.Build("business-a", null, null, null, null, null, false, now: now, due: "overdue");
+        Assert.Contains("c.nextActionAt < @now", overdue.QueryText);
+        Assert.Throws<ApiError>(() => ReferralSearch.Build("business-a", null, null, null, null, null, false, due: "invalid"));
     }
 
     [Theory]

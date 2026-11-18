@@ -86,11 +86,11 @@ public static class AdminEndpoints
             business["acceptReferrals"] = true; business["suspended"] = false; business["billingExempt"] = data.BillingExempt; business["billingStatus"] = "not_configured";
             business["alertEmail"] = alertEmail.Length > 0 ? alertEmail : adminEmail; business["createdBy"] = Actor(ctx);
             var office = store.Document("office", "office-main"); office["name"] = name; office["active"] = true;
-            var invite = store.Document("membership-invite", "invite-" + Guid.NewGuid().ToString("N")); invite["email"] = adminEmail; invite["role"] = "Admin"; invite["state"] = "Pending"; invite["expiresAt"] = DateTimeOffset.UtcNow.AddDays(14).ToString("O"); invite["createdBy"] = Actor(ctx);
+            var (invite, inviteUrl) = InvitationLinks.Create(store, settings, adminEmail, "Admin", Actor(ctx), 14);
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
                 .CreateItem(business).CreateItem(office).CreateItem(invite).CreateItem(store.Audit(Actor(ctx), "platform-create-business", businessId)).ExecuteAsync(ct);
             CosmosStore.Check(batch);
-            return Results.Json(new { businessId, name, inviteUrl = settings.PublicOrigin + "/staff/login?workspace=" + Uri.EscapeDataString(businessId) }, statusCode: 201);
+            return Results.Json(new { businessId, name, inviteUrl }, statusCode: 201);
         });
 
         admin.MapGet("/businesses/{businessId}", async (string businessId, CosmosStore store, CancellationToken ct) =>
@@ -139,10 +139,10 @@ public static class AdminEndpoints
             await RequireBusiness(store, businessId, ct);
             var email = data.Email?.Trim().ToLowerInvariant() ?? "";
             if (!Endpoints.ValidEmail(email) || data.Role is not ("Admin" or "Staff")) throw new ApiError(400, "Enter a valid email and choose Admin or Staff.");
-            var invite = store.Document("membership-invite", "invite-" + Guid.NewGuid().ToString("N")); invite["email"] = email; invite["role"] = data.Role; invite["state"] = "Pending"; invite["expiresAt"] = DateTimeOffset.UtcNow.AddDays(14).ToString("O"); invite["createdBy"] = Actor(ctx);
+            var (invite, inviteUrl) = InvitationLinks.Create(store, settings, email, data.Role, Actor(ctx), 14);
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(invite).CreateItem(store.Audit(Actor(ctx), "platform-invite:" + data.Role, email)).ExecuteAsync(ct);
             CosmosStore.Check(batch);
-            return Results.Json(new { email, role = data.Role, inviteUrl = settings.PublicOrigin + "/staff/login?workspace=" + Uri.EscapeDataString(businessId) }, statusCode: 201);
+            return Results.Json(new { email, role = data.Role, inviteUrl }, statusCode: 201);
         });
 
         admin.MapPost("/businesses/{businessId}/cards", async (string businessId, CardCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>

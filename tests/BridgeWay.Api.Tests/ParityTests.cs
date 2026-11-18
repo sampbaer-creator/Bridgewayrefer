@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
@@ -133,6 +134,23 @@ public class ParityTests
         Assert.Equal(("Retry", 4600L), AlertWorker.FailureDisposition(7, 1000));
         Assert.Equal(("Failed", 0L), AlertWorker.FailureDisposition(AlertWorker.MaximumAttempts, 1000));
     }
+    [Fact]
+    public async Task InvitationRedemptionRequiresAuthenticationAndValidOpaqueToken()
+    {
+        var token = new string('a', 64);
+        var documentId = InvitationLinks.DocumentId(token);
+        Assert.StartsWith("invite-", documentId);
+        Assert.DoesNotContain(token, documentId!);
+        Assert.Null(InvitationLinks.DocumentId(documentId));
+
+        await using var app = Factory();
+        using var client = app.CreateClient();
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/invitations/accept", new { workspace = "business-a", token })).StatusCode);
+        client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:allowed");
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/invitations/accept", new { workspace = "business-a", token = documentId })).StatusCode);
+    }
+
     [Fact] public void StripeRenewalSupportsSubscriptionItemPeriods()
     {
         var expected = DateTimeOffset.FromUnixTimeSeconds(1794240000);
@@ -290,7 +308,13 @@ public class ParityTests
     }
     static WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(web =>
     {
-        web.UseEnvironment("Development").UseSetting("Cosmos:Endpoint", "https://example.documents.azure.com/").UseSetting("BridgeWay:TenantId", "tenant").UseSetting("BridgeWay:PlatformAdminObjectIds:0", "platform-owner");
+        web.UseEnvironment("Development")
+            .UseSetting("Cosmos:Endpoint", "https://example.documents.azure.com/")
+            .UseSetting("Bridgewayrefer:PublicOrigin", "http://localhost:3000")
+            .UseSetting("Bridgewayrefer:TenantId", "tenant")
+            .UseSetting("Bridgewayrefer:MultiTenantSignIn", "false")
+            .UseSetting("Bridgewayrefer:PlatformAdminObjectIds:0", "platform-owner")
+            .UseSetting("Bridgewayrefer:StripeSecretKey", "");
         web.ConfigureServices(services =>
         {
             services.Replace(ServiceDescriptor.Singleton<IXmlRepository, TestKeyRepository>());
