@@ -263,7 +263,7 @@ public static class Endpoints
                     signupPending = BusinessRules.SignupPending(profile)
                 };
             }));
-            return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User), businessId = scope.BusinessId, role = scope.Role, businesses });
+            return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User), businessId = scope.BusinessId, role = scope.Role, memberId = ctx.User.FindFirstValue("oid"), businesses });
         });
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>
         {
@@ -366,8 +366,10 @@ public static class Endpoints
         {
             var args = ctx.Request.Query;
             bool unresolved = args["unresolved"] == "true", attention = args["attention"] == "true";
+            string? owner = args["owner"];
+            if (owner == "me") owner = ctx.User.FindFirstValue("oid") ?? throw new ApiError(400, "Your sign-in has no staff ID. Choose a staff member instead.");
             var now = DateTimeOffset.UtcNow;
-            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], unresolved, attention, now);
+            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], unresolved, attention, now, owner);
             var cursor = args["cursor"].FirstOrDefault();
             if (cursor?.Length > 16000) throw new ApiError(400, "The page token is invalid. Restart your search.");
             await store.AuditRead(Actor(ctx), "list-referrals", ct);
@@ -379,7 +381,7 @@ public static class Endpoints
             object? totals = null;
             if (cursor is null)
             {
-                var byStatus = await ReadAll<JObject>(store, ReferralSearch.BuildStatusCounts(store.BusinessId, args["q"], args["partner"], args["from"], args["to"], unresolved, attention, now), ct);
+                var byStatus = await ReadAll<JObject>(store, ReferralSearch.BuildStatusCounts(store.BusinessId, args["q"], args["partner"], args["from"], args["to"], unresolved, attention, now, owner), ct);
                 var needsAttention = (await ReadAll<long>(store, ReferralSearch.BuildAttentionCount(store.BusinessId, now), ct)).Sum();
                 totals = new { byStatus = byStatus.ToDictionary(row => row.Value<string>("status") ?? "", row => row.Value<long>("total")), needsAttention };
             }

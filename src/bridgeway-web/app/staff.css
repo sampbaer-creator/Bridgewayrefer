@@ -659,3 +659,96 @@ button.primary:hover{border-color:var(--ink-blue);background:var(--ink-blue);col
 @media (max-width: 700px) {
   .staff-shell :is(input, select, textarea), .dashboard :is(input, select, textarea) { font-size: 16px; }
 }
+
+/* ============ Referral inbox triage (views, selection, bulk bar, drawer, toast) ============ */
+.inbox-views{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px;padding:4px;border:1px solid var(--line);border-radius:10px;background:#fff;width:fit-content;max-width:100%}
+.inbox-views button{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:0;border-radius:7px;background:transparent;color:var(--ink-blue);font-size:14px;font-weight:600}
+.inbox-views button:hover{background:var(--offwhite);color:var(--navy)}
+.inbox-views button[aria-pressed="true"]{background:var(--pale);color:var(--navy);box-shadow:inset 0 0 0 1px var(--accent)}
+.inbox-views b{min-width:22px;padding:1px 7px;border-radius:999px;background:var(--navy);color:#fff;font-size:12px;text-align:center}
+.staff-inbox-controls>button.secondary{align-self:flex-end;padding:9px 12px;font-size:14px;white-space:nowrap}
+
+.inbox-table thead th:nth-child(1){width:44px}
+.inbox-table thead th:nth-child(2){width:24%}
+.inbox-table thead th:nth-child(3){width:18%}
+.inbox-table thead th:nth-child(4){width:17%}
+.inbox-table thead th:nth-child(5){width:14%}
+.inbox-table thead th:nth-child(6){width:auto}
+.inbox-select{width:44px;text-align:center!important;vertical-align:top}
+.inbox-select input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--navy)}
+.inbox-table tr.is-selected>*{background:var(--pale)}
+.inbox-table tr.is-active>*{box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+.inbox-table tr.is-active>.inbox-select{box-shadow:inset 3px 0 0 var(--navy),inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+.inbox-row-actions{display:flex;align-items:center;gap:12px;margin-top:4px}
+.inbox-row-actions .staff-inline-detail-toggle{margin:0}
+.inbox-row-actions a{display:inline-grid;place-items:center;width:28px;height:28px;border:1px solid var(--line);border-radius:999px;color:var(--ink-blue);text-decoration:none;font-size:14px}
+.inbox-row-actions a:hover{border-color:var(--accent);color:var(--navy);background:var(--offwhite)}
+.inbox-link-button{display:block;margin:4px 0 0;padding:0;border:0;background:transparent;color:var(--ink-blue);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.inbox-link-button:hover{background:transparent;color:var(--navy)}
+.inbox-due{display:block;margin-top:3px}
+.inbox-due.is-overdue{color:#9b2c1f;font-weight:600}
+.inbox-due.is-soon{color:var(--warm-brown);font-weight:600}
+.staff-shell .staff-badge.is-soon{background:var(--ecru);color:var(--warm-brown);box-shadow:inset 0 0 0 1px var(--amber)}
+.staff-shell .staff-badge.is-unassigned{background:var(--offwhite);color:var(--ink-blue);box-shadow:inset 0 0 0 1px var(--line)}
+
+.inbox-bulk-bar{position:sticky;bottom:12px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0;padding:10px 14px;border-radius:10px;background:var(--navy);color:#fff;box-shadow:0 12px 30px rgba(13,35,57,.25)}
+.inbox-bulk-bar strong{margin-right:auto;font-size:14px}
+.inbox-bulk-bar select{min-height:36px;margin:0;padding:6px 10px;font-size:14px}
+.inbox-bulk-bar button.secondary{padding:8px 12px;font-size:14px}
+
+.inbox-empty{padding:36px 20px;border:1px dashed var(--line);border-radius:10px;background:#fff;text-align:center;color:var(--ink)}
+.inbox-empty p{margin:0 0 10px}
+.inbox-empty .muted{max-width:34rem;margin:0 auto}
+
+.inbox-toast:empty{display:none}
+.inbox-toast{position:fixed;left:50%;bottom:24px;z-index:50;display:flex;align-items:center;gap:12px;max-width:min(92vw,560px);padding:12px 12px 12px 18px;border-radius:10px;background:var(--navy);color:#fff;font-size:14px;transform:translateX(-50%);box-shadow:0 16px 40px rgba(8,26,43,.3)}
+.inbox-toast button.secondary{padding:6px 12px;font-size:14px}
+.inbox-toast-close{padding:2px 8px;border:0;background:transparent;color:var(--sky);font-size:20px;line-height:1}
+.inbox-toast-close:hover{background:transparent;color:#fff}
+
+.staff-shell dialog.referral-drawer{position:fixed;inset:0 0 0 auto;width:min(100%,34rem);height:100dvh;max-height:100dvh;margin:0;padding:0;border:0;border-left:1px solid var(--line);border-radius:0;background:#fff;color:var(--ink);box-shadow:-20px 0 50px rgba(8,26,43,.18)}
+.referral-drawer::backdrop,.inbox-confirm::backdrop{background:rgb(13 35 57 / 35%)}
+.referral-drawer-body{display:grid;gap:22px;padding:24px;overflow-y:auto;max-height:100dvh;box-sizing:border-box}
+.referral-drawer-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.referral-drawer-header h2{margin:2px 0 4px;font-size:26px}
+.referral-drawer-contact{display:flex;flex-wrap:wrap;gap:10px}
+.referral-drawer-contact .bw-contact-action{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:var(--offwhite);color:var(--navy);font-size:14px;font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.referral-drawer-contact .bw-contact-action:hover{border-color:var(--accent);background:var(--pale)}
+.referral-drawer-facts{display:grid;gap:10px;margin:0}
+.referral-drawer-facts div{display:grid;grid-template-columns:9rem 1fr;gap:10px}
+.referral-drawer-facts dt{color:var(--ink-blue);font-size:13px}
+.referral-drawer-facts dd{margin:0}
+.referral-drawer-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+.referral-drawer-controls label{display:grid;gap:6px;margin:0;color:var(--ink-blue);font-size:13px}
+.referral-drawer-controls button{grid-column:1/-1;justify-self:start}
+.referral-drawer h3{margin:0 0 8px;font-size:16px}
+.referral-drawer-notes p{margin:0;padding:12px 14px;border-radius:8px;background:var(--offwhite);white-space:pre-wrap}
+.referral-drawer .referral-history ol{margin:0;padding-left:1.2rem}
+.referral-drawer .referral-history li{padding:4px 0}
+
+.staff-shell dialog.inbox-confirm{width:min(92vw,28rem);padding:24px;border:0;border-radius:12px;background:#fff;color:var(--ink);box-shadow:0 24px 60px rgba(8,26,43,.25)}
+.inbox-confirm h2{margin:0 0 10px;font-size:22px}
+.inbox-confirm p{margin:0 0 18px}
+.inbox-keys{display:grid;gap:8px;margin:0 0 18px}
+.inbox-keys div{display:grid;grid-template-columns:7rem 1fr;gap:10px;align-items:center}
+.inbox-keys dd{margin:0}
+.staff-shell kbd{display:inline-block;min-width:1.4em;padding:1px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:#fff;color:var(--navy);font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center}
+
+@media (max-width: 700px) {
+  .inbox-views{width:100%}
+  .inbox-views button{flex:1;justify-content:center;padding:8px 6px}
+  .staff-inbox-controls>button.secondary{align-self:stretch}
+  .referral-drawer-controls{grid-template-columns:1fr}
+  .referral-drawer-facts div{grid-template-columns:1fr;gap:2px}
+  .referral-drawer-body{padding:18px}
+  .inbox-bulk-bar strong{flex-basis:100%}
+}
+@media (max-width: 760px) {
+  /* Phone cards: the select checkbox sits in the card's top-right corner instead of taking a row. */
+  .staff-shell .inbox-table tr.staff-referral-primary-row{position:relative}
+  .staff-shell .inbox-table tr.staff-referral-primary-row>td.inbox-select{position:absolute;top:10px;right:10px;width:auto;padding:4px}
+  .staff-shell .inbox-table tr.staff-referral-primary-row>th{padding-right:40px}
+  .staff-shell .inbox-table td[data-label="Owner"]{flex-wrap:wrap}
+  .staff-shell .inbox-table td[data-label="Owner"] .inbox-link-button{flex-basis:100%;text-align:right}
+  .inbox-row-actions a{width:36px;height:36px}
+}

@@ -33,6 +33,19 @@ public class AuditReadinessTests
         Assert.DoesNotContain("@now", ReferralSearch.Build("business-a", null, null, null, null, null, false).QueryText);
     }
 
+    [Fact]
+    public void ReferralOwnerFilterBindsInputAndIncludesLegacyUnassignedRows()
+    {
+        var query = ReferralSearch.Build("business-a", null, null, null, null, null, false, owner: "' OR true --");
+        Assert.Contains("c.ownerId = @owner", query.QueryText);
+        Assert.DoesNotContain("' OR true --", query.QueryText);
+        Assert.Equal("' OR true --", query.GetQueryParameters().Single(p => p.Name == "@owner").Value);
+        var unassigned = ReferralSearch.BuildStatusCounts("business-a", null, null, null, null, false, owner: "unassigned");
+        Assert.Contains("NOT IS_DEFINED(c.ownerId)", unassigned.QueryText);
+        Assert.Contains("c.ownerId = ''", unassigned.QueryText);
+        Assert.Throws<ApiError>(() => ReferralSearch.Build("business-a", null, null, null, null, null, false, owner: new string('x', 81)));
+    }
+
     [Theory]
     [InlineData("2026-13-01", "2026-12-01")]
     [InlineData("2026-12-01", "2026-11-01")]

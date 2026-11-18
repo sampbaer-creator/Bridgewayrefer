@@ -9,23 +9,23 @@ public static class ReferralSearch
     // Mirrors isOverdue/attention rules in bridgeway-web/lib/follow-up.ts.
     const string Attention = "(" + Unresolved + " AND (c.status = 'New' OR NOT IS_DEFINED(c.ownerId) OR IS_NULL(c.ownerId) OR c.ownerId = '' OR (IS_STRING(c.nextActionAt) AND c.nextActionAt < @now)))";
 
-    public static QueryDefinition Build(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null)
+    public static QueryDefinition Build(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null, string? owner = null)
     {
-        var (where, parameters) = Filters(businessId, search, status, partner, from, to, unresolved, attention, now);
+        var (where, parameters) = Filters(businessId, search, status, partner, from, to, unresolved, attention, now, owner);
         return Create("SELECT * FROM c WHERE " + where + " ORDER BY c.createdAt DESC", parameters);
     }
 
     /// <summary>Per-status totals for every referral matching the filters other than status, so the status chips stay stable while paging.</summary>
-    public static QueryDefinition BuildStatusCounts(string businessId, string? search, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null)
+    public static QueryDefinition BuildStatusCounts(string businessId, string? search, string? partner, string? from, string? to, bool unresolved, bool attention = false, DateTimeOffset? now = null, string? owner = null)
     {
-        var (where, parameters) = Filters(businessId, search, null, partner, from, to, unresolved, attention, now);
+        var (where, parameters) = Filters(businessId, search, null, partner, from, to, unresolved, attention, now, owner);
         return Create("SELECT c.status AS status, COUNT(1) AS total FROM c WHERE " + where + " GROUP BY c.status", parameters);
     }
 
     /// <summary>Workspace-wide count of open referrals that are new, unassigned or overdue.</summary>
     public static QueryDefinition BuildAttentionCount(string businessId, DateTimeOffset? now = null)
     {
-        var (where, parameters) = Filters(businessId, null, null, null, null, null, false, true, now);
+        var (where, parameters) = Filters(businessId, null, null, null, null, null, false, true, now, null);
         return Create("SELECT VALUE COUNT(1) FROM c WHERE " + where, parameters);
     }
 
@@ -36,7 +36,7 @@ public static class ReferralSearch
         return query;
     }
 
-    static (string Where, Dictionary<string, object> Parameters) Filters(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention, DateTimeOffset? now)
+    static (string Where, Dictionary<string, object> Parameters) Filters(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, bool attention, DateTimeOffset? now, string? owner)
     {
         var text = "c.businessId = @business AND c.type = 'referral' AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false)";
         var parameters = new Dictionary<string, object> { ["@business"] = businessId };
@@ -55,6 +55,13 @@ public static class ReferralSearch
         {
             if (partner.Length > 80) throw new ApiError(400, "Choose a valid partner.");
             text += " AND (c.partnerId = @partner OR c.doctorCode = @partner)"; parameters["@partner"] = partner;
+        }
+        if (!string.IsNullOrEmpty(owner))
+        {
+            // "unassigned" also matches legacy rows written before ownerId existed.
+            if (owner.Length > 80) throw new ApiError(400, "Choose a valid staff member.");
+            if (owner == "unassigned") text += " AND (NOT IS_DEFINED(c.ownerId) OR IS_NULL(c.ownerId) OR c.ownerId = '')";
+            else { text += " AND c.ownerId = @owner"; parameters["@owner"] = owner; }
         }
         if (unresolved) text += " AND " + Unresolved;
         if (attention)
