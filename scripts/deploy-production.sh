@@ -7,7 +7,7 @@
 #
 # Required env: SHA, ACR_LOGIN_SERVER, ACR_NAME, RESOURCE_GROUP, API_APP, WEB_APP, PUBLIC_ORIGIN
 # Prerequisite: both apps must run in "multiple" revision mode so candidates can be labelled.
-set -euo pipefail
+set -Eeuo pipefail
 
 : "${SHA:?}" "${ACR_LOGIN_SERVER:?}" "${ACR_NAME:?}" "${RESOURCE_GROUP:?}" "${API_APP:?}" "${WEB_APP:?}" "${PUBLIC_ORIGIN:?}"
 SHORT="${SHA:0:8}"
@@ -57,6 +57,19 @@ on_exit() {
   exit "$status"
 }
 trap on_exit EXIT
+trap 'log "Deployment command failed at line ${LINENO} (exit $?)"' ERR
+
+smoke_check() {
+  local url="$1" expected="${2:-}"
+  local response="$WORK/smoke-response"
+  log "Checking $url"
+  curl --fail --silent --show-error --max-time 30 --output "$response" "$url" || return 1
+  if [[ -n "$expected" ]] && ! grep -Fq -- "$expected" "$response"; then
+    log "Unexpected response from $url (missing $expected)"
+    return 1
+  fi
+  log "Passed $url"
+}
 
 wait_healthy() {
   for _ in $(seq 1 60); do
@@ -107,9 +120,9 @@ WEB_CAND_HOST="${WEB_APP}---${CAND_LABEL}.${WEB_ENV_DOMAIN}"
 
 # 3. Smoke the candidate pair through the labelled web URL, before any public traffic moves.
 log "Smoke testing candidate pair at https://$WEB_CAND_HOST"
-curl --fail --silent --show-error --max-time 30 "https://$WEB_CAND_HOST/" > /dev/null
-curl --fail --silent --show-error --max-time 30 "https://$WEB_CAND_HOST/health/cosmos" | grep -q '"connected"'
-curl --fail --silent --show-error --max-time 30 "https://$WEB_CAND_HOST/robots.txt" | grep -q "sitemap"
+smoke_check "https://$WEB_CAND_HOST/"
+smoke_check "https://$WEB_CAND_HOST/health/cosmos" '"connected"'
+smoke_check "https://$WEB_CAND_HOST/robots.txt" "sitemap"
 
 # 4. Promote both apps together.
 log "Promoting $API_CAND and $WEB_CAND to 100%"
@@ -120,8 +133,8 @@ az containerapp ingress traffic set -n "$WEB_APP" -g "$RESOURCE_GROUP" --revisio
 # 5. Public smoke. Failure here triggers restore_previous through the EXIT trap.
 log "Public smoke checks on $PUBLIC_ORIGIN"
 sleep 20
-curl --fail --silent --show-error --max-time 30 "$PUBLIC_ORIGIN/" > /dev/null
-curl --fail --silent --show-error --max-time 30 "$PUBLIC_ORIGIN/health/cosmos" | grep -q '"connected"'
-curl --fail --silent --show-error --max-time 30 "$PUBLIC_ORIGIN/robots.txt" | grep -q "sitemap"
-curl --fail --silent --show-error --max-time 30 "$PUBLIC_ORIGIN/signup" > /dev/null
+smoke_check "$PUBLIC_ORIGIN/"
+smoke_check "$PUBLIC_ORIGIN/health/cosmos" '"connected"'
+smoke_check "$PUBLIC_ORIGIN/robots.txt" "sitemap"
+smoke_check "$PUBLIC_ORIGIN/signup"
 log "Rollout complete. Previous revisions kept inactive-but-present for rollback."
