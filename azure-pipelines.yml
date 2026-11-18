@@ -1,5 +1,9 @@
 # BridgeWay Refer Azure DevOps deployment pipeline.
-trigger: none
+trigger:
+  branches:
+    include:
+      - main
+
 pr: none
 
 pool:
