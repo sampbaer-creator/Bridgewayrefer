@@ -358,7 +358,7 @@ public static class Endpoints
         staff.MapGet("/referrals", async (HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             var args = ctx.Request.Query;
-            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], args["unresolved"] == "true");
+            var query = ReferralSearch.Build(store.BusinessId, args["q"], args["status"], args["partner"], args["from"], args["to"], args["unresolved"] == "true", args["owner"]);
             var cursor = args["cursor"].FirstOrDefault();
             if (cursor?.Length > 16000) throw new ApiError(400, "The page token is invalid. Restart your search.");
             await store.AuditRead(Actor(ctx), "list-referrals", ct);

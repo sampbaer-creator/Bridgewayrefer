@@ -35,6 +35,6 @@ test("workspace admin can verify a card with a separate synthetic referral", asy
   await expect(page.locator("#test-referrals").getByText("card-code-a")).toBeVisible();
   await expect(page.getByText("It is excluded from the normal inbox, alerts, and reports.", { exact: false })).toBeVisible();
   await page.getByRole("link", { name: "Referrals", exact: true }).click();
-  await expect(page.getByText("No requests match these filters.")).toBeVisible();
+  await expect(page.getByText("No incoming referrals yet.")).toBeVisible();
 
 });

@@ -5,7 +5,7 @@ namespace BridgeWay.Api;
 
 public static class ReferralSearch
 {
-    public static QueryDefinition Build(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved)
+    public static QueryDefinition Build(string businessId, string? search, string? status, string? partner, string? from, string? to, bool unresolved, string? owner = null)
     {
         var text = "SELECT * FROM c WHERE c.businessId = @business AND c.type = 'referral' AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false)";
         var parameters = new Dictionary<string, object> { ["@business"] = businessId };
@@ -24,6 +24,12 @@ public static class ReferralSearch
         {
             if (partner.Length > 80) throw new ApiError(400, "Choose a valid partner.");
             text += " AND (c.partnerId = @partner OR c.doctorCode = @partner)"; parameters["@partner"] = partner;
+        }
+        if (!string.IsNullOrEmpty(owner))
+        {
+            if (owner.Length > 80) throw new ApiError(400, "Choose a valid staff member.");
+            if (owner == "unassigned") text += " AND (NOT IS_DEFINED(c.ownerId) OR IS_NULL(c.ownerId) OR c.ownerId = '')";
+            else { text += " AND c.ownerId = @owner"; parameters["@owner"] = owner; }
         }
         if (unresolved) text += " AND c.status NOT IN ('Completed', 'Won', 'Closed')";
         foreach (var (value, name, comparison) in new[] { (from, "@from", ">="), (to, "@to", "<") })

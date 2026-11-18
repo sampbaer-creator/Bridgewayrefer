@@ -16,6 +16,20 @@ public class AuditReadinessTests
         Assert.Equal("2026-02-01T00:00:00", query.GetQueryParameters().Single(p => p.Name == "@to").Value);
     }
 
+    [Fact]
+    public void ReferralAssigneeSearchBindsInputAndIncludesLegacyUnassignedRows()
+    {
+        var query = ReferralSearch.Build("business-a", null, null, null, null, null, false, "' OR true --");
+        Assert.Contains("c.ownerId = @owner", query.QueryText);
+        Assert.DoesNotContain("' OR true --", query.QueryText);
+        Assert.Equal("' OR true --", query.GetQueryParameters().Single(p => p.Name == "@owner").Value);
+        var unassigned = ReferralSearch.Build("business-a", null, null, null, null, null, false, "unassigned");
+        Assert.Contains("NOT IS_DEFINED(c.ownerId)", unassigned.QueryText);
+        Assert.Contains("IS_NULL(c.ownerId)", unassigned.QueryText);
+        Assert.Contains("c.ownerId = ''", unassigned.QueryText);
+        Assert.Throws<ApiError>(() => ReferralSearch.Build("business-a", null, null, null, null, null, false, new string('x', 81)));
+    }
+
     [Theory]
     [InlineData("2026-13-01", "2026-12-01")]
     [InlineData("2026-12-01", "2026-11-01")]

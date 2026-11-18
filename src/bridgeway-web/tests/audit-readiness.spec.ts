@@ -54,17 +54,26 @@ test("a walkthrough request needs no login and keeps its idempotency key after a
   expect(ids[0]).toBe(ids[1]);
 });
 
-test("server search and continuation pages retrieve historical referrals", async ({ page }) => {
+test("server search and continuation pages retrieve historical referrals", async ({ page }, testInfo) => {
   const old = { id: "ref-old", name: "Historical Patient", email: "fictional@example.invalid", phone: "8015550100", status: "Scheduled", createdAt: "2020-01-01T00:00:00Z", etag: "v1" };
+  let historyRequests = 0;
   await page.route("**/api/staff/**", async route => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/session")) return route.fulfill({ json: { businessId: "business-a", role: "Staff", businesses: [{ businessId: "business-a", name: "Fictional Practice", role: "Staff" }] } });
+    if (url.pathname.endsWith("/ref-old") && route.request().method() === "PATCH") {
+      expect(route.request().postDataJSON()).toMatchObject({ status: "Contacted", etag: "v1" });
+      old.status = "Contacted";
+      return route.fulfill({ json: { ok: true } });
+    }
     if (url.pathname.endsWith("/referrals")) {
       if (url.searchParams.get("q") === "Historical") return route.fulfill({ json: { referrals: [old], limited: false } });
       if (url.searchParams.get("cursor")) { expect(url.searchParams.get("cursor")).toBe("page-two"); return route.fulfill({ json: { referrals: [old], limited: false } }); }
       return route.fulfill({ json: { referrals: [], limited: true, nextCursor: "page-two" } });
     }
-    if (url.pathname.endsWith("/history")) return route.fulfill({ json: { history: [] } });
+    if (url.pathname.endsWith("/history")) {
+      historyRequests++;
+      return route.fulfill(historyRequests === 1 ? { status: 503, json: { error: "History temporarily unavailable" } } : { json: { history: [] } });
+    }
     if (url.pathname.endsWith("/follow-up")) {
       expect(route.request().postDataJSON()).toMatchObject({ nextAction: "Call patient", etag: "v1" });
       return route.fulfill({ json: { ok: true } });
@@ -72,6 +81,14 @@ test("server search and continuation pages retrieve historical referrals", async
     return route.fulfill({ json: { partners: [], offices: [], cards: [], members: [], name: "Fictional Practice", enabled: false, waiting: 0, retrying: 0 } });
   });
   await page.goto("/staff#inbox");
+  await page.locator(".staff-inbox-filters > summary").click();
+  const assignedSearch = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && new URL(response.url()).searchParams.get("owner") === "unassigned");
+  await page.locator("#owner-filter").selectOption("unassigned");
+  await assignedSearch;
+  await expect(page.locator("#owner-filter")).toHaveValue("unassigned");
+  const clearedSearch = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && !new URL(response.url()).search);
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await clearedSearch;
   await page.getByRole("button", { name: "Load more referrals" }).click();
   await expect(page.getByRole("heading", { name: old.name })).toBeVisible();
   await expect(page.getByText("Overdue", { exact: true })).toHaveCount(0);
@@ -80,6 +97,23 @@ test("server search and continuation pages retrieve historical referrals", async
   await searched;
   await expect(page.getByRole("heading", { name: old.name })).toBeVisible();
   await page.getByRole("button", { name: "Contact & history" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText("History temporarily unavailable");
+  await page.getByRole("button", { name: "Retry history" }).click();
+  await expect(page.getByText("No status changes yet.")).toBeVisible();
+  await expect(page.locator("#detail-status-ref-old")).toHaveValue("Scheduled");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("searchbox", { name: "Search" })).toHaveValue("Historical");
+  await page.getByRole("button", { name: "Contact & history" }).click();
+  await page.locator("#detail-status-ref-old").selectOption("Contacted");
+  await expect(page.locator("#detail-status-ref-old")).toHaveValue("Contacted");
+  await expect.poll(() => historyRequests).toBe(4);
+  await page.screenshot({ path: testInfo.outputPath("inbox-desktop.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: testInfo.outputPath("inbox-mobile.png") });
   await page.getByLabel("Next action", { exact: true }).fill("Call patient");
   await page.getByRole("button", { name: "Save follow-up" }).click();
 });
