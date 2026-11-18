@@ -1,5 +1,18 @@
 import { expect, test } from "@playwright/test";
 
+test("staff sign-in opens the provider chooser before starting authentication", async ({ page }) => {
+  await page.route("**/api/auth/providers", route => route.fulfill({ json: { google: true } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page.getByRole("link", { name: "Sign in with Microsoft" })).toHaveAttribute("href", "/staff/login?provider=microsoft");
+  await expect(page.getByRole("link", { name: "Sign in with Google" })).toHaveAttribute("href", "/staff/login?provider=google");
+  await page.goto("/staff/login");
+  await expect(page).toHaveURL(/\/sign-in$/);
+});
+
 test("the homepage has customer paths for both industries, pricing, and walkthroughs", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
@@ -15,6 +28,8 @@ test("the homepage has customer paths for both industries, pricing, and walkthro
   await expect(page.getByText("Book a demo", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Managed Calling", exact: true })).toBeVisible();
   await expect(page.getByText("400", { exact: true })).toBeVisible();
+  await page.getByText("View the follow-up checklist", { exact: true }).click();
+  await expect(page.getByText("Assign a staff member and set a follow-up deadline.")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 

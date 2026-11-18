@@ -3,17 +3,27 @@
 import { useEffect, useState } from "react";
 
 export default function GoogleSignIn({ signup = false, admin = false, outlined = false }: { signup?: boolean; admin?: boolean; outlined?: boolean }) {
-  const [available, setAvailable] = useState(false);
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [liveHref, setLiveHref] = useState("");
 
   useEffect(() => {
+    if (outlined && ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)) {
+      const plan = new URLSearchParams(window.location.search).get("plan");
+      const url = new URL(signup ? "/signup" : "/staff/login?provider=google", "https://bridgewayrefer.com");
+      if (signup && (plan === "workspace" || plan === "managed-calling")) url.searchParams.set("plan", plan);
+      setLiveHref(url.toString());
+    }
     const controller = new AbortController();
     fetch("/api/auth/providers", { signal: controller.signal })
       .then(response => response.ok ? response.json() : null)
       .then(providers => setAvailable(providers?.google === true))
-      .catch(() => {});
+      .catch(() => { if (!controller.signal.aborted) setAvailable(false); });
     return () => controller.abort();
-  }, []);
+  }, [outlined, signup]);
 
+  if (available === false && liveHref) {
+    return <ProviderButton provider="google" signup={signup} hrefOverride={liveHref} />;
+  }
   if (!available) return null;
 
   if (outlined) return <ProviderButton provider="google" signup={signup} />;
@@ -27,11 +37,11 @@ export default function GoogleSignIn({ signup = false, admin = false, outlined =
   );
 }
 
-export function ProviderButton({ provider, signup = false }: { provider: "microsoft" | "google"; signup?: boolean }) {
+export function ProviderButton({ provider, signup = false, hrefOverride }: { provider: "microsoft" | "google"; signup?: boolean; hrefOverride?: string }) {
   const query = new URLSearchParams();
   if (signup) query.set("flow", "signup");
-  if (provider === "google") query.set("provider", provider);
-  const href = query.size ? `/staff/login?${query}` : "/staff/login";
+  query.set("provider", provider);
+  const href = hrefOverride ?? `/staff/login?${query}`;
 
   return (
     <a className="bw-auth-provider" href={href}>

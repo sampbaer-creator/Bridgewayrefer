@@ -195,10 +195,7 @@ export default function Story() {
         <div className="bw-marquee-track">
           {Array.from({ length: 2 }).map((_, i) => (
             <span key={i}>
-              Tap → Scan → Refer → Follow up → Book the job → Tap → Scan → Refer → Follow up → Book the job → Tap →
-              Scan → Refer → Follow up → Book the job → Tap → Scan → Refer → Follow up → Book the job → Tap → Scan →
-              Refer → Follow up → Book the job → Tap → Scan → Refer → Follow up → Book the job → Tap → Scan → Refer →
-              Follow up → Book the job →&nbsp;
+              {"Saratoga Ortho  •  Kingwood Endo  •  Healthcare offices  •  Trades businesses  •  ".repeat(4).trimEnd()}&nbsp;
             </span>
           ))}
         </div>

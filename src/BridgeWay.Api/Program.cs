@@ -199,7 +199,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/health/cosmos", async (CosmosStore store, CancellationToken ct) =>
 {
     await store.Cards.ReadContainerAsync(cancellationToken: ct); await store.Operations.ReadContainerAsync(cancellationToken: ct);
-    return Results.Ok(new { status = "connected" });
+    return Results.Ok(new { status = "connected", revision = Environment.GetEnvironmentVariable("CONTAINER_APP_REVISION") });
 });
 app.MapGet("/admin/login", () => settings.IdentityConfigured
     ? Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + "/admin" }, [OpenIdConnectDefaults.AuthenticationScheme])

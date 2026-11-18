@@ -7,26 +7,30 @@
 /* No kit ground tile: the hero's own gradient is the ground, so the
    phone and card float directly on the page */
 .bw-look .ss-ground { display: none; }
-
-/* The stage is also a 3D window: phone leans toward the viewer-right,
-   the NFC card leans toward the viewer-left, so the pair reads as depth */
-.bw-look { perspective: 1600px; }
+.bw-look:has(.ss-stage[data-layout="compact"]) { perspective: 1600px; }
 
 .bwsc-phone {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%) rotateY(7deg) rotateX(1deg) translateZ(24px);
-  transform-origin: center;
+  transform: translateX(-50%);
   top: 4px;
   z-index: 1;
-  filter: drop-shadow(26px 40px 60px rgba(13, 35, 57, 0.28));
+  box-shadow: 26px 40px 60px rgba(13, 35, 57, 0.28);
+}
+
+/* Lay out the wide screen at its visible size so the browser can paint crisp text. */
+@supports (zoom: 1) {
+  [data-layout="wide"] .bwsc-phone .ss-phone__screen {
+    transform: none;
+    zoom: var(--ss-phone-scale);
+  }
 }
 
 [data-layout="compact"] .bwsc-phone {
-  right: auto;
-  left: 50%;
   transform: translateX(-50%) rotateY(4deg) translateZ(12px);
   top: 0;
+  box-shadow: revert-layer;
+  filter: drop-shadow(26px 40px 60px rgba(13, 35, 57, 0.28));
 }
 
 .bwsc-screen {

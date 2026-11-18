@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { api } from "../../lib/api";
 
 type FormState = "idle" | "busy" | "done" | "error";
@@ -32,8 +32,6 @@ async function sendDemoRequest(values: {
 export default function LeadCapture() {
   const [demoState, setDemoState] = useState<FormState>("idle");
   const [demoError, setDemoError] = useState("");
-  const [listState, setListState] = useState<FormState>("idle");
-  const [listError, setListError] = useState("");
 
   async function submitDemo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,25 +49,6 @@ export default function LeadCapture() {
     } catch (failure) {
       setDemoState("error");
       setDemoError(failure instanceof Error ? failure.message : "Could not send your request. Please try again.");
-    }
-  }
-
-  async function submitChecklist(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const values = new FormData(event.currentTarget);
-    setListState("busy");
-    setListError("");
-    try {
-      await sendDemoRequest({
-        name: String(values.get("name") || ""),
-        email: String(values.get("email") || ""),
-        businessName: "Referral follow-up checklist request",
-        consent: values.get("consent") === "on",
-      });
-      setListState("done");
-    } catch (failure) {
-      setListState("error");
-      setListError(failure instanceof Error ? failure.message : "Could not send your request. Please try again.");
     }
   }
 
@@ -127,45 +106,15 @@ export default function LeadCapture() {
                 <p className="bw-lead-fine">We reply within one business day.</p>
               </form>
             )}
-            {listState === "done" ? (
-              <p className="bw-lead-success" role="status">
-                Check your inbox for the checklist.
-              </p>
-            ) : (
-              <form className="bw-lead-form" onSubmit={submitChecklist} noValidate>
-                <label className="bw-sr-only" htmlFor="list-name">
-                  Your name
-                </label>
-                <input id="list-name" name="name" type="text" placeholder="Your name" autoComplete="name" maxLength={120} required />
-                <label className="bw-sr-only" htmlFor="list-email">
-                  Email for the checklist
-                </label>
-                <input
-                  id="list-email"
-                  name="email"
-                  type="email"
-                  placeholder="Email me the checklist"
-                  autoComplete="email"
-                  maxLength={254}
-                  required
-                />
-                <label className="bw-lead-consent">
-                  <input name="consent" type="checkbox" required />
-                  <span>One email with the checklist, nothing else.</span>
-                </label>
-                <button className="bw-btn bw-btn-ghost-light bw-btn-block" type="submit" disabled={listState === "busy"}>
-                  {listState === "busy" ? "Sending…" : "Get the checklist"} <span aria-hidden="true">→</span>
-                </button>
-                {listState === "error" && (
-                  <p className="bw-lead-error" role="alert">
-                    {listError}
-                  </p>
-                )}
-                <p className="bw-lead-fine">
-                  Free. One email.
-                </p>
-              </form>
-            )}
+            <details className="bw-lead-form">
+              <summary className="bw-btn bw-btn-ghost-light">View the follow-up checklist</summary>
+              <ol>
+                <li>Confirm the referral reached the right office.</li>
+                <li>Assign a staff member and set a follow-up deadline.</li>
+                <li>Contact the person using their preferred contact details.</li>
+                <li>Record the outcome and set the next action or close the referral.</li>
+              </ol>
+            </details>
           </div>
         </div>
       </section>

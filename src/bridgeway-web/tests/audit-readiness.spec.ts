@@ -72,7 +72,9 @@ test("server search and continuation pages retrieve historical referrals", async
     }
     if (url.pathname.endsWith("/history")) {
       historyRequests++;
-      return route.fulfill(historyRequests === 1 ? { status: 503, json: { error: "History temporarily unavailable" } } : { json: { history: [] } });
+      return route.fulfill(historyRequests === 1
+        ? { status: 503, json: { error: "History temporarily unavailable" } }
+        : { json: { history: [{ kind: "assignment", ownerName: "Intake team", changedAt: old.createdAt, actor: "staff" }] } });
     }
     if (url.pathname.endsWith("/follow-up")) {
       expect(route.request().postDataJSON()).toMatchObject({ nextAction: "Call patient", etag: "v1" });
@@ -81,17 +83,28 @@ test("server search and continuation pages retrieve historical referrals", async
     return route.fulfill({ json: { partners: [], offices: [], cards: [], members: [], name: "Fictional Practice", enabled: false, waiting: 0, retrying: 0 } });
   });
   await page.goto("/staff#inbox");
+  const mineSearch = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && new URL(response.url()).searchParams.get("owner") === "mine");
+  await page.getByRole("button", { name: "Assigned to me" }).click();
+  await mineSearch;
+  await expect(page.getByRole("button", { name: "Assigned to me" })).toHaveAttribute("aria-pressed", "true");
   await page.locator(".staff-inbox-filters > summary").click();
   const assignedSearch = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && new URL(response.url()).searchParams.get("owner") === "unassigned");
   await page.locator("#owner-filter").selectOption("unassigned");
   await assignedSearch;
   await expect(page.locator("#owner-filter")).toHaveValue("unassigned");
+  const dueSearch = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith("/referrals") && url.searchParams.get("owner") === "unassigned" && url.searchParams.get("due") === "today";
+  });
+  await page.getByLabel("Follow-up (Mountain Time)").selectOption("today");
+  await dueSearch;
+  await expect(page.getByText("Earliest deadline first.")).toBeVisible();
   const clearedSearch = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && !new URL(response.url()).search);
   await page.getByRole("button", { name: "Clear filters" }).click();
   await clearedSearch;
   await page.getByRole("button", { name: "Load more referrals" }).click();
   await expect(page.getByRole("heading", { name: old.name })).toBeVisible();
-  await expect(page.getByText("Overdue", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("table").getByText("Overdue", { exact: true })).toHaveCount(0);
   const searched = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && new URL(response.url()).searchParams.get("q") === "Historical");
   await page.getByRole("searchbox", { name: "Search" }).fill("Historical");
   await searched;
@@ -100,7 +113,7 @@ test("server search and continuation pages retrieve historical referrals", async
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByRole("dialog").getByRole("alert")).toContainText("History temporarily unavailable");
   await page.getByRole("button", { name: "Retry history" }).click();
-  await expect(page.getByText("No status changes yet.")).toBeVisible();
+  await expect(page.getByText("Assigned to Intake team", { exact: false })).toBeVisible();
   await expect(page.locator("#detail-status-ref-old")).toHaveValue("Scheduled");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -118,3 +131,35 @@ test("server search and continuation pages retrieve historical referrals", async
   await page.getByRole("button", { name: "Save follow-up" }).click();
 });
 
+
+
+test("a workspace invitation stays in the tab through sign-in and requires explicit acceptance", async ({ page }) => {
+  const token = "a".repeat(64);
+  let signedIn = false;
+  let accepts = 0;
+  await page.route("**/api/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/staff/session") return route.fulfill(signedIn
+      ? { json: { businesses: [] } }
+      : { status: 401, json: { error: "Please sign in." } });
+    if (path === "/api/invitations/accept") {
+      accepts++;
+      expect(route.request().postDataJSON()).toEqual({ workspace: "business-a", token });
+      return route.fulfill({ json: { businessId: "business-a" } });
+    }
+    return route.fulfill({ json: {} });
+  });
+  await page.goto("/staff#invite=" + token + "&workspace=business-a");
+  await expect(page.getByRole("heading", { name: "Workspace invitation" })).toBeVisible();
+  await expect(page).toHaveURL(/\/staff$/);
+  await page.getByRole("link", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  signedIn = true;
+  await page.goto("/staff");
+  await expect(page.getByRole("button", { name: "Accept invitation" })).toBeVisible();
+  expect(accepts).toBe(0);
+  await page.getByRole("button", { name: "Accept invitation" }).click();
+  await expect(page.getByRole("heading", { name: "Invitation required" })).toBeVisible();
+  expect(accepts).toBe(1);
+  expect(await page.evaluate(() => sessionStorage.getItem("bridgeway.staff-invite"))).toBeNull();
+});
