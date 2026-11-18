@@ -1,5 +1,5 @@
 # BridgeWay Refer Azure DevOps deployment pipeline.
-trigger:
+trigger: 
   branches:
     include:
       - main
