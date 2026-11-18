@@ -364,7 +364,7 @@ body:has(.staff-shell)>.site-header,body:has(.staff-shell)>.site-footer{display:
 button.secondary{border-color:var(--line);background:var(--offwhite);color:var(--ink)}
 button.secondary:hover{background:var(--pale)}
 button.primary{border-color:var(--accent);background:var(--accent);color:var(--navy)}
-button.primary:hover{border-color:var(--accent-strong);background:var(--accent-strong);color:#fff}
+button.primary:hover{border-color:var(--ink-blue);background:var(--ink-blue);color:#fff}
 #staff-error{color:#a6323e}
 .dashboard{max-width:1280px;padding:36px clamp(20px,4vw,48px) 24px}
 .dashboard-heading{margin-bottom:24px}

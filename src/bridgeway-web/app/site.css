@@ -177,9 +177,12 @@ body:has(.staff-shell) > .site-footer { display: none; }
 .bw-two-col article:first-child { border-top-color: var(--bw-accent); }
 
 /* ============ CTA band ============ */
-.bw-cta-band { background: linear-gradient(135deg, var(--bw-navy) 0%, var(--ink-blue) 62%, #0A3145 100%); color: var(--bw-offwhite); text-align: center; padding: clamp(3rem, 7vw, 5rem) 2rem; }
-.bw-cta-band h2 { color: #fff; max-width: 26ch; margin: 0.4rem auto 0; }
-.bw-cta-band p { color: var(--bw-offwhite); margin-top: 1rem; font-size: 1.05rem; }
+/* Matches the homepage closing card (.bw-lead-card) so industry pages end on the same brand treatment. */
+.bw-cta-band { max-width: 1200px; margin: 0 auto; position: relative; overflow: hidden; background: linear-gradient(135deg, var(--bw-blue) 0%, var(--bw-sky) 58%, var(--bw-pale) 100%); border-radius: 20px; box-shadow: var(--bw-shadow-lg); color: var(--ink); text-align: center; padding: clamp(3rem, 7vw, 5rem) 2rem; }
+.bw-cta-band::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(34rem 22rem at 108% -12%, rgba(72, 178, 230, 0.35), transparent 62%); }
+.bw-cta-band > * { position: relative; z-index: 1; }
+.bw-cta-band h2 { color: var(--navy); max-width: 26ch; margin: 0.4rem auto 0; }
+.bw-cta-band p { color: var(--ink); margin-top: 1rem; font-size: 1.05rem; }
 .bw-cta-band .bw-btn { margin-top: 2rem; }
 
 /* ============ Document pages (security, privacy, terms, 404) ============ */
@@ -246,6 +249,10 @@ body:has(.staff-shell) > .site-footer { display: none; }
 .bw-access-card h1, .bw-access-card h2 { font-size: 1.5rem; margin-top: 0.3rem; }
 .bw-access-card > p:last-child { color: var(--bw-muted); font-size: 0.9rem; margin-top: 1.2rem; }
 .bw-access-card .bw-btn { margin-top: 1.6rem; }
+/* Signup: one centered column sized for a lone form (about 560px), with the same page gutters as the other public pages. */
+.bw-signup-main { box-sizing: border-box; width: 100%; max-width: calc(560px + 4rem); margin: 0 auto; padding: clamp(2.5rem, 6vw, 4.5rem) 2rem clamp(3rem, 7vw, 5rem); }
+.bw-signup-main .bw-section-head { margin-bottom: clamp(1.6rem, 3vw, 2.2rem); }
+.bw-signup-main .bw-section-head .muted { margin-top: 0.8rem; line-height: 1.65; }
 .bw-signup-main h2 { font-size: 1.5rem; }
 .bw-signup-main > p { color: var(--bw-muted); font-size: 0.88rem; margin-top: 1rem; line-height: 1.65; }
 .bw-signup-main > p:first-of-type { margin-top: 1.4rem; }
@@ -341,5 +348,5 @@ body:has(.staff-shell) > .site-footer { display: none; }
   .bw-name-row { grid-template-columns: 1fr; }
   .site-footer nav { margin-left: 0; }
   .bw-page-hero, .bw-section { padding-left: 1.3rem; padding-right: 1.3rem; }
-  .bw-contact-grid, .bw-doc, .bw-access, .bw-intake { padding-left: 1.3rem; padding-right: 1.3rem; }
+  .bw-contact-grid, .bw-doc, .bw-access, .bw-intake, .bw-signup-main { padding-left: 1.3rem; padding-right: 1.3rem; }
 }

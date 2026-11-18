@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { api, ApiError, statuses, WORKSPACE_KEY, type Alerts, type Business, type Partner, type Referral, type ReferralHistory, type Report } from "../lib/api";
+import { api, ApiError, statuses, WORKSPACE_KEY, type Alerts, type Business, type Partner, type Referral, type ReferralHistory, type ReferralTotals, type Report } from "../lib/api";
 import FollowUpEditor from "./FollowUpEditor";
 import { isOverdue as overdueReferral } from "../lib/follow-up";
 import OfficeReport from "./OfficeReport";
@@ -42,6 +42,7 @@ export default function StaffDashboard() {
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [updated, setUpdated] = useState(""), [limited, setLimited] = useState(false), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
   const [detailId, setDetailId] = useState(""), [history, setHistory] = useState<Record<string, ReferralHistory[]>>({}), [qrCard, setQrCard] = useState<{ id: string; data: string } | null>(null), [inviteLink, setInviteLink] = useState("");
   const [nextCursor, setNextCursor] = useState<string | null>(null), [unresolvedOnly, setUnresolvedOnly] = useState(false);
+  const [totals, setTotals] = useState<ReferralTotals | null>(null), [attentionOnly, setAttentionOnly] = useState(false);
   const searchRef = useRef("");
   const [ownerFilter, setOwnerFilter] = useState("");
   const [historyError, setHistoryError] = useState("");
@@ -99,9 +100,9 @@ export default function StaffDashboard() {
         return;
       }
       const admin = auth.role === "Admin";
-      const inbox = await api<{ referrals: Referral[]; limited: boolean; nextCursor?: string }>("/api/staff/referrals" + (requestSearch ? "?" + requestSearch : ""), options);
+      const inbox = await api<{ referrals: Referral[]; limited: boolean; nextCursor?: string; totals?: ReferralTotals | null }>("/api/staff/referrals" + (requestSearch ? "?" + requestSearch : ""), options);
       if (!current()) return;
-      setReferrals(inbox.referrals); setLimited(inbox.limited); setNextCursor(inbox.nextCursor || null); setUpdated(new Date().toLocaleTimeString()); setError("");
+      setReferrals(inbox.referrals); setTotals(inbox.totals ?? null); setLimited(inbox.limited); setNextCursor(inbox.nextCursor || null); setUpdated(new Date().toLocaleTimeString()); setError("");
 
       const panelResults = await Promise.allSettled([
         api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }), admin ? api<{ referrals: TestReferral[]; limited: boolean }>("/api/staff/test-referrals", options) : Promise.resolve({ referrals: [], limited: false }),
@@ -157,6 +158,7 @@ export default function StaffDashboard() {
       if (fromDate) params.set("from", fromDate);
       if (toDate) params.set("to", toDate);
       if (unresolvedOnly) params.set("unresolved", "true");
+      if (attentionOnly) params.set("attention", "true");
       const next = params.toString();
       if (next === searchRef.current) return;
       searchRef.current = next; generation.current++; loading.current?.controller.abort();
@@ -164,6 +166,7 @@ export default function StaffDashboard() {
     }, 300);
     return () => clearTimeout(timer);
   }, [query, filter, partnerFilter, ownerFilter, fromDate, toDate, unresolvedOnly, refresh]);
+  }, [query, filter, partnerFilter, fromDate, toDate, unresolvedOnly, attentionOnly, refresh]);
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -197,6 +200,7 @@ export default function StaffDashboard() {
   function selectMonth(value: string) { if (value === selectedMonth.current) return; selectedMonth.current = value; generation.current++; loading.current?.controller.abort(); setMonth(value); }
   function selectWorkspace(value: string) {
     workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setTestReferrals([]); setTestReferralsLimited(false); setTestCardId(""); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId(""); historyRequest.current++; setHistoryError("");
+    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setTotals(null); setTestReferrals([]); setTestReferralsLimited(false); setTestCardId(""); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId("");
     if (value) localStorage.setItem(WORKSPACE_KEY, value); else localStorage.removeItem(WORKSPACE_KEY);
   }
   async function changeStatus(referral: Referral, status: string) {
@@ -313,6 +317,9 @@ export default function StaffDashboard() {
     const priority = (r: Referral) => ["Completed", "Won", "Closed"].includes(r.status) ? 3 : r.status === "New" ? 0 : !r.ownerId ? 1 : overdue(r) ? 2 : 3;
     return priority(a) - priority(b) || (priority(a) < 3 ? Date.parse(a.createdAt) - Date.parse(b.createdAt) : Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }), [referrals]);
+  // The API applies every filter and orders newest first; re-filtering or re-sorting here shuffled rows as pages loaded.
+  const filtered = referrals;
+  const needsAttentionTotal = totals?.needsAttention ?? null;
   const attentionReferrals = referrals.filter(referral =>
     !["Completed", "Won", "Closed"].includes(referral.status) &&
     (referral.status === "New" || !referral.ownerId || overdueReferral(referral))
@@ -347,6 +354,7 @@ export default function StaffDashboard() {
         <div className="staff-topbar-user">{platformAdmin && <a className="staff-admin-link" href="/admin">Platform admin</a>}</div>
       </header>
       <div className="staff-content">
+    <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {activeSection === "overview" && <>    <section className="staff-overview" id="overview" aria-labelledby="overview-title">
       <div className="staff-page-heading"><div><p className="eyebrow">YOUR WORKSPACE AT A GLANCE</p><h1 id="overview-title">Referral overview</h1><p>Track your referral activity and keep the next conversation moving.</p></div><div className="staff-overview-month"><label className="sr-only" htmlFor="overview-month">Overview month</label><select id="overview-month" value={month || selectedReport?.month || ""} onChange={e => selectMonth(e.target.value)} disabled={!report?.availableMonths?.length}>{!report?.availableMonths?.length && <option value="">Loading months…</option>}{report?.availableMonths?.map(value => <option key={value} value={value}>{new Date(value + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select></div></div>
       <div className="staff-overview-grid">
@@ -354,7 +362,7 @@ export default function StaffDashboard() {
           <article className="staff-overview-metric"><span>Card taps</span><strong>{selectedReport?.linkOpens ?? "—"}</strong></article>
           <article className="staff-overview-metric"><span>Forms received</span><strong>{selectedReport?.total ?? "—"}</strong></article>
           <article className="staff-overview-metric"><span>Completed outcomes</span><strong>{selectedReport?.outcomes ?? "—"}</strong></article>
-          <article className="staff-overview-metric"><span>Needs follow-up</span><strong>{attentionReferrals.length}</strong><small>Loaded referrals</small></article>
+          <article className="staff-overview-metric"><span>Needs follow-up</span><strong>{needsAttentionTotal ?? "—"}</strong><small>New, unassigned or overdue</small></article>
         </div>
         <section className="staff-activity-panel" aria-labelledby="staff-activity-title">
           <div className="staff-activity-heading"><h2 id="staff-activity-title">Monthly referral activity</h2><div className="staff-chart-legend"><span><i className="opens-key"/>Card taps</span><span><i className="forms-key"/>Forms received</span></div></div>
@@ -367,7 +375,7 @@ export default function StaffDashboard() {
         <section className="card staff-attention" aria-labelledby="staff-attention-title">
           <div className="staff-attention-heading">
             <h2 id="staff-attention-title">Needs attention</h2>
-            <span>{attentionReferrals.length}</span>
+            <span>{needsAttentionTotal ?? "—"}</span>
           </div>
           {attentionReferrals.length ? (
             <ul>{attentionReferrals.slice(0, 5).map(referral => (
@@ -379,11 +387,10 @@ export default function StaffDashboard() {
               </li>
             ))}</ul>
           ) : <p className="muted">No loaded referrals need follow-up.</p>}
-          <a href="#inbox">Open referral inbox →</a>
+          <a href="#inbox" onClick={() => { setFilter(""); setAttentionOnly(true); }}>Review referrals that need attention →</a>
         </section>
       </div>
     </section></>}
-    <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {!workspace ? <section className="workspace-empty">Choose a workspace to see its referrals.</section> : selectedBusiness?.signupPending ?
       <section className="card access-form">
         <h2>Finish setting up your subscription</h2>
@@ -405,6 +412,15 @@ export default function StaffDashboard() {
         <div className="referrals staff-referrals" id="referrals" aria-busy={refreshing}>
           {!filtered.length && <p className="empty">{session === "loading" || refreshing ? "Loading requests…" : query || filter || partnerFilter || ownerFilter || fromDate || toDate || unresolvedOnly ? "No referrals match. Clear filters or try another search." : "No incoming referrals yet."}</p>}
           {!!filtered.length && <div className="staff-referral-table-wrap"><table className="staff-referral-table"><thead><tr><th scope="col">Referral</th><th scope="col">Referring partner</th><th scope="col">Receiving location</th><th scope="col">Assigned staff</th><th scope="col">Status</th><th scope="col">Next action</th></tr></thead><tbody>{filtered.map(r => {
+      {activeSection === "inbox" &&       <section className="inbox-section" id="inbox" aria-labelledby="inbox-title"><div className="section-heading"><div><p className="eyebrow">TO FOLLOW UP</p><h2 id="inbox-title">Referral inbox</h2><p className="muted">Newest first.</p></div><div className="staff-inbox-heading-actions"><button className="secondary" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh inbox ↻"}</button></div></div>
+        <div className="metrics" role="group" aria-label="Filter referrals by status">{["", ...allowedStatuses].map(status => <button key={status} className="metric" aria-pressed={filter === status} aria-controls="referrals" onClick={() => setFilter(status)}>{status || "All referrals"}<b>{totals ? status ? totals.byStatus[status] ?? 0 : Object.values(totals.byStatus).reduce((sum, n) => sum + n, 0) : "—"}</b></button>)}</div>
+        <div className="staff-inbox-controls"><label className="staff-inbox-search" htmlFor="inbox-search">Search<input id="inbox-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Name, email, partner"/></label><details className="staff-inbox-filters"><summary>Filters <span>{filtered.length} shown{updated ? ` · Updated ${updated}` : ""}</span></summary><div className="staff-inbox-filter-content">
+        <div className="followup-toolbar"><label htmlFor="partner-filter">Partner<select id="partner-filter" value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)}><option value="">All partners</option>{partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label htmlFor="received-from">Received from (UTC)<input id="received-from" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}/></label><label htmlFor="received-to">Received to (UTC)<input id="received-to" type="date" value={toDate} onChange={e => setToDate(e.target.value)}/></label><label htmlFor="status-filter">Status<select id="status-filter" value={filter} onChange={e => setFilter(e.target.value)}><option value="">All statuses</option>{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></label><label className="check"><input type="checkbox" checked={unresolvedOnly} onChange={e => setUnresolvedOnly(e.target.checked)} />Unresolved only</label><label className="check"><input type="checkbox" checked={attentionOnly} onChange={e => setAttentionOnly(e.target.checked)} />Needs attention only</label></div>
+        </div></details></div>
+        {limited && <p className="notice">Showing {referrals.length} of {totals ? Object.values(totals.byStatus).reduce((sum, n) => sum + n, 0) : "more"} matching referrals. Load more below.</p>}
+        <div className="referrals staff-referrals" id="referrals">
+          {!filtered.length && <p className="empty">{session === "loading" ? "Loading requests…" : "No requests match these filters."}</p>}
+          {!!filtered.length && <div className="staff-referral-table-wrap"><table className="staff-referral-table"><thead><tr><th scope="col">Referral</th><th scope="col">Referring partner</th><th scope="col">Receiving location</th><th scope="col">Status</th><th scope="col">Next action</th></tr></thead><tbody>{filtered.map(r => {
             const isOverdue = overdueReferral(r);
             const needsFollowup = !["Completed", "Won", "Closed"].includes(r.status) && (r.status === "New" || !r.ownerId || isOverdue);
             const nextAction = ["Completed", "Won", "Closed"].includes(r.status) ? r.status : r.nextAction || (r.status === "New" ? "Contact within one business day" : r.status === "Contacted" ? "Agree on a next step" : r.status === "Scheduled" ? "Confirm the next step" : r.status);
