@@ -17,10 +17,26 @@ public class AuditReadinessTests
     }
 
     [Fact]
+    public void ReferralAssigneeSearchBindsInputAndIncludesLegacyUnassignedRows()
+    {
+        var query = ReferralSearch.Build("business-a", null, null, null, null, null, false, owner: "' OR true --");
+        Assert.Contains("c.ownerId = @owner", query.QueryText);
+        Assert.DoesNotContain("' OR true --", query.QueryText);
+        Assert.Equal("' OR true --", query.GetQueryParameters().Single(p => p.Name == "@owner").Value);
+        var unassigned = ReferralSearch.Build("business-a", null, null, null, null, null, false, owner: "unassigned");
+        Assert.Contains("NOT IS_DEFINED(c.ownerId)", unassigned.QueryText);
+        Assert.Contains("IS_NULL(c.ownerId)", unassigned.QueryText);
+        Assert.Contains("c.ownerId = ''", unassigned.QueryText);
+        Assert.Throws<ApiError>(() => ReferralSearch.Build("business-a", null, null, null, null, null, false, owner: new string('x', 81)));
+    }
+
+    [Fact]
     public void ReferralCountsIgnoreStatusAndShareTheListFilters()
     {
         var now = new DateTimeOffset(2026, 11, 18, 12, 0, 0, TimeSpan.Zero);
-        var counts = ReferralSearch.BuildStatusCounts("business-a", "' OR true --", "partner-a", null, null, true, true, now);
+        var counts = ReferralSearch.BuildStatusCounts("business-a", "' OR true --", "partner-a", null, null, true, true, now, owner: "staff-a");
+        Assert.Contains("c.ownerId = @owner", counts.QueryText);
+        Assert.Equal("staff-a", counts.GetQueryParameters().Single(p => p.Name == "@owner").Value);
         Assert.Contains("GROUP BY c.status", counts.QueryText);
         Assert.DoesNotContain("@status", counts.QueryText);
         Assert.DoesNotContain("' OR true --", counts.QueryText);

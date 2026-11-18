@@ -659,3 +659,17 @@ button.primary:hover{border-color:var(--ink-blue);background:var(--ink-blue);col
 @media (max-width: 700px) {
   .staff-shell :is(input, select, textarea), .dashboard :is(input, select, textarea) { font-size: 16px; }
 }
+
+/* Keep referral actions legible in the queue and the modal detail panel. */
+.staff-referral-table td[data-label="Assigned staff"] select { min-width: 10rem; max-width: 15rem; }
+.referral-detail-panel::backdrop { background: rgb(25 40 55 / 35%); }
+.staff-shell dialog.referral-detail-panel { border-radius: 0; border: 0; background: #fff; }
+.referral-detail-panel .staff-referral-actions { display: grid; gap: 1rem; }
+.referral-detail-panel .staff-referral-actions label { display: grid; gap: .4rem; }
+.referral-detail-panel .referral-history { margin-top: 1.5rem; }
+.referral-detail-panel .referral-history ol { padding-left: 1.25rem; }
+.referral-detail-panel .referral-history li { padding: .5rem 0; }
+@media (max-width: 640px) {
+  .staff-inbox-controls { flex-wrap: wrap; }
+  .staff-referral-table td[data-label="Assigned staff"] select { width: 100%; max-width: none; }
+}
