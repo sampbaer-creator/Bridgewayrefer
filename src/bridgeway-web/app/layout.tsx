@@ -1,16 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { PT_Serif } from "next/font/google";
 import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
 import Header from "../components/Header";
 import Analytics from "../components/Analytics";
 import "./globals.css";
-import "./staff.css";
-import "./landing.css";
-import "./site.css";
-
-const ptSerif = PT_Serif({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], display: "swap", variable: "--font-body" });
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
 
@@ -25,9 +19,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={ptSerif.variable}>
+      <body>
         <a className="skip-link" href="#main-content">Skip to content</a>
         <Header />
+        <Analytics />
         {children}
         <footer className="site-footer">
           <div className="footer-inner">
@@ -46,7 +41,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
           </div>
         </footer>
-        <Analytics />
       </body>
     </html>
   );

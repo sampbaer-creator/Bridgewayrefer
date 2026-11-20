@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useReducedMotion } from '../reduced-motion'
-import './Swap.css'
 
 /**
  * Text (or anything) replaced in place: the old fades out, the new fades in,

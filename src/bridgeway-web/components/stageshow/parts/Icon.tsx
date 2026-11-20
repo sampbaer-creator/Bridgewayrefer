@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react'
-import './Icon.css'
 import { Archive, ArrowRight, ArrowUpRight, Bell, Calendar, Check, ChevronDown, ChevronRight, Clock, CreditCard, Ellipsis, File, Globe, GripVertical, Heart, House, Lock, Mail, Pause, Play, Plus, ScanFace, Search, Send, Settings, Star, Trash2, User, Wifi, X, Zap } from 'lucide-react'
 
 // Glyphs come from lucide, one family at one construction, so a row of icons

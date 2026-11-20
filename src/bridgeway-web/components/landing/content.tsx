@@ -1,3 +1,4 @@
+import { planCopy } from "../../lib/plan-copy";
 /* Landing-page copy and icons, split from the page so each section
    component stays small and the content is easy to edit in one place. */
 
@@ -126,8 +127,8 @@ export const FAQS: [string, string][] = [
   ["Who can see our referrals?", "Only members of your workspace."],
   ["Is our customers' information secure?", "Referral details stay in your workspace, protected in transit and at rest. Our Security page has the details."],
   ["Can I cancel anytime?", "Yes. Manage or cancel your subscription from Billing in your workspace."],
-  ["Are NFC cards included?", "NFC cards are available with your plan. Order your first set or request replacements from your workspace."],
-  ["How do I add more offices?", "Add each location in your workspace at no extra cost, then request cards for it on the $50 monthly plan."],
+  ["Are NFC cards included?", planCopy.cards],
+  ["How do I add more offices?", "Add locations in your workspace, then request cards for the new location. Contact BridgeWay about pricing."],
 ];
 
 export const CHECK_ICON = (

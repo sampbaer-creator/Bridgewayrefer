@@ -11,11 +11,11 @@ export default function TradesIndustryPage() {
         <p className="muted">A plumber or property manager shares your BridgeWay card with a homeowner. They open a short form for your HVAC team, and the request arrives with its partner and location attached.</p>
         <div className="bw-hero-actions">
           <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started →</Link>
-          <Link className="bw-btn bw-btn-ghost" href="/#how-it-works">See the handoff</Link>
+          <Link className="bw-btn bw-btn-ghost" href="#referral-workflow">See the handoff</Link>
         </div>
       </section>
 
-      <section className="bw-section" aria-label="Home service referral workflow">
+      <section className="bw-section" id="referral-workflow" aria-label="Home service referral workflow">
         <div className="bw-flow" aria-label="Home service referral workflow">
           <div className="bw-flow-step"><span className="bw-flow-num">01</span><p className="hint">REFERRING PARTNER</p><p><b>Plumber or property manager</b></p><p className="muted">Shares a card assigned to the partner.</p></div>
           <span className="bw-flow-arrow" aria-hidden="true">→</span>

@@ -1,5 +1,4 @@
 import type { HTMLAttributes } from 'react'
-import './Draft.css'
 
 export interface DraftProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   /** The words typed so far. Drive it with act.type(). */

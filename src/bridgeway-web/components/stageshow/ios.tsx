@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import './ios.css'
 
 // The iOS 27 keyboard, at true points inside a Phone: the Liquid Glass sheet
 // with its predictive bar, softly rounded keys with wide gaps, special keys

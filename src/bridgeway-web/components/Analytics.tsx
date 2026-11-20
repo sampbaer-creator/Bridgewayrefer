@@ -1,9 +1,8 @@
 "use client";
 import { GoogleTagManager } from "@next/third-parties/google";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CONSENT_KEY, GTM_ID, browserOptedOut, isTrackedPath, readConsent, type Consent } from "../lib/analytics";
-import "./analytics.css";
 
 type Layer = { dataLayer?: unknown[]; __bwGtmLoaded?: boolean };
 
@@ -22,12 +21,23 @@ export default function Analytics() {
   const tracked = isTrackedPath(pathname);
   const [consent, setConsent] = useState<Consent | null | undefined>(undefined);
   const [loaded, setLoaded] = useState(false);
+  const banner = useRef<HTMLDivElement>(null);
+  const settingsControl = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (consent === null && settingsControl.current) banner.current?.focus();
+  }, [consent]);
 
   useEffect(() => { setConsent(browserOptedOut() ? "denied" : readConsent()); }, []);
 
   useEffect(() => {
     const reopen = (event: MouseEvent) => {
-      if ((event.target as Element | null)?.closest?.("[data-cookie-settings]")) { event.preventDefault(); setConsent(null); }
+      const control = (event.target as Element | null)?.closest<HTMLElement>("[data-cookie-settings]");
+      if (!control) return;
+      event.preventDefault();
+      settingsControl.current = control;
+      if (banner.current) banner.current.focus();
+      else setConsent(null);
     };
     document.addEventListener("click", reopen);
     return () => document.removeEventListener("click", reopen);
@@ -62,11 +72,13 @@ export default function Analytics() {
     try { localStorage.setItem(CONSENT_KEY, value); } catch { /* storage blocked: choice lasts for this page only */ }
     if (value === "denied" && loaded) { location.reload(); return; }
     setConsent(value);
+    settingsControl.current?.focus();
+    settingsControl.current = null;
   }
 
   return <>
     {loaded && <GoogleTagManager gtmId={GTM_ID} />}
-    {tracked && consent === null && <div className="cookie-banner" role="region" aria-label="Cookie choices">
+    {tracked && consent === null && <div className="cookie-banner" ref={banner} tabIndex={-1} role="region" aria-label="Cookie choices">
       <p>We use optional analytics cookies on our marketing pages to learn which pages are useful. They are never used in dashboards or referral forms. <a href="/privacy">Privacy notice</a></p>
       <div className="cookie-banner-actions">
         <button type="button" onClick={() => choose("denied")}>Decline</button>

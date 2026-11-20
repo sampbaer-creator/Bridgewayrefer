@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 import { useReducedMotion } from '../reduced-motion'
 import type { Rect } from '../measure'
-import './Expand.css'
 
 /**
  * A card that opens into a full screen: one element, never a swap. Closed, it

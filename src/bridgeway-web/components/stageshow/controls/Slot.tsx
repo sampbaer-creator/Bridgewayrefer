@@ -1,5 +1,4 @@
 import type { HTMLAttributes } from 'react'
-import './Slot.css'
 
 /**
  * A gap in a list that opens and closes, for moving a card between lists: the

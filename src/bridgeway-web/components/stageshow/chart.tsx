@@ -1,6 +1,5 @@
 import { useId, useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { useReducedMotion } from './reduced-motion'
-import './chart.css'
 
 // Charts drawn the way product dashboards draw them: a smooth line with a
 // soft area and an end dot, or rounded bars. They draw in when shown and

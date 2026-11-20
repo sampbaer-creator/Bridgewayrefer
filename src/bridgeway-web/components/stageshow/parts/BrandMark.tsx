@@ -1,7 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useLook } from '../looks'
 import { brandMarks, type BrandName, type BrandAsset } from '../brands'
-import './BrandMark.css'
 
 type CommonProps = {
   src?: string

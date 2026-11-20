@@ -1,23 +1,19 @@
 "use client";
 
 import { Stage, Phone, type Act } from "./stageshow";
-import "./hero-scene.css";
 
 // The BridgeWay hero: a partner's customer taps an NFC card, the referral
 // form fills, the request sends, and the practice's notification lands.
-// Poster = the payoff frame (sent + notification). Loop resets with a
-// cause: the "Start next referral" link closes the session.
+// The first and reduced-motion frames show the referral form.
 
 type S = {
   name: string;
   phone: string;
   sent: boolean;
   chip: boolean;
-  closing: boolean;
 };
 
-const INITIAL: S = { name: "", phone: "", sent: false, chip: false, closing: false };
-const POSTER: S = { name: "Maya Chen", phone: "(555) 210-4477", sent: true, chip: true, closing: false };
+const INITIAL: S = { name: "", phone: "", sent: false, chip: false };
 
 const REST = { wide: { x: 96, y: 448 }, compact: { x: 180, y: 430 } };
 
@@ -54,7 +50,7 @@ async function script(a: Act<S>) {
   a.mark("payoff");
   await a.wait(2100);
 
-  // Dismiss the notification, close the session, reset unseen
+  // Dismiss the notification and return to the empty referral form
   await a.move("chip");
   await a.wait(200);
   await a.click("chip");
@@ -63,8 +59,6 @@ async function script(a: Act<S>) {
   await a.move("close");
   await a.wait(200);
   await a.click("close");
-  a.put({ closing: true });
-  await a.wait(680);
   await a.snap({ name: "", phone: "", sent: false });
   await a.move(REST);
   await a.wait(420);
@@ -78,7 +72,7 @@ export default function HeroScene() {
       height={500}
       compact={{ below: 430, width: 358, height: 470 }}
       initial={INITIAL}
-      poster={POSTER}
+      poster={INITIAL}
       script={script}
       cursor={{ at: REST, style: "touch", ripple: true, idle: false }}
       theme="light"
@@ -108,7 +102,7 @@ export default function HeroScene() {
               time="9:41"
             >
               <div className="bwsc-screen" data-active={s.name || s.sent || undefined}>
-                <div className="bwsc-form" data-closing={s.closing || undefined}>
+                <div className="bwsc-form">
                   <span className="bwsc-kicker">Referral form</span>
                   <strong className="bwsc-title">Request a follow-up</strong>
 

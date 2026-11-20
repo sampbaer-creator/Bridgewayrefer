@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { Rect } from '../measure'
-import './Tooltip.css'
 
 /**
  * A small dark label naming the control under the cursor: centered on the

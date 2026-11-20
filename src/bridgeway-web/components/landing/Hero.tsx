@@ -1,3 +1,4 @@
+import { planCopy } from "../../lib/plan-copy";
 import Link from "next/link";
 import HeroScene from "../HeroScene";
 import { CHECK_ICON } from "./content";
@@ -35,7 +36,7 @@ export default function Hero() {
               </li>
             </ul>
             <p className="bw-price-note">
-              From <strong>$50</strong> per business, per month. All locations included.{" "}
+              From <strong>${planCopy.workspace.fromUsd}/month</strong>.{" "}
               <Link href="/pricing">See pricing</Link>.
             </p>
           </div>

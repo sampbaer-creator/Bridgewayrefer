@@ -2,7 +2,6 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { useReducedMotion } from '../reduced-motion'
 import type { Rect } from '../measure'
 import { warn } from '../util'
-import './Fly.css'
 
 export interface FlyProps {
   /** Where it starts and where it lands, in stage pixels (from `rect()`): the source element's own rect and the landing element's own rect, never a slot or wrapper around them. */

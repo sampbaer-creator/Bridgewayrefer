@@ -1,6 +1,5 @@
 import type { CSSProperties } from 'react'
 import { Avatar, type AvatarProps } from './Avatar'
-import './Facepile.css'
 
 /**
  * Overlapping avatars, each one cut out where the next sits on it: a real

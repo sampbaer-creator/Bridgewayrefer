@@ -1,3 +1,4 @@
+import { planCopy } from "../../lib/plan-copy";
 import Link from "next/link";
 import { FEATURES, PIPE_STEPS } from "./content";
 
@@ -33,11 +34,11 @@ export default function Story() {
           </div>
           <div className="bw-proof-item reveal">
             <strong>
-              <span className="count" data-count="50" data-prefix="$" data-suffix="/mo">
-                $50/mo
+              <span className="count" data-count={planCopy.workspace.fromUsd} data-prefix="$" data-suffix="/mo">
+                ${planCopy.workspace.fromUsd}/mo
               </span>
             </strong>
-            <span>Per location. Unlimited partners.</span>
+            <span>Starting monthly rate.</span>
           </div>
         </div>
       </section>

@@ -1,6 +1,4 @@
-// Components import their own CSS, so no separate style import is required.
-// Which unused styles are removed depends on the host bundler.
-// kit/stageshow.css explicitly loads every kit style up front.
+// BridgeWay loads the stage styles through app/globals.css.
 
 // The stage: the canvas, the script, the cursor, measuring and playback
 export { Stage } from './stage'

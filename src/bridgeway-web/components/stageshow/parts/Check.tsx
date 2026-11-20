@@ -1,5 +1,4 @@
 import type { HTMLAttributes } from 'react'
-import './Check.css'
 
 /**
  * A status circle. `pending` turns an arc inside the ring; `on` fills the

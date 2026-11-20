@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react'
-import './Meter.css'
 
 /**
  * A usage bar that fills to `value` (0 to 1) with an accent gradient. `tone`

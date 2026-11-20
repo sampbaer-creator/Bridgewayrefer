@@ -1,6 +1,5 @@
 import type { HTMLAttributes } from 'react'
 import { useLook } from '../looks'
-import './Avatar.css'
 
 export interface AvatarProps extends HTMLAttributes<HTMLSpanElement> {
   /** Its initial. Leave it out (or set `plain`) for a plain disc. */

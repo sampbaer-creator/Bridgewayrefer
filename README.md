@@ -78,6 +78,23 @@ Stripe settings are needed to test signup and checkout. SMTP settings are needed
 
 5. Open [http://localhost:3000](http://localhost:3000). Use `/admin` to create a business and issue a card link. Open the generated link in a browser to preview the customer form; no physical NFC card is needed.
 
+### Generated files and local cleanup
+
+| Path | What creates it | When to keep it |
+| --- | --- | --- |
+| `tests/BridgeWay.Api.Tests/bin/` | .NET builds and test runs | Keep for running compiled tests without rebuilding. A normal `dotnet test` rebuilds the DLLs. The same applies to other .NET `bin/` and `obj/` folders. |
+| `artifacts/`, `.playwright-mcp/`, `src/bridgeway-web/test-results/` | Builds and local browser tooling | Keep any screenshots, traces, or reports you still need. |
+| `playwright/.auth/` | Saved Playwright browser sessions | Keep only while you need the sessions. Treat these files like credentials. |
+| `src/bridgeway-web/.next/` | Next.js development and production builds | Stop Next.js before clearing it. Run the build again before using `npm run start`. |
+| `src/bridgeway-web/node_modules/` | npm dependency installation | Keep for local development and builds. Restore it with `npm ci` from `src/bridgeway-web`. |
+| `src/bridgeway-web/tsconfig.tsbuildinfo` | TypeScript incremental compilation | Keep for faster repeat checks. TypeScript regenerates it. |
+
+Git ignores these paths. The root `playwright/` directory can also hold test source, so limit cleanup there to `.auth/`. Keep the checked-in `scripts/` directory. It contains the local launcher, Cosmos DB initialization, and production deployment scripts.
+
+### Web styles
+
+The root layout loads [the shared stylesheet](src/bridgeway-web/app/globals.css). Add shared typography, palette, and focus rules to its base section. Keep route and component rules scoped to their own classes in the named sections below it.
+
 ## Usage
 
 ### Platform admin

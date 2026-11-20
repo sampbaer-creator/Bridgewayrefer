@@ -1,3 +1,4 @@
+import { planCopy } from "../../lib/plan-copy";
 import Link from "next/link";
 
 export default function Footer() {
@@ -16,6 +17,7 @@ export default function Footer() {
             <Link href="/security">Security</Link>
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
+            <button type="button" className="footer-cookie-settings" data-cookie-settings>Cookie settings</button>
           </nav>
           <p className="bw-footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
         </div>
@@ -24,8 +26,7 @@ export default function Footer() {
       {/* Sticky mobile CTA */}
       <div className="bw-sticky-cta" id="sticky-cta">
         <div className="bw-sticky-copy">
-          <strong>From $50/mo</strong>
-          <small>All locations included</small>
+          <strong>From ${planCopy.workspace.fromUsd}/mo</strong>
         </div>
         <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">
           Get started

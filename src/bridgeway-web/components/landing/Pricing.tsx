@@ -1,3 +1,4 @@
+import { planCopy } from "../../lib/plan-copy";
 import Link from "next/link";
 import { CHECK_ICON } from "./content";
 
@@ -10,23 +11,23 @@ export default function Pricing() {
             Simple plans, <span className="bw-accent">no per-referral fees.</span>
           </h2>
           <p className="bw-section-sub">
-            Every plan includes unlimited referrals and partners, plus your NFC cards.
+            Every plan includes unlimited referrals and partners. {planCopy.billing}
           </p>
         </div>
         <div className="bw-pricing-grid">
           <article className="bw-plan-card bw-plan-featured reveal">
             <div className="bw-plan-badge">Most popular</div>
-            <h3>Referral Workspace</h3>
+            <h3>{planCopy.workspace.name}</h3>
             <div className="bw-plan-price">
               <span className="bw-currency">$</span>
-              <strong>50</strong>
-              <span className="bw-per">/ business / month</span>
+              <strong>{planCopy.workspace.fromUsd}</strong>
+              <span className="bw-per">/ month and up</span>
             </div>
             <ul className="bw-plan-list">
               <li>{CHECK_ICON}Unlimited referrals</li>
               <li>{CHECK_ICON}Unlimited partners</li>
               <li>{CHECK_ICON}Branded referral forms</li>
-              <li>{CHECK_ICON}NFC cards for your partners</li>
+              <li>{CHECK_ICON}NFC card and QR link management</li>
               <li>{CHECK_ICON}Staff invites & alerts</li>
               <li>{CHECK_ICON}Monthly reports</li>
             </ul>
@@ -34,16 +35,16 @@ export default function Pricing() {
               Get started <span aria-hidden="true">→</span>
             </Link>
             <p className="bw-plan-note">
-              NFC cards for your partners. <Link href="/pricing">See pricing details</Link>.
+              {planCopy.cards} <Link href="/pricing">See pricing details</Link>.
             </p>
           </article>
           <article className="bw-plan-card reveal">
             <div className="bw-plan-badge bw-plan-badge-alt">Hands-off</div>
-            <h3>Managed Calling</h3>
+            <h3>{planCopy.managedCalling.name}</h3>
             <div className="bw-plan-price">
               <span className="bw-currency">$</span>
-              <strong>400</strong>
-              <span className="bw-per">/ business / month</span>
+              <strong>{planCopy.managedCalling.fromUsd}</strong>
+              <span className="bw-per">/ month and up</span>
             </div>
             <p className="bw-plan-qualifier">
               We call your referrals for you. Includes the full Referral Workspace.
@@ -70,7 +71,7 @@ export default function Pricing() {
             <ul className="bw-plan-list">
               <li>{CHECK_ICON}Volume pricing across locations</li>
               <li>{CHECK_ICON}Guided setup and onboarding</li>
-              <li>{CHECK_ICON}NFC cards for every location</li>
+              <li>{CHECK_ICON}Card routing by location</li>
             </ul>
             <Link className="bw-btn bw-btn-secondary bw-btn-block" href="/contact">
               Request a custom quote <span aria-hidden="true">→</span>

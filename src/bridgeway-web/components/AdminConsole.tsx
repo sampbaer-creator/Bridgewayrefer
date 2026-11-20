@@ -6,7 +6,6 @@ import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, 
 import GoogleSignIn from "./GoogleSignIn";
 import AdminStripeSubscription from "./AdminStripeSubscription";
 import PatientForm from "./PatientForm";
-import "./admin-console.css";
 import AccountMenu from "./AccountMenu";
 import { signOut, type Account } from "../lib/account";
 import { api, ApiError, type PublicConfig } from "../lib/api";

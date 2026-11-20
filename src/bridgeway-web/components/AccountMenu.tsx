@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
 import { initials, signOut, type Account } from "../lib/account";
-import "./account-menu.css";
 import type { Business } from "../lib/api";
 
 type Props = {
