@@ -28,11 +28,12 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound) { return null; }
     }
     public Task<JObject?> Read(string id, CancellationToken ct = default) => Read(Operations, id, BusinessKey, ct);
-    public async Task<JObject?> Card(string code, CancellationToken ct = default, bool requireActiveAssociations = false)
+    public async Task<JObject?> Card(string code, CancellationToken ct = default, bool requireActiveAssociations = false, string? expectedBusinessId = null)
     {
         var card = await Read(Cards, code, new PartitionKey(code), ct);
         if (string.IsNullOrWhiteSpace(card?.Value<string>("businessId"))) return null;
         var businessId = card.Value<string>("businessId")!;
+        if (expectedBusinessId is not null && !string.Equals(expectedBusinessId, businessId, StringComparison.Ordinal)) return null;
         var officeId = card.Value<string>("officeId"); var partnerId = card.Value<string>("partnerId");
         if (await Business(businessId, ct) is null) return null;
         // Imported cards and the legacy doctor endpoint did not create related records.
@@ -41,6 +42,7 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
         {
             var office = await Read(Operations, officeId, new PartitionKey(businessId), ct);
             if (!ValidCardReference(office, "office", legacy) || (requireActiveAssociations && (office?.Value<bool?>("active") != true || office.Value<string>("type") != "office"))) return null;
+            card["resolvedOfficeLogoUrl"] = office?.Value<string>("logoUrl");
             card["resolvedOfficeName"] = office?.Value<string>("name") ?? card.Value<string>("officeName");
         }
         if (partnerId is not null)

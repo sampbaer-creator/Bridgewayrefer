@@ -83,18 +83,11 @@ test("server search and continuation pages retrieve historical referrals", async
     return route.fulfill({ json: { partners: [], offices: [], cards: [], members: [], name: "Fictional Practice", enabled: false, waiting: 0, retrying: 0 } });
   });
   await page.goto("/staff#inbox");
-  const mineSearch = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && new URL(response.url()).searchParams.get("owner") === "mine");
-  await page.getByRole("button", { name: "Assigned to me" }).click();
-  await mineSearch;
-  await expect(page.getByRole("button", { name: "Assigned to me" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "All", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.locator(".staff-inbox-filters > summary").click();
-  const assignedSearch = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/referrals") && new URL(response.url()).searchParams.get("owner") === "unassigned");
-  await page.locator("#owner-filter").selectOption("unassigned");
-  await assignedSearch;
-  await expect(page.locator("#owner-filter")).toHaveValue("unassigned");
   const dueSearch = page.waitForResponse(response => {
     const url = new URL(response.url());
-    return url.pathname.endsWith("/referrals") && url.searchParams.get("owner") === "unassigned" && url.searchParams.get("due") === "today";
+    return url.pathname.endsWith("/referrals") && url.searchParams.get("due") === "today";
   });
   await page.getByLabel("Follow-up (Mountain Time)").selectOption("today");
   await dueSearch;
@@ -118,6 +111,10 @@ test("server search and continuation pages retrieve historical referrals", async
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("searchbox", { name: "Search" })).toHaveValue("Historical");
+  await page.getByRole("button", { name: "Unread", exact: true }).click();
+  await expect(page.getByRole("heading", { name: old.name })).toHaveCount(0);
+  await page.getByRole("button", { name: "Read", exact: true }).click();
+  await expect(page.getByRole("heading", { name: old.name })).toBeVisible();
   await page.getByRole("button", { name: "Contact & history" }).click();
   await page.locator("#detail-status-ref-old").selectOption("Contacted");
   await expect(page.locator("#detail-status-ref-old")).toHaveValue("Contacted");

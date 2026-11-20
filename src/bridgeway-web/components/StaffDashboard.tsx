@@ -1,22 +1,24 @@
 "use client";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { api, ApiError, statuses, WORKSPACE_KEY, type Alerts, type Business, type Partner, type Referral, type ReferralHistory, type ReferralTotals, type Report } from "../lib/api";
+import { api, ApiError, statuses, WORKSPACE_KEY, type Alerts, type Business, type Partner, type Referral, type ReferralHistory, type ReferralTotals, type Report, type PublicConfig } from "../lib/api";
 import FollowUpEditor from "./FollowUpEditor";
 import { isOverdue as overdueReferral } from "../lib/follow-up";
 import StaffInvitation from "./StaffInvitation";
 import OfficeReport from "./OfficeReport";
+import PatientForm from "./PatientForm";
 
-type Office = { id: string; name: string; active: boolean; etag: string };
+type Office = { logoUrl?: string; id: string; name: string; active: boolean; etag: string };
 type CardLink = { id: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; etag: string; url: string };
 type Member = { id: string; name: string; email: string; role: string; etag: string };
 type BusinessProfile = { name: string; officeName: string; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; accepting: boolean; suspended: boolean; alertEmail: string; billingStatus: string; monthlyPriceUsd: number; etag: string };
 type Billing = { plan?: string; amountUsd: number; interval: string; status: string; billingExempt: boolean; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; managedCallingConfigured?: boolean; testMode: boolean; customerLinked: boolean };
 type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string; etag: string };
 type Session = { businessId?: string | null; role: string; businesses: Business[] };
-type TestReferral = { id: string; name: string; partnerId: string; partnerName: string; officeId: string; cardId: string; status: string; createdAt: string; isTest: true };
 
 const NAV_ICONS: Record<string, string[]> = {
+  cards: ["M3 6h18v12H3z", "M7 14h4", "M15 9.5a3 3 0 0 1 0 5", "M18 8a6 6 0 0 1 0 8"],
+  settings: ["M4 6h10", "M18 6h2", "M4 12h4", "M12 12h8", "M4 18h12", "M20 18h0", "M16 4v4", "M10 10v4", "M18 16v4"],
   overview: ["M3 12 12 4l9 8", "M5 10v10h14V10"],
   inbox: ["M4 4h16v12h-5l-3 3-3-3H4z"],
   analytics: ["M4 20V10", "M10 20V4", "M16 20v-8", "M22 20H2"],
@@ -24,8 +26,6 @@ const NAV_ICONS: Record<string, string[]> = {
   management: ["M3 8h18v12H3z", "M3 12h18", "M8 4h8v4H8z"],
   access: ["M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M22 20v-2a4 4 0 0 0-3-3.9"],
   billing: ["M2 6h20v12H2z", "M2 10h20"],
-  cards: ["M3 6h18v12H3z", "M7 14h4", "M15 9.5a3 3 0 0 1 0 5", "M18 8a6 6 0 0 1 0 8"],
-  settings: ["M4 6h10", "M18 6h2", "M4 12h4", "M12 12h8", "M4 18h12", "M20 18h0", "M16 4v4", "M10 10v4", "M18 16v4"],
   admin: ["M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z", "M9 12l2 2 4-4"],
   signout: ["M9 4H4v16h5", "M16 8l4 4-4 4", "M20 12H9"],
 };
@@ -38,46 +38,41 @@ export default function StaffPage() {
 }
 
 function StaffDashboard() {
+  const [editingOffice, setEditingOffice] = useState("");
+  const [preview, setPreview] = useState<{ workspace: string; config: PublicConfig } | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]), [partners, setPartners] = useState<Partner[]>([]), [offices, setOffices] = useState<Office[]>([]), [cards, setCards] = useState<CardLink[]>([]), [members, setMembers] = useState<Member[]>([]);
-  const [testReferrals, setTestReferrals] = useState<TestReferral[]>([]), [testReferralsLimited, setTestReferralsLimited] = useState(false), [testCardId, setTestCardId] = useState("");
   const [businesses, setBusinesses] = useState<Business[]>([]), [profile, setProfile] = useState<BusinessProfile | null>(null), [billing, setBilling] = useState<Billing | null>(null), [invitations, setInvitations] = useState<Invitation[]>([]), [alerts, setAlerts] = useState<Alerts | null>(null), [report, setReport] = useState<Report | null>(null);
-  const [month, setMonth] = useState(""), [workspace, setWorkspace] = useState(""), [filter, setFilter] = useState(""), [partnerFilter, setPartnerFilter] = useState(""), [query, setQuery] = useState(""), [fromDate, setFromDate] = useState(""), [toDate, setToDate] = useState("");
+  const [month, setMonth] = useState(""), [workspace, setWorkspace] = useState(""), [partnerFilter, setPartnerFilter] = useState(""), [query, setQuery] = useState(""), [fromDate, setFromDate] = useState(""), [toDate, setToDate] = useState("");
   const [checkoutPlan, setCheckoutPlan] = useState<"workspace" | "managed-calling">("workspace");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
   const [platformAdmin, setPlatformAdmin] = useState(false);
-  const [error, setError] = useState(""), [notice, setNotice] = useState(""), [updated, setUpdated] = useState(""), [limited, setLimited] = useState(false), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(""), [notice, setNotice] = useState(""), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
   const [detailId, setDetailId] = useState(""), [history, setHistory] = useState<Record<string, ReferralHistory[]>>({}), [qrCard, setQrCard] = useState<{ id: string; data: string } | null>(null), [inviteLink, setInviteLink] = useState("");
   const [nextCursor, setNextCursor] = useState<string | null>(null), [unresolvedOnly, setUnresolvedOnly] = useState(false);
   const [totals, setTotals] = useState<ReferralTotals | null>(null), [attentionOnly, setAttentionOnly] = useState(false);
   const searchRef = useRef("");
   const [due, setDue] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState("");
+  const [readView, setReadView] = useState<"All" | "Unread" | "Read">("All");
+  const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
+  const readKey = workspace ? `bridgeway:referral-read:${workspace}` : "";
+
+  useEffect(() => {
+    try {
+      const saved: unknown = readKey ? JSON.parse(localStorage.getItem(readKey) ?? "[]") : [];
+      setReadIds(new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : []));
+    } catch {
+      setReadIds(new Set());
+    }
+  }, [readKey]);
   const [historyError, setHistoryError] = useState("");
   const historyRequest = useRef(0);
-  const setupSteps = useMemo(() => {
-    const subscriptionReady = !!billing && (billing.billingExempt || ["active", "trialing", "past_due"].includes(billing.status));
-    const locationReady = offices.some(office => office.active);
-    const partnerReady = partners.some(partner => partner.active);
-    const cardReady = cards.some(card => card.active && !!card.url && partners.some(partner => partner.active && partner.id === card.partnerId) && offices.some(office => office.active && office.id === card.officeId));
-    const testReferralReady = cards.some(card => card.active && testReferrals.some(test => test.cardId === card.id));
-    const intakeReady = !!profile?.accepting;
-    const steps: Array<{ label: string; complete: boolean; detail: string; href: string; action: string; testAction?: boolean }> = [
-      { label: "Confirm workspace access", complete: subscriptionReady, detail: subscriptionReady ? billing?.billingExempt ? "Pilot access approved" : `Subscription ${billing?.status}` : "An active subscription or approved pilot is required.", href: "#billing", action: subscriptionReady ? "Review billing" : "Continue to billing" },
-      { label: "Set up a receiving location", complete: locationReady, detail: locationReady ? "Active location is ready for referrals." : "Add the branch or practice that will receive referrals.", href: "#management", action: locationReady ? "Review location" : "Add location" },
-      { label: "Add a referring partner", complete: partnerReady, detail: partnerReady ? "An active partner can be assigned to a card." : "Add the business or person who will share the card.", href: "#management", action: partnerReady ? "Review partners" : "Add partner" },
-      { label: "Issue and check a card link", complete: cardReady, detail: cardReady ? "An active card link is available to preview, copy, or share as QR." : "Create a partner and location card link, then preview its form.", href: "#cards", action: cardReady ? "Review cards" : "Set up a card link" },
-      { label: "Verify a test referral", complete: testReferralReady, detail: testReferralReady ? "A synthetic referral is visible in the separate test list and excluded from normal reporting." : "Run an admin-only synthetic check. It does not change billing or intake and does not send an alert.", href: "#test-referrals", action: testReferralReady ? "Run another test" : "Run test referral", testAction: true },
-      { label: "Enable customer intake", complete: intakeReady, detail: intakeReady ? "Your card links can accept real referrals." : profile?.suspended ? "BridgeWay has paused this workspace. Contact support to reactivate it." : !subscriptionReady ? "Complete billing or confirm an approved pilot first." : !locationReady ? "Add an active receiving location first." : !partnerReady ? "Add an active referring partner first." : !cardReady ? "Issue an active card link first." : !profile?.acceptReferrals ? "Turn on referral requests in Business profile after testing." : "The platform intake switch is off. Contact BridgeWay to enable it.", href: profile?.suspended || !subscriptionReady ? "#billing" : !locationReady || !partnerReady ? "#management" : !cardReady ? "#cards" : "#settings", action: intakeReady ? "Review intake" : "Review prerequisites" },
-    ];
-    return steps;
-  }, [billing, cards, offices, partners, profile, testReferrals]);
   const analyticsLoaded = useRef({ workspace: "", month: "", at: 0 });
   const generation = useRef(0), stopped = useRef(false), selectedMonth = useRef(""), workspaceRef = useRef(""), loading = useRef<{ month: string; workspace: string; controller: AbortController } | null>(null);
 
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      stopped.current = true; generation.current++; loading.current?.controller.abort(); setReferrals([]); setTestReferrals([]); setTestReferralsLimited(false); setPartners([]); setOffices([]); setCards([]); setMembers([]); setReport(null); setAlerts(null); setHistory({}); setDetailId(""); historyRequest.current++; setSession(e.status === 401 ? "expired" : "denied");
+      stopped.current = true; generation.current++; loading.current?.controller.abort(); setReferrals([]); setPartners([]); setOffices([]); setCards([]); setMembers([]); setReport(null); setAlerts(null); setHistory({}); setDetailId(""); historyRequest.current++; setSession(e.status === 401 ? "expired" : "denied");
     } else setError(e instanceof Error ? e.message : "Service unavailable. Please try again.");
   }, []);
 
@@ -110,13 +105,13 @@ function StaffDashboard() {
       const admin = auth.role === "Admin";
       const inbox = await api<{ referrals: Referral[]; limited: boolean; nextCursor?: string; totals?: ReferralTotals | null }>("/api/staff/referrals" + (requestSearch ? "?" + requestSearch : ""), options);
       if (!current()) return;
-      setReferrals(inbox.referrals); setTotals(inbox.totals ?? null); setLimited(inbox.limited); setNextCursor(inbox.nextCursor || null); setUpdated(new Date().toLocaleTimeString()); setError("");
+      setReferrals(inbox.referrals); setTotals(inbox.totals ?? null); setNextCursor(inbox.nextCursor || null); setError("");
 
       const panelResults = await Promise.allSettled([
-        api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }), admin ? api<{ referrals: TestReferral[]; limited: boolean }>("/api/staff/test-referrals", options) : Promise.resolve({ referrals: [], limited: false }),
+        api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }),
       ]);
       if (!current()) return;
-      const [partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData, testReferralData] = panelResults;
+      const [partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData] = panelResults;
       if (partnerData.status === "fulfilled") setPartners(partnerData.value.partners);
       if (officeData.status === "fulfilled") setOffices(officeData.value.offices);
       if (cardData.status === "fulfilled") setCards(cardData.value.cards);
@@ -125,7 +120,6 @@ function StaffDashboard() {
       if (billingData.status === "fulfilled") { setBilling(billingData.value); setCheckoutPlan(billingData.value.plan === "managed-calling" ? "managed-calling" : "workspace"); }
       if (alertData.status === "fulfilled") setAlerts(alertData.value);
       if (inviteData.status === "fulfilled") setInvitations(inviteData.value.invitations);
-      if (testReferralData.status === "fulfilled") { setTestReferrals(testReferralData.value.referrals); setTestReferralsLimited(testReferralData.value.limited); }
       const panelError = panelResults.find(result => result.status === "rejected");
       if (panelError?.status === "rejected" && panelError.reason instanceof ApiError && (panelError.reason.status === 401 || panelError.reason.status === 403)) { handleError(panelError.reason); return; }
 
@@ -160,10 +154,8 @@ function StaffDashboard() {
     const timer = setTimeout(() => {
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
-      if (filter) params.set("status", filter);
       if (partnerFilter) params.set("partner", partnerFilter);
       if (due) params.set("due", due);
-      if (ownerFilter) params.set("owner", ownerFilter);
       if (fromDate) params.set("from", fromDate);
       if (toDate) params.set("to", toDate);
       if (unresolvedOnly) params.set("unresolved", "true");
@@ -174,7 +166,7 @@ function StaffDashboard() {
       setNextCursor(null); setReferrals([]); setTotals(null); void refresh(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [query, filter, partnerFilter, ownerFilter, due, fromDate, toDate, unresolvedOnly, attentionOnly, refresh]);
+  }, [query, partnerFilter, due, fromDate, toDate, unresolvedOnly, attentionOnly, refresh]);
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -191,7 +183,7 @@ function StaffDashboard() {
       const page = await api<{ referrals: Referral[]; nextCursor?: string; limited: boolean }>("/api/staff/referrals?" + params);
       if (requestWorkspace !== workspaceRef.current || requestSearch !== searchRef.current || requestGeneration !== generation.current) return;
       setReferrals(current => [...new Map([...current, ...page.referrals].map(row => [row.id, row])).values()]);
-      setNextCursor(page.nextCursor || null); setLimited(page.limited);
+      setNextCursor(page.nextCursor || null);
     } catch (failure) { if (requestWorkspace === workspaceRef.current && requestGeneration === generation.current) handleError(failure); }
     finally { setBusy(""); }
   }
@@ -207,7 +199,8 @@ function StaffDashboard() {
   }
   function selectMonth(value: string) { if (value === selectedMonth.current) return; selectedMonth.current = value; generation.current++; loading.current?.controller.abort(); setMonth(value); }
   function selectWorkspace(value: string) {
-    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setTotals(null); setTestReferrals([]); setTestReferralsLimited(false); setTestCardId(""); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId(""); historyRequest.current++; setHistoryError("");
+    setPreview(null); setEditingOffice("");
+    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setTotals(null); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId(""); historyRequest.current++; setHistoryError("");
     if (value) localStorage.setItem(WORKSPACE_KEY, value); else localStorage.removeItem(WORKSPACE_KEY);
   }
   async function changeStatus(referral: Referral, status: string) {
@@ -234,17 +227,52 @@ function StaffDashboard() {
     }
   }
   function showHistory(referralId: string) {
+    if (!readIds.has(referralId)) {
+      const next = new Set(readIds).add(referralId);
+      setReadIds(next);
+      try {
+        if (readKey) localStorage.setItem(readKey, JSON.stringify([...next]));
+      } catch {
+        // The current session can still track read referrals when storage is unavailable.
+      }
+    }
     setDetailId(referralId);
     void loadHistory(referralId);
   }
   function clearFilters() {
-    setQuery(""); setFilter(""); setPartnerFilter(""); setOwnerFilter(""); setDue(""); setFromDate(""); setToDate(""); setUnresolvedOnly(false); setAttentionOnly(false);
+    setQuery(""); setPartnerFilter(""); setDue(""); setFromDate(""); setToDate(""); setUnresolvedOnly(false); setAttentionOnly(false);
   }
   async function createPartner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; setBusy("partner"); setError("");
     try { await api("/api/staff/partners", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Partner added."); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
+  async function saveOfficeLogo(event: FormEvent<HTMLFormElement>, office: Office) {
+    event.preventDefault();
+    const logoUrl = new FormData(event.currentTarget).get("logoUrl");
+    setBusy("office-logo"); setError("");
+    try {
+      await api(`/api/staff/offices/${encodeURIComponent(office.id)}`, {
+        method: "PATCH", body: JSON.stringify({ logoUrl, etag: office.etag }),
+      });
+      setEditingOffice("");
+      await refresh();
+      setNotice("Office logo saved.");
+    } catch (e) { handleError(e); }
+    finally { setBusy(""); }
+  }
+
+  async function openPatientPreview(card: CardLink) {
+    const requestWorkspace = workspaceRef.current;
+    setBusy("patient-preview"); setError("");
+    try {
+      const config = await api<PublicConfig>(`/api/staff/cards/${encodeURIComponent(card.id)}/preview`);
+      if (requestWorkspace === workspaceRef.current) setPreview({ workspace: requestWorkspace, config });
+    } catch (e) {
+      if (requestWorkspace === workspaceRef.current) handleError(e);
+    } finally { setBusy(""); }
+  }
+
   async function createOffice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; setBusy("office"); setError("");
     try { await api("/api/staff/offices", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Office added."); }
@@ -272,15 +300,6 @@ function StaffDashboard() {
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function subscribe() { setBusy("billing"); setError(""); try { const response = await api<{ url: string }>("/api/staff/billing/checkout", { method: "POST", body: JSON.stringify({ plan: checkoutPlan }) }); window.location.assign(response.url); } catch (e) { handleError(e); setBusy(""); } }
-  async function runTestReferral(card: CardLink) {
-    setBusy("test-referral"); setError(""); setNotice("");
-    try {
-      const result = await api<{ ok: boolean; idempotent: boolean; referralId: string }>("/api/staff/test-referrals", { method: "POST", body: JSON.stringify({ cardCode: card.id, submissionId: crypto.randomUUID() }) });
-      setNotice(`Synthetic test referral ${result.idempotent ? "was already verified" : "created"} for ${card.partnerName} · ${card.officeName}. It is excluded from the normal inbox, alerts, and reports.`);
-      await refresh();
-    } catch (e) { handleError(e); }
-    finally { setBusy(""); }
-  }
   async function manageBilling() { setBusy("billing"); setError(""); try { const response = await api<{ url: string }>("/api/staff/billing/portal", { method: "POST", body: "{}" }); window.location.assign(response.url); } catch (e) { handleError(e); setBusy(""); } }
   async function makeQr(card: CardLink) { try { setQrCard({ id: card.id, data: await QRCode.toDataURL(card.url, { width: 320, margin: 1, errorCorrectionLevel: "M" }) }); } catch { setError("Could not create the QR code. Copy the link instead."); } }
   async function testAlert() { setBusy("alert"); setNotice(""); try { await api("/api/staff/alerts/test", { method: "POST", body: "{}" }); setNotice("Test alert queued."); } catch (e) { handleError(e); } finally { setBusy(""); } }
@@ -291,12 +310,16 @@ function StaffDashboard() {
   }
 
   const selectedBusiness = businesses.find(b => b.businessId === workspace), isAdmin = selectedBusiness?.role === "Admin";
-  const allowedStatuses = statuses;
+  const allowedStatuses = statuses.filter(status => status !== "Won" && status !== "Closed");
   useEffect(() => {
     function syncView() {
-      const section = window.location.hash.slice(1);
+      let section = window.location.hash.slice(1);
       const sharedViews = ["overview", "inbox", "management", "cards", "settings"];
-      const adminViews = ["office-report", "workspace-setup", "staff-access", "billing"];
+      const adminViews = ["office-report", "staff-access", "billing"];
+      if (section === "workspace-setup") {
+        section = "overview";
+        window.history.replaceState(window.history.state, "", "#overview");
+      }
       const target = section === "referrals" ? "inbox" : section;
       setActiveSection(sharedViews.includes(target) || (isAdmin && adminViews.includes(target)) ? target : "overview");
     }
@@ -319,27 +342,39 @@ function StaffDashboard() {
 
 
   const selectedReport = report && (report.month === month || !month) ? report : null;
-  // The API applies every filter and orders newest first; re-filtering or re-sorting here shuffled rows as pages loaded.
-  const filtered = referrals;
+  // Keep the server order while applying the browser's read history.
+  const filtered = readView === "All" ? referrals : referrals.filter(referral =>
+    readView === "Read" ? readIds.has(referral.id) : !readIds.has(referral.id) || detailId === referral.id
+  );
+  const hasFilters = Boolean(query.trim() || partnerFilter || due || fromDate || toDate || unresolvedOnly || attentionOnly);
   const needsAttentionTotal = totals?.needsAttention ?? null;
   const attentionReferrals = referrals.filter(referral =>
     !["Completed", "Won", "Closed"].includes(referral.status) &&
     (referral.status === "New" || !referral.ownerId || overdueReferral(referral))
   ).sort((a, b) => Number(overdueReferral(b)) - Number(overdueReferral(a)) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
-  const testableCards = cards.filter(card => card.active && partners.some(partner => partner.active && partner.id === card.partnerId) && offices.some(office => office.active && office.id === card.officeId));
-  const selectedTestCard = testableCards.find(card => card.id === testCardId) || testableCards[0];
+  if (session === "active" && preview?.workspace === workspace) return <>
+    <div className="bw-intake-header" role="region" aria-label="Preview controls">
+      <p><strong>Preview</strong> ? Submissions are disabled.</p>
+      <button className="secondary" autoFocus onClick={() => setPreview(null)}>Back to cards</button>
+    </div>
+    <PatientForm config={preview.config} preview />
+  </>;
   if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your session has ended. Sign in to continue." : "Your account does not have access to this workspace. Contact its administrator."}</p><a className="session-sign-in" href="/sign-in">Sign in</a></section></main>;
   if (session === "active" && !businesses.length) return <main className="dashboard" id="main-content"><section className="card no-workspace"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><p className="eyebrow">STAFF ACCESS</p><h1>Invitation required</h1><p className="muted">Ask your workspace administrator to invite the email you sign in with.</p><a className="session-sign-in" href="/sign-in">Try another sign-in</a></section></main>;
 
   return <main className="staff-shell" id="main-content" aria-busy={session === "loading" || refreshing}>
     <button className={`staff-sidebar-scrim${sidebarOpen ? " is-visible" : ""}`} aria-label="Dismiss navigation overlay" tabIndex={sidebarOpen ? 0 : -1} onClick={() => setSidebarOpen(false)} />
     <aside className={`staff-sidebar${sidebarOpen ? " is-open" : ""}`} aria-label="Staff workspace navigation">
-      <a className="staff-sidebar-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="BridgeWayRefer" width={196} height={64} /></a>
+      <a className="staff-sidebar-brand" href="/" aria-label="BridgeWayRefer home">
+        <picture>
+          <source media="(760px < width < 1024px)" srcSet="/brand-mark-square.png" width={256} height={256} />
+          <img src="/brand-logo.png" alt="BridgeWayRefer" width={1508} height={518} />
+        </picture>
+      </a>
       <nav className="staff-sidebar-nav" aria-label="Workspace sections">
         <a href="#overview" className={activeSection === "overview" ? "is-active" : undefined} aria-current={activeSection === "overview" ? "location" : undefined} aria-label="Overview" title="Overview" onClick={() => setSidebarOpen(false)}><NavIcon name="overview" /><span className="staff-nav-label">Overview</span></a>
         <a href="#inbox" className={activeSection === "inbox" ? "is-active" : undefined} aria-current={activeSection === "inbox" ? "location" : undefined} aria-label="Referral inbox" title="Referral inbox" onClick={() => setSidebarOpen(false)}><NavIcon name="inbox" /><span className="staff-nav-label">Referral inbox</span></a>
         {isAdmin && <a href="#office-report" className={activeSection === "office-report" ? "is-active" : undefined} aria-current={activeSection === "office-report" ? "location" : undefined} aria-label="Analytics" title="Analytics" onClick={() => setSidebarOpen(false)}><NavIcon name="analytics" /><span className="staff-nav-label">Analytics</span></a>}
-        {isAdmin && <a href="#workspace-setup" className={activeSection === "workspace-setup" ? "is-active" : undefined} aria-current={activeSection === "workspace-setup" ? "location" : undefined} aria-label="Setup" title="Setup" onClick={() => setSidebarOpen(false)}><NavIcon name="setup" /><span className="staff-nav-label">Setup</span></a>}
         <a href="#management" className={activeSection === "management" ? "is-active" : undefined} aria-current={activeSection === "management" ? "location" : undefined} aria-label="Partners and locations" title="Partners and locations" onClick={() => setSidebarOpen(false)}><NavIcon name="management" /><span className="staff-nav-label">Partners and locations</span></a>
         <a href="#cards" className={activeSection === "cards" ? "is-active" : undefined} aria-current={activeSection === "cards" ? "location" : undefined} aria-label="Cards" title="Cards" onClick={() => setSidebarOpen(false)}><NavIcon name="cards" /><span className="staff-nav-label">Cards</span></a>
         <a href="#settings" className={activeSection === "settings" ? "is-active" : undefined} aria-current={activeSection === "settings" ? "location" : undefined} aria-label="Settings" title="Settings" onClick={() => setSidebarOpen(false)}><NavIcon name="settings" /><span className="staff-nav-label">Settings</span></a>
@@ -369,7 +404,7 @@ function StaffDashboard() {
         <section className="staff-activity-panel" aria-labelledby="staff-activity-title">
           <div className="staff-activity-heading"><h2 id="staff-activity-title">Monthly referral activity</h2><div className="staff-chart-legend"><span><i className="opens-key"/>Card taps</span><span><i className="forms-key"/>Forms received</span></div></div>
           {!selectedReport ? <p className="staff-chart-empty" role="status">{session === "loading" || refreshing ? "Loading monthly activity…" : "Monthly activity is not available."}</p> : !selectedReport.trend?.length ? <p className="staff-chart-empty">No monthly activity to display.</p> : <><table className="sr-only"><caption>Monthly card taps and forms received</caption><thead><tr><th scope="col">Month</th><th scope="col">Card taps</th><th scope="col">Forms received</th></tr></thead><tbody>{selectedReport.trend.map(item => <tr key={item.month}><th scope="row">{new Date(item.month + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</th><td>{item.opens}</td><td>{item.total}</td></tr>)}</tbody></table><div className="staff-bar-chart" aria-hidden="true">
-            {selectedReport.trend?.map(item => { const peak = Math.max(1, ...selectedReport.trend.flatMap(row => [row.opens, row.total])); const label = new Date(item.month + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }); return <div className="staff-bar-month" key={item.month}>
+            {selectedReport.trend?.map(item => { const peak = Math.max(1, ...selectedReport.trend.flatMap(row => [row.opens, row.total])); const label = new Date(item.month + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }); return <div className="staff-bar-month" key={item.month} aria-label={`${label}: ${item.opens} opens, ${item.total} forms`}>
               <div className="staff-bars"><span className="staff-bar staff-bar-opens" style={{ height: `${Math.max(3, item.opens / peak * 100)}%` }} /><span className="staff-bar staff-bar-forms" style={{ height: `${Math.max(3, item.total / peak * 100)}%` }} /></div><span className="staff-bar-label">{label}</span>
             </div>; })}
           </div></>}
@@ -403,21 +438,59 @@ function StaffDashboard() {
         </div>
       </section> : <>
       {profile && !profile.accepting && <p className="notice">{profile.suspended ? "This workspace is paused by BridgeWay. Card taps show a closed form until it is reactivated." : !profile.acceptReferrals ? "Referral intake is turned off in the business profile in Settings." : "Referral intake opens once the subscription is active. Use Subscribe in the Billing section."}</p>}
-      {activeSection === "workspace-setup" && isAdmin && profile && <section className="card activation-card" id="workspace-setup" aria-label="Workspace activation"><div className="activation-heading"><div><p className="eyebrow">WORKSPACE SETUP</p><h2>{profile.accepting ? "Your referral intake is ready" : "Get ready for your first referral"}</h2><p>{profile.accepting ? "Your team can receive and follow up on attributed referrals." : "Complete each step in order. Your progress is saved as you set up the workspace."}</p></div><span className="activation-progress">{setupSteps.filter(step => step.complete).length} of {setupSteps.length} complete</span></div><progress aria-label="Setup progress" value={setupSteps.filter(step => step.complete).length} max={setupSteps.length} /><ol className="activation-steps" style={{ listStyle: "none", paddingInlineStart: 0 }}>{setupSteps.map((step, index) => <li key={step.label} className={step.complete ? "is-complete" : ""}><span className="activation-index" aria-hidden="true">{step.complete ? "✓" : String(index + 1).padStart(2, "0")}</span><div><strong>{step.label}</strong><p>{step.detail}</p></div>{step.testAction ? <div className="activation-test-action"><label htmlFor="test-referral-card">Test card<select id="test-referral-card" value={selectedTestCard?.id || ""} onChange={event => setTestCardId(event.target.value)} disabled={!testableCards.length}><option value="">{testableCards.length ? "Choose an active partner card" : "Set up an active partner card first"}</option>{testableCards.map(card => <option value={card.id} key={card.id}>{card.partnerName} · {card.officeName}</option>)}</select></label><button className="secondary" type="button" disabled={!selectedTestCard || busy === "test-referral"} onClick={() => selectedTestCard && void runTestReferral(selectedTestCard)}>{busy === "test-referral" ? "Checking…" : step.action}</button></div> : <a href={step.href}>{step.action}<span aria-hidden="true"> →</span></a>}</li>)}</ol><div className="activation-test-list" id="test-referrals"><h3>Isolated test referrals</h3><p>Synthetic records are visible here only. They do not enter the staff inbox, partner reports, alerts, billing, or intake.</p>{testReferralsLimited && <p className="notice">Showing the latest 200 test referrals.</p>}{testReferrals.length ? <ul>{testReferrals.map(test => <li key={test.id}><strong>{test.partnerName || "Direct referral"}</strong><span>{test.officeId} · {test.cardId} · {new Date(test.createdAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT</span></li>)}</ul> : <p className="muted">No test referrals yet.</p>}</div><p className="activation-footnote">Need physical NFC cards? <a href="/contact">Request a card quote</a>.</p></section>}
-      {activeSection === "inbox" &&       <section className="inbox-section" id="inbox" aria-labelledby="inbox-title"><div className="section-heading"><div><p className="eyebrow">TO FOLLOW UP</p><h2 id="inbox-title">Referral inbox</h2><p className="muted">{due ? "Earliest deadline first." : "Newest first."}</p></div><div className="staff-inbox-heading-actions"><button className="secondary" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : <>Refresh inbox<span aria-hidden="true"> ↻</span></>}</button></div></div>
-        <div className="staff-inbox-views" role="group" aria-label="Filter referrals by assignment">
-          {[{ value: "", label: "All referrals" }, { value: "mine", label: "Assigned to me" }, { value: "unassigned", label: "Unassigned" }].map(view => (
-            <button key={view.value} type="button" className="secondary" aria-pressed={ownerFilter === view.value} aria-controls="referrals" onClick={() => setOwnerFilter(view.value)}>{view.label}</button>
+      {activeSection === "inbox" && <section className="inbox-section" id="inbox" aria-labelledby="inbox-title">
+        <div className="staff-inbox-header">
+          <div>
+            <h2 id="inbox-title">Referral inbox</h2>
+            <p>{due ? "Earliest deadline first." : "Newest first."}</p>
+          </div>
+          <button className="staff-inbox-text-button" type="button" onClick={() => void refresh()} disabled={refreshing}>
+            {refreshing ? "Refreshing…" : "Refresh inbox"}
+          </button>
+        </div>
+        <div className="staff-inbox-views" role="group" aria-label="Filter by read status">
+          {(["All", "Unread", "Read"] as const).map(view => (
+            <button key={view} type="button" className="staff-inbox-text-button" aria-pressed={readView === view}
+              aria-controls="referrals" onClick={() => setReadView(view)}>{view}</button>
           ))}
         </div>
-        <div className="metrics" role="group" aria-label="Filter referrals by status">{["", ...allowedStatuses].map(status => <button key={status} className="metric" aria-pressed={filter === status} aria-controls="referrals" onClick={() => setFilter(status)}>{status || "All statuses"}<b>{totals ? status ? totals.byStatus[status] ?? 0 : Object.values(totals.byStatus).reduce((sum, n) => sum + n, 0) : "—"}</b></button>)}</div>
-        <div className="staff-inbox-controls"><label className="staff-inbox-deadline" htmlFor="due-filter">Follow-up (Mountain Time)<select id="due-filter" value={due} onChange={e => setDue(e.target.value)}><option value="">Any deadline</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="upcoming">Upcoming</option></select></label><label className="staff-inbox-search" htmlFor="inbox-search">Search<input id="inbox-search" type="search" value={query} onChange={e => setQuery(e.target.value)} maxLength={120} placeholder="Name, email, phone or partner"/></label><details className="staff-inbox-filters"><summary>Filters <span>{filtered.length} shown{updated ? ` · Updated ${updated}` : ""}</span></summary><div className="staff-inbox-filter-content">
-        <div className="followup-toolbar"><label htmlFor="partner-filter">Partner<select id="partner-filter" value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)}><option value="">All partners</option>{partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label htmlFor="owner-filter">Assigned staff<select id="owner-filter" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}><option value="">All staff</option><option value="mine">Assigned to me</option><option value="unassigned">Unassigned</option>{members.map(m => <option value={m.id} key={m.id}>{m.name}</option>)}</select></label><label htmlFor="received-from">Received from (UTC)<input id="received-from" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}/></label><label htmlFor="received-to">Received to (UTC)<input id="received-to" type="date" value={toDate} onChange={e => setToDate(e.target.value)}/></label><label htmlFor="status-filter">Status<select id="status-filter" value={filter} onChange={e => setFilter(e.target.value)}><option value="">All statuses</option>{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></label><label className="check"><input type="checkbox" checked={unresolvedOnly} onChange={e => setUnresolvedOnly(e.target.checked)} />Unresolved only</label><label className="check"><input type="checkbox" checked={attentionOnly} onChange={e => setAttentionOnly(e.target.checked)} />Needs attention only</label></div>
-        </div></details><button className="secondary" onClick={clearFilters} disabled={!query && !filter && !partnerFilter && !ownerFilter && !due && !fromDate && !toDate && !unresolvedOnly && !attentionOnly}>Clear filters</button></div>
-        {limited && <p className="notice">{totals ? `Showing ${referrals.length} of ${filter ? totals.byStatus[filter] ?? 0 : Object.values(totals.byStatus).reduce((sum, count) => sum + count, 0)} matching referrals.` : "More referrals match this search."} Load more below.</p>}
-        <p className="muted" role="status">{refreshing ? "Updating inbox..." : `${filtered.length} loaded referrals shown`}</p>
+        <div className="staff-inbox-controls">
+          <label className="staff-inbox-search" htmlFor="inbox-search">
+            Search
+            <input id="inbox-search" type="search" value={query} onChange={e => setQuery(e.target.value)}
+              maxLength={120} placeholder="Name, email, phone or partner" />
+          </label>
+          <details className="staff-inbox-filters">
+            <summary>Filters</summary>
+            <div className="followup-toolbar">
+              <label htmlFor="due-filter">Follow-up (Mountain Time)
+                <select id="due-filter" value={due} onChange={e => setDue(e.target.value)}>
+                  <option value="">Any deadline</option><option value="overdue">Overdue</option>
+                  <option value="today">Due today</option><option value="upcoming">Upcoming</option>
+                </select>
+              </label>
+              <label htmlFor="partner-filter">Partner
+                <select id="partner-filter" value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)}>
+                  <option value="">All partners</option>
+                  {partners.map(partner => <option key={partner.id} value={partner.id}>{partner.name}</option>)}
+                </select>
+              </label>
+              <label htmlFor="received-from">Received from (UTC)<input id="received-from" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} /></label>
+              <label htmlFor="received-to">Received to (UTC)<input id="received-to" type="date" value={toDate} onChange={e => setToDate(e.target.value)} /></label>
+              <label className="check"><input type="checkbox" checked={unresolvedOnly} onChange={e => setUnresolvedOnly(e.target.checked)} />Unresolved only</label>
+              <label className="check"><input type="checkbox" checked={attentionOnly} onChange={e => setAttentionOnly(e.target.checked)} />Needs attention only</label>
+            </div>
+          </details>
+          {hasFilters && <button type="button" className="staff-inbox-text-button" onClick={clearFilters}>Clear filters</button>}
+        </div>
         <div className="referrals staff-referrals" id="referrals" aria-busy={refreshing}>
-          {!filtered.length && <p className="empty">{session === "loading" || refreshing ? "Loading requests…" : query || filter || partnerFilter || ownerFilter || due || fromDate || toDate || unresolvedOnly || attentionOnly ? "No referrals match. Clear filters or try another search." : "No incoming referrals yet."}</p>}
+          {!filtered.length && !error && <p className="empty" role="status">{
+            session === "loading" || refreshing ? "Loading referrals…" :
+            nextCursor ? "No matching referrals on the loaded pages." :
+            hasFilters ? "No referrals match these filters." :
+            readView === "Unread" ? "You're caught up. No unread referrals." :
+            readView === "Read" ? "No read referrals yet." : "No incoming referrals yet."
+          }</p>}
           {!!filtered.length && <div className="staff-referral-table-wrap"><table className="staff-referral-table"><thead><tr><th scope="col">Referral</th><th scope="col">Referring partner</th><th scope="col">Receiving location</th><th scope="col">Assigned staff</th><th scope="col">Status</th><th scope="col">Next action</th></tr></thead><tbody>{filtered.map(r => {
             const isOverdue = overdueReferral(r);
             const needsFollowup = !["Completed", "Won", "Closed"].includes(r.status) && (r.status === "New" || !r.ownerId || isOverdue);
@@ -425,8 +498,8 @@ function StaffDashboard() {
             const displayName = r.firstName || r.lastName ? [r.firstName, r.lastName].filter(Boolean).join(" ") : r.name;
             const receivingLocation = cards.find(card => card.id === (r.cardId || r.doctorCode))?.officeName || r.doctorName || "Direct request";
             return <Fragment key={r.id}>
-              <tr className="staff-referral-primary-row"><th scope="row"><h3 className="staff-referral-name">{displayName}</h3>{needsFollowup && <span className={`staff-badge${isOverdue ? " is-overdue" : ""}`}>{isOverdue ? "Overdue" : r.status === "New" ? "New" : "Unassigned"}</span>}<small className="staff-referral-meta">{new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Denver" })}{r.ownerName ? ` · ${r.ownerName}` : ""}</small><button className="staff-inline-detail-toggle" aria-expanded={detailId === r.id} onClick={() => void showHistory(r.id)}>Contact &amp; history</button></th><td data-label="Partner">{r.partnerName || "Direct request"}</td><td data-label="Location">{receivingLocation}</td><td data-label="Assigned staff"><label className="sr-only" htmlFor={`queue-owner-${r.id}`}>Assigned staff for {displayName}</label><select id={`queue-owner-${r.id}`} value={r.ownerId || ""} disabled={!!busy || refreshing} onChange={e => void assign(r, members.find(m => m.id === e.target.value))}><option value="">Unassigned</option>{r.ownerId && !members.some(m => m.id === r.ownerId) && <option value={r.ownerId}>{r.ownerName || "Former staff member"}</option>}{members.map(m => <option value={m.id} key={m.id}>{m.name}</option>)}</select></td><td data-label="Status"><label className="sr-only" htmlFor={`status-${r.id}`}>Status for {displayName}</label><select id={`status-${r.id}`} className="staff-referral-status" value={r.status} disabled={!!busy || refreshing} onChange={e => void changeStatus(r, e.target.value)}>{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></td><td data-label="Next action"><div>{nextAction}{r.nextActionAt && <small className="staff-referral-meta"><time dateTime={r.nextActionAt}>{new Date(r.nextActionAt).toLocaleString("en-US", { timeZone: "America/Denver", timeZoneName: "short" })}</time></small>}</div></td></tr>
-              {detailId === r.id && <tr className="staff-referral-detail-row"><td colSpan={6}><dialog aria-labelledby="referral-detail-title" ref={node => { if (node && !node.open) node.showModal(); }} onCancel={() => setDetailId("")} style={{ position: "fixed", inset: "0 0 0 auto", margin: 0, width: "min(100%, 32rem)", maxHeight: "100dvh", height: "100dvh", padding: "1.5rem", overflowY: "auto" }} className="card referral-detail-panel"><button autoFocus className="secondary" type="button" onClick={() => setDetailId("")}>Close details</button><h2 id="referral-detail-title">{displayName}</h2><div className="staff-referral-details"><div className="staff-referral-contact"><a href={"mailto:" + encodeURIComponent(r.email)}>{r.email}</a><a href={"tel:" + r.phone.replace(/[^+\d]/g, "")}>{r.phone}</a><span>Received {new Date(r.createdAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT</span>{r.serviceType && <span>{r.serviceType}</span>}{r.postalCode && <span>{r.postalCode}</span>}</div><div className="staff-referral-actions">{needsFollowup && <span className="referral-priority">{isOverdue ? "Overdue" : r.status === "New" ? "New request" : "Unassigned"}</span>}<span className="next-action">Next: {nextAction}</span><label htmlFor={`detail-status-${r.id}`}>Status<select id={`detail-status-${r.id}`} value={r.status} disabled={!!busy || refreshing} onChange={e => void changeStatus(r, e.target.value)}>{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></label><label htmlFor={`owner-${r.id}`}>Owner<select id={`owner-${r.id}`} value={r.ownerId || ""} disabled={!!busy || refreshing} onChange={e => void assign(r, members.find(m => m.id === e.target.value))}><option value="">Unassigned</option>{r.ownerId && !members.some(m => m.id === r.ownerId) && <option value={r.ownerId}>{r.ownerName || "Former staff member"}</option>}{members.map(m => <option value={m.id} key={m.id}>{m.name}</option>)}</select></label></div></div>
+              <tr className="staff-referral-primary-row"><th scope="row"><h3 className="staff-referral-name">{displayName}</h3>{!readIds.has(r.id) && <span className="staff-inbox-unread">Unread</span>}{needsFollowup && <span className={`staff-badge${isOverdue ? " is-overdue" : ""}`}>{isOverdue ? "Overdue" : r.status === "New" ? "New" : "Unassigned"}</span>}<small className="staff-referral-meta">{new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Denver" })}{r.ownerName ? ` · ${r.ownerName}` : ""}</small><button className="staff-inline-detail-toggle" aria-expanded={detailId === r.id} onClick={() => void showHistory(r.id)}>Contact &amp; history</button></th><td data-label="Partner">{r.partnerName || "Direct request"}</td><td data-label="Location">{receivingLocation}</td><td data-label="Assigned staff"><label className="sr-only" htmlFor={`queue-owner-${r.id}`}>Assigned staff for {displayName}</label><select id={`queue-owner-${r.id}`} value={r.ownerId || ""} disabled={!!busy || refreshing} onChange={e => void assign(r, members.find(m => m.id === e.target.value))}><option value="">Unassigned</option>{r.ownerId && !members.some(m => m.id === r.ownerId) && <option value={r.ownerId}>{r.ownerName || "Former staff member"}</option>}{members.map(m => <option value={m.id} key={m.id}>{m.name}</option>)}</select></td><td data-label="Status"><label className="sr-only" htmlFor={`status-${r.id}`}>Status for {displayName}</label><select id={`status-${r.id}`} className="staff-referral-status" value={r.status} disabled={!!busy || refreshing} onChange={e => void changeStatus(r, e.target.value)}>{!allowedStatuses.some(status => status === r.status) && <option disabled>{r.status}</option>}{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></td><td data-label="Next action"><div>{nextAction}{r.nextActionAt && <small className="staff-referral-meta"><time dateTime={r.nextActionAt}>{new Date(r.nextActionAt).toLocaleString("en-US", { timeZone: "America/Denver", timeZoneName: "short" })}</time></small>}</div></td></tr>
+              {detailId === r.id && <tr className="staff-referral-detail-row"><td colSpan={6}><dialog aria-labelledby="referral-detail-title" ref={node => { if (node && !node.open) node.showModal(); }} onCancel={() => setDetailId("")} style={{ position: "fixed", inset: "0 0 0 auto", margin: 0, width: "min(100%, 32rem)", maxHeight: "100dvh", height: "100dvh", padding: "1.5rem", overflowY: "auto" }} className="card referral-detail-panel"><button autoFocus className="secondary" type="button" onClick={() => setDetailId("")}>Close details</button><h2 id="referral-detail-title">{displayName}</h2><div className="staff-referral-details"><div className="staff-referral-contact"><a href={"mailto:" + encodeURIComponent(r.email)}>{r.email}</a><a href={"tel:" + r.phone.replace(/[^+\d]/g, "")}>{r.phone}</a><span>Received {new Date(r.createdAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT</span>{r.serviceType && <span>{r.serviceType}</span>}{r.postalCode && <span>{r.postalCode}</span>}</div><div className="staff-referral-actions">{needsFollowup && <span className="referral-priority">{isOverdue ? "Overdue" : r.status === "New" ? "New request" : "Unassigned"}</span>}<span className="next-action">Next: {nextAction}</span><label htmlFor={`detail-status-${r.id}`}>Status<select id={`detail-status-${r.id}`} value={r.status} disabled={!!busy || refreshing} onChange={e => void changeStatus(r, e.target.value)}>{!allowedStatuses.some(status => status === r.status) && <option disabled>{r.status}</option>}{allowedStatuses.map(s => <option key={s}>{s}</option>)}</select></label><label htmlFor={`owner-${r.id}`}>Owner<select id={`owner-${r.id}`} value={r.ownerId || ""} disabled={!!busy || refreshing} onChange={e => void assign(r, members.find(m => m.id === e.target.value))}><option value="">Unassigned</option>{r.ownerId && !members.some(m => m.id === r.ownerId) && <option value={r.ownerId}>{r.ownerName || "Former staff member"}</option>}{members.map(m => <option value={m.id} key={m.id}>{m.name}</option>)}</select></label></div></div>
                 {r.notes && <p className="notes staff-referral-notes">{r.notes}</p>}
                 {detailId === r.id && <div className="referral-history"><FollowUpEditor key={r.id + r.etag} referral={r} onSaved={refresh} />{r.nextActionAt && <p>Follow-up due: {new Date(r.nextActionAt).toLocaleString("en-US", { timeZone: "America/Denver", timeZoneName: "short" })}</p>}{isAdmin && <button className="secondary" disabled={!alerts?.enabled || busy === "notify"} onClick={() => void notifyReferral(r.id)}>Queue missing staff notification</button>}<h3>Referral history</h3>{historyError ? <div role="alert"><p>{historyError}</p><button className="secondary" onClick={() => void loadHistory(r.id)}>Retry history</button></div> : !history[r.id] ? <p role="status">Loading history…</p> : history[r.id].length ? <ol>{history[r.id].map((item, index) => <li key={index}>{item.kind === "assignment" ? item.unassigned ? "Unassigned" : item.ownerName ? `Assigned to ${item.ownerName}` : "Staff assignment changed" : item.status} · {new Date(item.changedAt).toLocaleString("en-US", { timeZone: "America/Denver" })} MT · {item.actor}</li>)}</ol> : <p>No referral activity yet.</p>}</div>}
               </dialog></td></tr>}
@@ -435,17 +508,23 @@ function StaffDashboard() {
         </div>        {nextCursor && <div className="pagination"><button className="secondary" disabled={refreshing || busy === "more"} onClick={() => void loadMore()}>{busy === "more" ? "Loading…" : "Load more referrals"}</button></div>}
       </section>}
       {activeSection === "office-report" && isAdmin && <><button className="secondary" type="button" aria-label="Refresh analytics" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh analytics"}</button><OfficeReport report={selectedReport} availableMonths={report?.availableMonths} month={month} onMonth={selectMonth}/></>}
-      {(activeSection === "management" || activeSection === "cards") && <section className="card doctors"><p className="eyebrow">REFERRAL NETWORK</p><h2>{activeSection === "cards" ? "Cards" : "Partners and locations"}</h2><p className="muted">Copy the referral URL and write it to the NFC card as a web link. Tap the physical card and scan the QR code to verify the business shown on the form. Workspace admins can verify partner and location attribution using the test referral in Workspace Setup.</p>
+      {(activeSection === "management" || activeSection === "cards") && <section className="card doctors"><p className="eyebrow">REFERRAL NETWORK</p><h2>{activeSection === "cards" ? "Cards" : "Partners and locations"}</h2><p className="muted">Copy the referral URL and write it to the NFC card as a web link. Tap the physical card and scan the QR code to verify the business shown on the form.</p>
         {activeSection === "management" && isAdmin && <><form className="inline" onSubmit={createPartner}><label htmlFor="partner-name">Add partner<input id="partner-name" name="name" maxLength={120} required placeholder="Builder or referring office"/></label><button className="secondary" disabled={busy === "partner"}>Add partner</button></form><div className="form-grid"><form className="inline" onSubmit={createOffice}><label htmlFor="office-name">Add location<input id="office-name" name="name" maxLength={120} required placeholder="Office name"/></label><button className="secondary" disabled={busy === "office"}>Add location</button></form></div></>}
-{activeSection === "cards" && <div className="partner-card-list">{cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.partnerName} · {card.officeName}</strong><small>{card.active ? "Active" : "Inactive"} · {card.url}</small></div><div className="card-row-actions"><button className="secondary" onClick={() => void navigator.clipboard.writeText(card.url).then(() => setNotice("Referral link copied.")).catch(() => setError("Copy unavailable. Select the link to copy it manually."))}>Copy link</button>{card.active && <a href={card.url} target="_blank" rel="noreferrer">Preview form (records a link open)</a>}<button className="secondary" onClick={() => void makeQr(card)}>Show QR code</button></div>{qrCard?.id === card.id && <div className="qr-download"><img src={qrCard.data} alt={`QR code for ${card.partnerName}`}/><a href={qrCard.data} download={`bridgewayrefer-${card.id}.png`}>Download QR PNG</a></div>}</article>)}</div>}
+{activeSection === "cards" && <div className="partner-card-list">{cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.partnerName} · {card.officeName}</strong><small>{card.active ? "Active" : "Inactive"} · {card.url}</small></div><div className="card-row-actions"><button className="secondary" onClick={() => void navigator.clipboard.writeText(card.url).then(() => setNotice("Referral link copied.")).catch(() => setError("Copy unavailable. Select the link to copy it manually."))}>Copy link</button>{card.active ? <button className="secondary" disabled={busy === "patient-preview"} onClick={() => void openPatientPreview(card)}>Preview Patient Form</button> : <small>Activate this card to preview the form.</small>}<button className="secondary" onClick={() => void makeQr(card)}>Show QR code</button></div>{qrCard?.id === card.id && <div className="qr-download"><img src={qrCard.data} alt={`QR code for ${card.partnerName}`}/><a href={qrCard.data} download={`bridgewayrefer-${card.id}.png`}>Download QR PNG</a></div>}</article>)}</div>}
 {activeSection === "management" && <div className="partner-card-list"><p className="eyebrow">PARTNERS</p>{partners.map(p => <div className="card-row" key={p.id}><strong>{p.name}</strong><small>{p.active ? "Active" : "Inactive"}</small></div>)}</div>}
-{activeSection === "management" && <div className="partner-card-list"><p className="eyebrow">LOCATIONS</p>{offices.map(o => <div className="card-row" key={o.id}><strong>{o.name}</strong><small>{o.active ? "Active" : "Inactive"}</small></div>)}</div>}
+{activeSection === "management" && <div className="partner-card-list"><p className="eyebrow">LOCATIONS</p>{offices.map(o => <div className="card-row" key={o.id}><strong>{o.name}</strong><small>{o.active ? "Active" : "Inactive"}</small>
+          {isAdmin && (editingOffice === o.id ? <form className="inline" onSubmit={event => void saveOfficeLogo(event, o)}>
+            <label htmlFor={`logo-${o.id}`}>Logo URL<input id={`logo-${o.id}`} name="logoUrl" maxLength={500} defaultValue={o.logoUrl} placeholder="https://?" autoFocus /></label>
+            <button className="secondary" disabled={busy === "office-logo"}>Save logo</button>
+            <button className="secondary" type="button" onClick={() => setEditingOffice("")}>Cancel</button>
+          </form> : <button className="secondary" onClick={() => setEditingOffice(o.id)}>Edit office</button>)}
+        </div>)}</div>}
       </section>}
 
         {activeSection === "settings" && isAdmin && profile && <section className="card"><p className="eyebrow">PUBLIC INTAKE</p><h2>Business profile</h2><form className="form-grid" onSubmit={saveProfile}><label htmlFor="profile-name">Business name<input id="profile-name" name="name" maxLength={120} defaultValue={profile.name} required/></label><label className="span-two" htmlFor="profile-welcome">Form welcome<input id="profile-welcome" name="welcomeText" maxLength={500} defaultValue={profile.welcomeText}/></label><label htmlFor="profile-phone">Business phone<input id="profile-phone" name="phone" maxLength={40} defaultValue={profile.phone}/></label><label htmlFor="profile-logo">Logo URL<input id="profile-logo" name="logoUrl" maxLength={500} defaultValue={profile.logoUrl} placeholder="https://…"/></label><label className="span-two" htmlFor="profile-alert">New-referral alert email<input id="profile-alert" name="alertEmail" type="email" maxLength={254} defaultValue={profile.alertEmail} placeholder="frontdesk@yourbusiness.com"/></label><label className="check span-two"><input type="checkbox" name="acceptReferrals" defaultChecked={profile.acceptReferrals}/><span>Accept referral requests from our cards.</span></label><button className="primary span-two" disabled={busy === "profile"}>Save business profile</button></form></section>}
         {activeSection === "staff-access" && isAdmin && <section className="card" id="staff-access"><p className="eyebrow">INVITE-ONLY ACCESS</p><h2>Staff access</h2><form className="inline" onSubmit={inviteMember}><label htmlFor="invite-email">Invite email<input id="invite-email" name="email" type="email" maxLength={254} required placeholder="teammate@business.com"/></label><label htmlFor="invite-role">Role<select id="invite-role" name="role"><option>Staff</option><option>Admin</option></select></label><button className="secondary" disabled={busy === "invite"}>Create invite</button></form>{inviteLink && <p className="invite-link">Invite URL <a href={inviteLink}>{inviteLink}</a><button className="secondary" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</button></p>}<div className="partner-card-list">{members.map(m => <div className="card-row" key={m.id}><div><strong>{m.name}</strong><small>{m.email} · {m.role}</small></div><button className="secondary" disabled={busy === "member-" + m.id} onClick={() => void revokeMember(m)}>Revoke access</button></div>)}{invitations.filter(i => i.state === "Pending").map(i => <div className="card-row" key={i.id}><div><strong>{i.email}</strong><small>Invite pending · {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}</small></div><button className="secondary" disabled={busy === "invite-" + i.id} onClick={() => void cancelInvitation(i)}>Cancel invite</button></div>)}</div></section>}
         {activeSection === "billing" && isAdmin && <section className="card" id="billing"><p className="eyebrow">BUSINESS SUBSCRIPTION</p><h2>Billing</h2><div className="billing-price"><strong>${billing?.amountUsd ?? 50}</strong><span>{billing?.plan === "managed-calling" ? "Managed Calling, total per business / month" : "Workspace / business / month"}</span></div>{billing && !["active", "trialing", "past_due"].includes(billing.status) && <label className="billing-plan-select">Plan for next subscription<select value={checkoutPlan} onChange={event => setCheckoutPlan(event.target.value as "workspace" | "managed-calling")}><option value="workspace">Workspace - $50/month</option><option value="managed-calling" disabled={!billing.managedCallingConfigured}>Managed Calling - $400/month{!billing.managedCallingConfigured ? " (not configured)" : ""}</option></select></label>}<p className="muted">Status: <b>{billing?.status || "Loading"}</b>{billing?.renewalAt ? ` · Renews ${new Date(billing.renewalAt).toLocaleDateString()}` : ""}{billing?.cancelAtPeriodEnd ? " · Cancels at period end" : ""}</p><div className="billing-actions"><button className="primary" disabled={!billing?.configured || billing?.billingExempt || busy === "billing" || ["active", "trialing", "past_due"].includes(billing?.status || "")} onClick={() => void subscribe()}>Subscribe</button><button className="secondary" disabled={!billing?.customerLinked || busy === "billing"} onClick={() => void manageBilling()}>Manage Billing</button></div>{billing?.billingExempt && <p className="hint">Billing is covered by BridgeWay for this workspace.</p>}{billing && !billing.configured && <p className="hint">Online billing is not available yet. Contact BridgeWay.</p>}{billing?.testMode && <p className="hint">Stripe test mode: no real charges.</p>}{billing?.status === "past_due" && <p className="notice">Your last payment failed. Update your card in Manage Billing to keep referrals flowing.</p>}</section>}
-        {activeSection === "settings" &&         <section className="card email-settings"><p className="eyebrow">STAY INFORMED</p><h2>Email alerts</h2><p role="status">{alerts ? alerts.enabled ? `Sending to ${alerts.recipient}. ${alerts.waiting} waiting, ${alerts.retrying} retrying.` : "Add an alert email in the business profile to get notified of new referrals." : "Checking email settings…"}</p>{isAdmin && <button className="secondary" disabled={!alerts?.enabled || busy === "alert"} onClick={() => void testAlert()}>Send test alert<span aria-hidden="true"> ↗</span></button>}{alerts && alerts.smtpConfigured === false && <p className="notice">Email delivery is unavailable. Contact BridgeWay to complete delivery setup.</p>}{!!alerts?.failed && <div className="alert-failure" role="status"><p>{alerts.failed} alerts failed after repeated delivery attempts.</p>{isAdmin && alerts.failures?.map(alert => <p key={alert.id}>{alert.attempts} attempts <button className="secondary" disabled={busy === "retry"} onClick={() => void retryAlert(alert.id)}>Retry failed alert</button></p>)}</div>}{!!alerts?.stalled && <p role="status">{alerts.stalled} alerts are waiting for recovery after an interrupted attempt.</p>}<p className="hint">Alerts contain a dashboard link. Referral details stay in the dashboard. Email server acceptance does not confirm inbox delivery.</p></section>}
+        {activeSection === "settings" &&         <section className="card email-settings"><p className="eyebrow">STAY INFORMED</p><h2>Email alerts</h2><p role="status">{alerts ? alerts.enabled ? `Sending to ${alerts.recipient}. ${alerts.waiting} waiting, ${alerts.retrying} retrying.` : "Add an alert email in the business profile to get notified of new referrals." : "Checking email settings…"}</p>{isAdmin && <button className="secondary" disabled={!alerts?.enabled || busy === "alert"} onClick={() => void testAlert()}>Send test alert ↗</button>}{alerts && alerts.smtpConfigured === false && <p className="notice">Email delivery is unavailable. Contact BridgeWay to complete delivery setup.</p>}{!!alerts?.failed && <div className="alert-failure" role="status"><p>{alerts.failed} alerts failed after repeated delivery attempts.</p>{isAdmin && alerts.failures?.map(alert => <p key={alert.id}>{alert.attempts} attempts <button className="secondary" disabled={busy === "retry"} onClick={() => void retryAlert(alert.id)}>Retry failed alert</button></p>)}</div>}{!!alerts?.stalled && <p role="status">{alerts.stalled} alerts are waiting for recovery after an interrupted attempt.</p>}<p className="hint">Alerts contain a dashboard link. Referral details stay in the dashboard. Email server acceptance does not confirm inbox delivery.</p></section>}
 
     </>}
     </div></div></main>;
