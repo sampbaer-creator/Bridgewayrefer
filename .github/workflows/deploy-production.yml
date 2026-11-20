@@ -1,8 +1,10 @@
 
 name: Deploy production
 
-# Deploy only when manually triggered from GitHub Actions.
+# Deploy automatically on main, with manual deployment available as a fallback.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
