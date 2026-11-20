@@ -195,6 +195,9 @@ public class ParityTests
         Assert.False(BusinessRules.AcceptsReferrals(on, Business("canceled")));
         Assert.False(BusinessRules.AcceptsReferrals(on, Business("not_configured")));
         Assert.False(BusinessRules.AcceptsReferrals(on, Business(suspended: true)));
+        var archived = Business();
+        archived["archived"] = true;
+        Assert.False(BusinessRules.AcceptsReferrals(on, archived));
         Assert.False(BusinessRules.AcceptsReferrals(on, Business(accept: false)));
         Assert.False(BusinessRules.AcceptsReferrals(new Settings { AcceptReferrals = false }, Business()));
         Assert.False(BusinessRules.AcceptsReferrals(on, null));

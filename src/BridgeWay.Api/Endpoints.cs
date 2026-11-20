@@ -200,11 +200,12 @@ public static class Endpoints
             }
             if (!IsSession(http) && businessContext.BusinessId is null)
                 throw new ApiError(403, "No active membership was found for this workspace.");
-            if (businessContext.BusinessId?.StartsWith("signup-", StringComparison.Ordinal) == true &&
-                !IsSession(http) && !http.Request.Path.StartsWithSegments("/api/staff/billing"))
+            if (!IsSession(http) && businessContext.BusinessId is { } businessId)
             {
                 var profile = await store.Business(store.BusinessId, http.RequestAborted);
-                if (profile is null || BusinessRules.SignupPending(profile))
+                if (BusinessRules.IsArchived(profile)) throw new ApiError(403, "This workspace is archived.");
+                if (businessId.StartsWith("signup-", StringComparison.Ordinal) && !http.Request.Path.StartsWithSegments("/api/staff/billing") &&
+                    (profile is null || BusinessRules.SignupPending(profile)))
                     throw new ApiError(403, "Complete the subscription to open this workspace.");
             }
             return await next(context);
@@ -216,6 +217,7 @@ public static class Endpoints
             {
                 var businessId = row.Value<string>("businessId")!;
                 var profile = await store.Business(businessId, ct);
+                if (BusinessRules.IsArchived(profile)) return null;
                 return new
                 {
                     businessId,
@@ -224,7 +226,9 @@ public static class Endpoints
                     signupPending = BusinessRules.SignupPending(profile)
                 };
             }));
-            return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User), businessId = scope.BusinessId, role = scope.Role, businesses });
+            var selected = businesses.FirstOrDefault(b => b?.businessId == scope.BusinessId);
+            return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User),
+                businessId = selected?.businessId, role = selected?.role, businesses = businesses.Where(b => b is not null) });
         });
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>
         {

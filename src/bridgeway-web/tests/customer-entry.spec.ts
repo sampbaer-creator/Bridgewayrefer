@@ -165,3 +165,40 @@ for (const industry of ["healthcare", "trades", "other"]) {
     await expect(page.getByLabel("Your business specialty")).toHaveCount(0);
   });
 }
+
+test("platform admin edits a business logo and can archive and restore the workspace", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let business = { businessId: "business-test", name: "Test Practice", cards: 0, taps: 0, referrals: 0, logoUrl: "", archived: false, etag: "version-1" };
+  await page.route("**/api/admin/session", route => route.fulfill({ json: { acceptingGlobally: true, smtpConfigured: true, stripeConfigured: true } }));
+  await page.route("**/api/admin/demo-requests", route => route.fulfill({ json: { requests: [] } }));
+  await page.route("**/api/admin/businesses", route => route.fulfill({ json: { businesses: [business], totals: { businesses: Number(!business.archived), cards: 0, taps: 0, referrals: 0 } } }));
+  await page.route("**/api/admin/businesses/business-test", async route => {
+    if (route.request().method() === "PATCH") {
+      const { etag, ...changes } = route.request().postDataJSON();
+      expect(etag).toBe(business.etag);
+      business = { ...business, ...changes, etag: business.etag + "x" };
+      return route.fulfill({ json: { ok: true } });
+    }
+    return route.fulfill({ json: { business, offices: [], partners: [], cards: [], members: [], invitations: [] } });
+  });
+
+  await page.goto("/admin");
+  const businessButton = page.getByRole("button", { name: "Test Practice", exact: true });
+  await businessButton.click();
+  await page.getByRole("button", { name: "Business settings" }).click();
+  await page.getByLabel("Logo URL").fill("/brand-mark.png");
+  await page.getByRole("button", { name: "Save logo" }).click();
+  await expect(page.getByRole("img", { name: "Test Practice logo" })).toHaveAttribute("src", "/brand-mark.png");
+  await page.getByLabel("Logo URL").fill("");
+  await page.getByRole("button", { name: "Save logo" }).click();
+  await expect(page.getByRole("img", { name: "Test Practice logo" })).toHaveCount(0);
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Archive business", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Business archived");
+  await expect(businessButton).toHaveCount(0);
+  await page.getByLabel("Filter by status").selectOption("Archived");
+  await businessButton.click();
+  await page.getByRole("button", { name: "Restore business" }).click();
+  await expect(businessButton).toBeVisible();
+});

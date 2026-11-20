@@ -104,6 +104,14 @@ public sealed class ApiError(int status, string message) : Exception(message)
 
 public static class BusinessRules
 {
+    public static bool IsArchived(Newtonsoft.Json.Linq.JObject? business) => business?.Value<bool?>("archived") == true;
+
+    public static bool ValidLogoUrl(string logo) =>
+        logo.Length <= 2048 && !logo.Contains('\\') &&
+        (logo.Length == 0 ||
+         (logo.StartsWith("/", StringComparison.Ordinal) && !logo.StartsWith("//", StringComparison.Ordinal) && !logo.Contains("..", StringComparison.Ordinal)) ||
+         (Uri.TryCreate(logo, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps));
+
     public static readonly string[] PaidStatuses = ["active", "trialing", "past_due"];
 
     /// <summary>
@@ -113,7 +121,7 @@ public static class BusinessRules
     public static bool AcceptsReferrals(Settings settings, Newtonsoft.Json.Linq.JObject? business) =>
         settings.AcceptReferrals && business is not null &&
         business.Value<bool?>("acceptReferrals") == true &&
-        business.Value<bool?>("suspended") != true &&
+        !IsArchived(business) && business.Value<bool?>("suspended") != true &&
         (business.Value<bool?>("billingExempt") == true || PaidStatuses.Contains(business.Value<string>("billingStatus")));
 
     public static bool SignupPending(Newtonsoft.Json.Linq.JObject? business) =>
