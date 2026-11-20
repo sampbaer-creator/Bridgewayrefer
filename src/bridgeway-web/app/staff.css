@@ -419,7 +419,12 @@ button.primary:hover{border-color:var(--ink-blue);background:var(--ink-blue);col
 /* ============ Slim staff rail (icon sidebar) ============ */
 .staff-shell .staff-sidebar{width:64px;min-height:0;padding:14px 8px;align-items:center;gap:6px;background:#fff;border-right:1px solid var(--line)}
 .staff-shell .staff-sidebar-brand{display:grid;place-items:center;width:44px;height:44px;margin:0 0 14px;padding:0}
-.staff-shell .staff-sidebar-brand img{display:block;width:40px;height:40px;border-radius:10px}
+.staff-shell .staff-sidebar-brand picture{display:block;width:40px;max-width:100%}
+.staff-shell .staff-sidebar-brand img{display:block;width:100%;height:auto;border-radius:0}
+@media (width <= 760px), (width >= 1024px) {
+  .staff-shell .staff-sidebar-brand picture { width: min(168px, 100%); }
+  .staff-shell .staff-sidebar-brand { min-height: 58px; }
+}
 .staff-shell .staff-sidebar-nav{width:100%;gap:4px}
 .staff-shell .staff-sidebar-nav a,.staff-shell .staff-sidebar-signout{position:relative;display:grid;place-items:center;width:44px;height:44px;min-height:0;margin:0 auto;padding:0;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer}
 .staff-shell .staff-sidebar-nav a:hover,.staff-shell .staff-sidebar-signout:hover{background:var(--pale);color:var(--navy)}
@@ -611,13 +616,85 @@ button.primary:hover{border-color:var(--ink-blue);background:var(--ink-blue);col
 .staff-shell{grid-template-columns:248px minmax(0,1fr)}
 .staff-shell .staff-sidebar{width:248px;padding:24px 16px;background:#fff}
 .staff-shell .staff-sidebar-brand{height:64px;margin-bottom:26px}
-.staff-shell .staff-sidebar-brand img{width:196px;height:auto;max-height:64px;object-fit:contain;border-radius:0}
 .staff-shell .staff-sidebar-brand>.staff-nav-label{display:none}
 .staff-shell .staff-sidebar-nav{gap:8px}
 .staff-shell .staff-sidebar-nav a{height:46px;padding:0 14px;font-size:14px;font-weight:500;border-radius:8px}
 .staff-shell .staff-sidebar-nav a.is-active{box-shadow:0 2px 7px rgb(23 45 69 / 8%)}
 }
 @media(max-width:1000px){.staff-shell .staff-overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#inbox .staff-inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.staff-inbox-header h2 { margin: 0; color: var(--ink); }
+.staff-inbox-header p { margin: 4px 0 0; color: var(--ink-blue); font-size: 14px; }
+.staff-shell #inbox .staff-inbox-text-button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-blue);
+  font-size: 14px;
+}
+.staff-shell #inbox .staff-inbox-text-button:hover { background: var(--offwhite); color: var(--navy); }
+.staff-inbox-views {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.staff-shell #inbox .staff-inbox-views button {
+  min-width: 58px;
+  border-bottom: 3px solid transparent;
+}
+.staff-shell #inbox .staff-inbox-views button[aria-pressed="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--navy);
+  font-weight: 700;
+}
+#inbox .staff-inbox-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+#inbox .staff-inbox-search { grid-column: 1 / -1; max-width: 440px; }
+.staff-shell #inbox :is(input, select) { font-size: 16px; }
+#inbox .staff-inbox-filters { min-width: 0; margin: 0; border: 0; }
+#inbox .staff-inbox-filters summary { min-height: 44px; justify-content: flex-start; width: fit-content; }
+#inbox .staff-inbox-filters .followup-toolbar { margin-block: 4px 12px; }
+#inbox .staff-inbox-controls > button { align-self: start; }
+.staff-inbox-unread {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-end: 8px;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 700;
+}
+.staff-inbox-unread::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+@media (max-width: 760px) {
+  .staff-shell #inbox .staff-referral-table tr.staff-referral-primary-row {
+    margin: 0;
+    padding: 12px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+}
+
 @media(max-width:760px){.staff-shell .staff-content{padding:20px 16px;gap:18px}.staff-shell .staff-overview-metrics{gap:12px}.staff-shell .staff-overview-metric{padding:16px;min-height:150px}.staff-shell .staff-activity-panel,.staff-shell #inbox,.staff-shell .staff-attention{padding:18px}.staff-shell .staff-bar-chart{height:190px}.staff-shell .staff-topbar{height:64px}.staff-shell .staff-attention-row{flex-wrap:wrap}.staff-shell .staff-referral-table th,.staff-shell .staff-referral-table td{padding:8px 0}}
 
 /* Frosted workspace surfaces, with solid fallbacks for unsupported browsers. */
@@ -674,7 +751,3 @@ button.primary:hover{border-color:var(--ink-blue);background:var(--ink-blue);col
   .staff-inbox-controls { flex-wrap: wrap; }
   .staff-referral-table td[data-label="Assigned staff"] select { width: 100%; max-width: none; }
 }
-
-.staff-inbox-views{display:flex;flex-wrap:wrap;gap:8px;margin-block:12px}
-.staff-inbox-views button{min-height:44px}
-.staff-inbox-views button[aria-pressed="true"]{background:var(--sky);color:var(--navy);border-color:var(--navy)}

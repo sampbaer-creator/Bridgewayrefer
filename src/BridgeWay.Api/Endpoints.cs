@@ -13,6 +13,7 @@ public static class Endpoints
 {
     static IResult Json(object value) => Results.Text(JsonConvert.SerializeObject(value), "application/json");
     static string Actor(HttpContext ctx) => ctx.Items["actor"]?.ToString() ?? "unknown";
+    static bool ValidLogo(string logo) => logo.Length == 0 || (logo.StartsWith("/", StringComparison.Ordinal) && !logo.StartsWith("//", StringComparison.Ordinal) && !logo.Contains("..", StringComparison.Ordinal) && !logo.Contains('\\') && !logo.Any(char.IsControl)) || (Uri.TryCreate(logo, UriKind.Absolute, out var logoUri) && logoUri.Scheme == Uri.UriSchemeHttps);
     static bool ValidCode(string? code) => code is not null && Regex.IsMatch(code, @"\A[A-Za-z0-9_-]{8,80}\z");
     static string Address(HttpContext context) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(context.Connection.RemoteIpAddress?.ToString() ?? "unknown")));
     static void RequireAdmin(HttpContext ctx)
@@ -43,7 +44,7 @@ public static class Endpoints
 
     public static void MapBridgeWay(this WebApplication app, Settings settings)
     {
-        object PublicCard(JObject card, JObject? business) => new { officeName = card.Value<string>("resolvedOfficeName") ?? card.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? "", partnerName = card.Value<string>("resolvedPartnerName") ?? card.Value<string>("partnerName") ?? "", welcomeText = business?.Value<string>("welcomeText") is { Length: > 0 } welcome ? welcome : card.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = BusinessRules.AcceptsReferrals(settings, business), businessName = business?.Value<string>("name") ?? "", logoUrl = business?.Value<string>("logoUrl") ?? "", phone = business?.Value<string>("phone") ?? "" };
+        object PublicCard(JObject card, JObject? business) => new { officeName = card.Value<string>("resolvedOfficeName") ?? card.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? "", partnerName = card.Value<string>("resolvedPartnerName") ?? card.Value<string>("partnerName") ?? "", welcomeText = business?.Value<string>("welcomeText") is { Length: > 0 } welcome ? welcome : card.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = BusinessRules.AcceptsReferrals(settings, business), businessName = business?.Value<string>("name") ?? "", logoUrl = business?.Value<string>("logoUrl") ?? "", officeLogoUrl = card.Value<string>("resolvedOfficeLogoUrl") ?? "", phone = business?.Value<string>("phone") ?? "" };
         app.MapPost("/api/demo-requests", async (DemoRequest data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             var name = data.Name?.Trim() ?? ""; var email = data.Email?.Trim() ?? ""; var businessName = data.BusinessName?.Trim() ?? "";
@@ -234,14 +235,28 @@ public static class Endpoints
         {
             RequireAdmin(ctx);
             var name = data.Name?.Trim() ?? ""; var welcome = data.WelcomeText?.Trim() ?? ""; var phone = data.Phone?.Trim() ?? ""; var logo = data.LogoUrl?.Trim() ?? ""; var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant() ?? "";
-            var logoValid = logo.Length == 0 || (logo.StartsWith("/", StringComparison.Ordinal) && !logo.StartsWith("//", StringComparison.Ordinal) && !logo.Contains("..", StringComparison.Ordinal)) || (Uri.TryCreate(logo, UriKind.Absolute, out var logoUri) && logoUri.Scheme == Uri.UriSchemeHttps);
-            if (name.Length is < 2 or > 120 || welcome.Length > 500 || phone.Length > 40 || !logoValid || (alertEmail.Length > 0 && !ValidEmail(alertEmail)) || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the business settings.");
+            if (name.Length is < 2 or > 120 || welcome.Length > 500 || phone.Length > 40 || !ValidLogo(logo) || (alertEmail.Length > 0 && !ValidEmail(alertEmail)) || string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Please check the business settings.");
             var business = await store.Business(store.BusinessId, ct) ?? throw new ApiError(404, "Business not found.");
             business["name"] = name; business["officeName"] = name; business["welcomeText"] = welcome; business["phone"] = phone; business["logoUrl"] = logo; business["acceptReferrals"] = data.AcceptReferrals; business["alertEmail"] = alertEmail;
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).ReplaceItem("business", business, new Microsoft.Azure.Cosmos.TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag }).CreateItem(store.Audit(Actor(ctx), "update-business-profile", store.BusinessId)).ExecuteAsync(ct);
             CosmosStore.Check(batch); return Results.Ok(new { ok = true });
         });
-        staff.MapGet("/offices", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { offices = (await store.Query("office", ct: ct)).Select(x => new { id = x.Value<string>("id"), name = x.Value<string>("name"), active = x.Value<bool>("active"), etag = x.Value<string>("_etag") }) }));
+        staff.MapGet("/offices", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { offices = (await store.Query("office", ct: ct)).Select(x => new { id = x.Value<string>("id"), name = x.Value<string>("name"), active = x.Value<bool>("active"), logoUrl = x.Value<string>("logoUrl") ?? "", etag = x.Value<string>("_etag") }) }));
+        staff.MapPatch("/offices/{id}", async (string id, OfficeLogoUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        {
+            RequireAdmin(ctx);
+            var logo = data.LogoUrl?.Trim() ?? "";
+            if (logo.Length > 500 || !ValidLogo(logo) || string.IsNullOrWhiteSpace(data.Etag))
+                throw new ApiError(400, "Enter a valid HTTPS or site-relative logo URL.");
+            var office = await store.Read(id, ct);
+            if (office?.Value<string>("type") != "office") throw new ApiError(404, "Office not found.");
+            office["logoUrl"] = logo;
+            using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
+                .ReplaceItem(id, office, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag })
+                .CreateItem(store.Audit(Actor(ctx), "update-office-logo", id)).ExecuteAsync(ct);
+            CosmosStore.Check(batch);
+            return Results.Ok(new { ok = true });
+        });
         staff.MapPost("/offices", async (OfficeCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             RequireAdmin(ctx);
@@ -299,6 +314,15 @@ public static class Endpoints
             var id = "partner-" + Guid.NewGuid().ToString("N"); var partner = store.Document("partner", id); partner["name"] = name; partner["active"] = true;
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(store.Audit(Actor(ctx), "create-partner", id)).CreateItem(partner).ExecuteAsync(ct); CosmosStore.Check(batch);
             return Results.Json(new { id, name, active = true }, statusCode: 201);
+        });
+        staff.MapGet("/cards/{code}/preview", async (string code, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        {
+            var businessId = store.BusinessId;
+            var card = ValidCode(code) ? await store.Card(code, ct, expectedBusinessId: businessId) : null;
+            if (card?.Value<bool>("active") != true)
+                throw new ApiError(404, "Active card not found.");
+            ctx.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(PublicCard(card, await store.Business(businessId, ct)));
         });
         staff.MapGet("/cards", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { cards = (await store.BusinessCards(ct: ct)).Select(c => new { id = c.Value<string>("id"), partnerId = c.Value<string>("partnerId"), partnerName = c.Value<string>("partnerName") ?? c.Value<string>("officeName"), officeId = c.Value<string>("officeId"), officeName = c.Value<string>("officeName"), active = c.Value<bool>("active"), etag = c.Value<string>("_etag"), url = settings.PublicOrigin + "/r/" + c.Value<string>("id") }) }));
         staff.MapPost("/test-referrals", async (TestReferralCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
