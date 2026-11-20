@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { useReducedMotion } from '../reduced-motion'
-import './States.css'
 
 /**
  * The states of one control stacked in one place and crossfaded: a button's

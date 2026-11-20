@@ -1,6 +1,5 @@
 import { useLayoutEffect, useEffect, useRef, useState, type HTMLAttributes } from 'react'
 import { useReducedMotion } from '../reduced-motion'
-import './Count.css'
 
 export interface CountProps extends HTMLAttributes<HTMLSpanElement> {
   value: number

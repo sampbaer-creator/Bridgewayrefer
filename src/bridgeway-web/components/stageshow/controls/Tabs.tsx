@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import './Tabs.css'
 
 /**
  * A row of tabs with an underline that slides to the active one, measured,

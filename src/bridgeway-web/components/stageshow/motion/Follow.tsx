@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, type HTMLAttributes, type ReactNode } from 'react'
 import type { Rect } from '../measure'
 import { useReducedMotion } from '../reduced-motion'
-import './Follow.css'
 
 export interface FollowProps extends HTMLAttributes<HTMLDivElement> {
   /** The rect to sit on, in stage pixels. null hides it. */

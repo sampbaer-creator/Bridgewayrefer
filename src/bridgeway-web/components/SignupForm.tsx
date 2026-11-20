@@ -5,6 +5,7 @@ import GoogleSignIn, { ProviderButton } from "./GoogleSignIn";
 import Link from "next/link";
 import { api, WORKSPACE_KEY } from "../lib/api";
 
+import { planCopy } from "../lib/plan-copy";
 import { healthcareSpecialties, tradeSpecialties } from "../lib/business-specialties";
 
 type Plan = "workspace" | "managed-calling";
@@ -18,21 +19,35 @@ export default function SignupForm() {
   const [specialty, setSpecialty] = useState("");
   const [plan, setPlan] = useState<Plan>("workspace");
 
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("plan") === "managed-calling") setPlan("managed-calling");
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     api<SignupState>("/api/signup", { signal: controller.signal }).then(value => {
       const next = { ...value, plans: value.plans ?? { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: false } } };
       setState(next);
-      if (!next.plans.managedCalling.available) setPlan(current => current === "managed-calling" ? "workspace" : current);
     }).catch(() => {
       if (!controller.signal.aborted) setError("Could not check signup availability. Please try again.");
     });
     return () => controller.abort();
-  }, []);
+  }, [attempt]);
+
+  const available = state?.enabled && (plan === "managed-calling" ? state.plans.managedCalling.available : state.plans.workspace.available);
+
+  function chooseWorkspace() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("plan", "workspace");
+    window.history.replaceState(null, "", url);
+    setPlan("workspace");
+  }
 
   async function startCheckout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!available || busy) return;
     const data = new FormData(event.currentTarget);
     const businessSpecialty = (specialty === "custom" ? String(data.get("customSpecialty") || "") : specialty).trim();
     if (!businessSpecialty) {
@@ -70,25 +85,38 @@ export default function SignupForm() {
           <span className="bw-skeleton-line bw-skeleton-btn" />
         </div>
       )}
-      {state && !state.enabled && <p>Sign-up is unavailable right now. Please try again soon or contact us.</p>}
-      {state?.enabled && !state.signedIn && <>
-        <p>Sign in with the account you will use to manage your business.</p>
-        <div className="bw-auth-providers">
-          <ProviderButton provider="microsoft" signup />
-          <GoogleSignIn signup outlined />
+      {!state && error && <div className="bw-signup-actions">
+        <button className="bw-btn bw-btn-secondary" type="button" onClick={() => { setError(""); setAttempt(value => value + 1); }}>Try again</button>
+        <Link className="bw-btn bw-btn-ghost" href="/contact">Contact BridgeWay</Link>
+      </div>}
+      {state && !state.enabled && <>
+        <p role="status">Sign-up is unavailable right now.</p>
+        <div className="bw-signup-actions"><Link className="bw-btn bw-btn-primary" href="/contact">Contact BridgeWay</Link></div>
+      </>}
+      {state?.enabled && !available && <>
+        <p role="status">{plan === "managed-calling" ? "Managed Calling is not available online right now." : "Referral Workspace is not available online right now."}</p>
+        <div className="bw-signup-actions">
+          <Link className="bw-btn bw-btn-primary" href="/contact">Contact BridgeWay</Link>
+          {plan === "managed-calling" && state.plans.workspace.available && <button type="button" className="bw-btn bw-btn-ghost" onClick={chooseWorkspace}>Switch to Referral Workspace</button>}
         </div>
       </>}
-      {state && (!state.enabled || !state.signedIn) && <p><Link href="/contact">Request a Corporate quote</Link></p>}
-      {state?.enabled && state.signedIn && <form onSubmit={startCheckout} className="bw-contact-form">
+      {available && !state?.signedIn && <>
+        <p>Sign in with the account you will use to manage your business.</p>
+        <div className="bw-auth-providers">
+          <ProviderButton provider="microsoft" signup plan={plan} />
+          <GoogleSignIn signup outlined plan={plan} />
+        </div>
+      </>}
+      {available && state?.signedIn && <form onSubmit={startCheckout} className="bw-contact-form">
         <fieldset className="bw-plan-select">
           <legend>Choose a plan</legend>
           <label className={plan === "workspace" ? "bw-plan-option selected" : "bw-plan-option"}>
-            <input type="radio" name="plan" value="workspace" checked={plan === "workspace"} onChange={() => setPlan("workspace")} />
-            <span><b>Referral Workspace · ${state.plans.workspace.amountUsd}/business/month</b><small>Referral tracking, partners, staff access, reports and NFC cards.</small></span>
+            <input type="radio" name="plan" value="workspace" checked={plan === "workspace"} disabled={!state.plans.workspace.available} onChange={chooseWorkspace} />
+            <span><b>{planCopy.workspace.name} &middot; from ${state.plans.workspace.amountUsd}/month</b><small>Referral tracking, partners, staff access, reports and NFC card management.</small></span>
           </label>
           <label className={plan === "managed-calling" ? "bw-plan-option selected" : "bw-plan-option"}>
             <input type="radio" name="plan" value="managed-calling" checked={plan === "managed-calling"} disabled={!state.plans.managedCalling.available} onChange={() => setPlan("managed-calling")} />
-            <span><b>Managed Calling · ${state.plans.managedCalling.amountUsd}/business/month</b><small>Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay.{!state.plans.managedCalling.available ? " Not available online yet. Contact us." : ""}</small></span>
+            <span><b>{planCopy.managedCalling.name} &middot; from ${state.plans.managedCalling.amountUsd}/month</b><small>Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay.{!state.plans.managedCalling.available ? " Not available online yet. Contact us." : ""}</small></span>
           </label>
           <Link href="/contact" className="bw-plan-option">
             <span><b>Corporate · Custom pricing</b><small>Request a quote tailored to your business.</small></span>

@@ -1,5 +1,4 @@
 import type { HTMLAttributes } from 'react'
-import './Kbd.css'
 
 /**
  * A keyboard shortcut as a product prints it beside a menu item or in a

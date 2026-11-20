@@ -2,7 +2,6 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useReducedMotion } from '../reduced-motion'
 import type { Rect } from '../measure'
 import { css, type Bezier, type EaseName } from '../ease'
-import './Camera.css'
 
 /**
  * Moves the view in on part of the scene and back out, pushing in on a

@@ -20,7 +20,7 @@ export default function DemoRequestForm() {
     </div>
     <label className="bw-field">Practice or business<input name="businessName" autoComplete="organization" maxLength={120} required /></label>
     <label className="bw-check"><input name="consent" type="checkbox" required /><span>I agree that BridgeWay may contact me about this request. Please do not include patient information.</span></label>
-    <p className="bw-form-note">Read our <a href="/privacy">privacy notice</a> before submitting.</p>
+    <p className="bw-form-note bw-contact-privacy">Read our <a href="/privacy">privacy notice</a> before submitting.</p>
     <button className="bw-btn bw-btn-primary bw-btn-lg" disabled={busy}>{busy ? "Sending…" : "Book a walkthrough"}</button>
     {error && <p className="bw-form-alert" role="alert">{error}</p>}
   </form>;

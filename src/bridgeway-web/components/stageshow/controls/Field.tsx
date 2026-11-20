@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 import { Icon } from '../parts/Icon'
-import './Field.css'
 
 export interface FieldProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   label?: ReactNode

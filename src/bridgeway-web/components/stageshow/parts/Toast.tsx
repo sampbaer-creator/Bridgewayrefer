@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { useLook } from '../looks'
-import './Toast.css'
 
 /**
  * A confirmation that rises in from the bottom of whatever it sits in: "Snoozed

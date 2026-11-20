@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { CursorKind } from '../cursor'
-import './Segmented.css'
 
 /**
  * A segmented control: equal segments, one raised thumb that slides to the

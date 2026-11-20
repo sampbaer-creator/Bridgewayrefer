@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react'
-import './Stream.css'
 
 /**
  * Text written in word by word, as a model streams it. Every word is laid out

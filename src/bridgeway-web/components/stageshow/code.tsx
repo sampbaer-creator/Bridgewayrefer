@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
-import './code.css'
 
 // Code as the subject: real lines in a monospace block with line numbers,
 // quiet syntax color, and diff lines that read at a glance.

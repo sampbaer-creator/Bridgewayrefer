@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { thumb } from '../measure'
-import './Scroll.css'
 
 /**
  * A scrolling area with a scrollbar, driven by `a.scroll(name, to)`. The bar

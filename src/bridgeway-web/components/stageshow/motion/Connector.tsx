@@ -1,6 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Point } from '../measure'
-import './Connector.css'
 
 type Route = 'h' | 'v' | 'straight' | 'step' | 'curve'
 

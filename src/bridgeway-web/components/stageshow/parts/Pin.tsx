@@ -1,6 +1,5 @@
 import type { HTMLAttributes } from 'react'
 import { useLook } from '../looks'
-import './Pin.css'
 
 export interface PinProps extends HTMLAttributes<HTMLSpanElement> {
   /** The commenter's initial. */

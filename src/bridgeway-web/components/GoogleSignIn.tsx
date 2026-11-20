@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-export default function GoogleSignIn({ signup = false, admin = false, outlined = false }: { signup?: boolean; admin?: boolean; outlined?: boolean }) {
+export default function GoogleSignIn({ signup = false, admin = false, outlined = false, plan }: { signup?: boolean; admin?: boolean; outlined?: boolean; plan?: "workspace" | "managed-calling" }) {
   const [available, setAvailable] = useState<boolean | null>(null);
   const [liveHref, setLiveHref] = useState("");
 
   useEffect(() => {
     if (outlined && ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)) {
-      const plan = new URLSearchParams(window.location.search).get("plan");
+      const requestedPlan = plan ?? new URLSearchParams(window.location.search).get("plan");
       const url = new URL(signup ? "/signup" : "/staff/login?provider=google", "https://bridgewayrefer.com");
-      if (signup && (plan === "workspace" || plan === "managed-calling")) url.searchParams.set("plan", plan);
+      if (signup && (requestedPlan === "workspace" || requestedPlan === "managed-calling")) url.searchParams.set("plan", requestedPlan);
       setLiveHref(url.toString());
     }
     const controller = new AbortController();
@@ -19,14 +19,14 @@ export default function GoogleSignIn({ signup = false, admin = false, outlined =
       .then(providers => setAvailable(providers?.google === true))
       .catch(() => { if (!controller.signal.aborted) setAvailable(false); });
     return () => controller.abort();
-  }, [outlined, signup]);
+  }, [outlined, signup, plan]);
 
   if (available === false && liveHref) {
-    return <ProviderButton provider="google" signup={signup} hrefOverride={liveHref} />;
+    return <ProviderButton provider="google" signup={signup} plan={plan} hrefOverride={liveHref} />;
   }
   if (!available) return null;
 
-  if (outlined) return <ProviderButton provider="google" signup={signup} />;
+  if (outlined) return <ProviderButton provider="google" signup={signup} plan={plan} />;
 
   return (
     <div>
@@ -37,9 +37,12 @@ export default function GoogleSignIn({ signup = false, admin = false, outlined =
   );
 }
 
-export function ProviderButton({ provider, signup = false, hrefOverride }: { provider: "microsoft" | "google"; signup?: boolean; hrefOverride?: string }) {
+export function ProviderButton({ provider, signup = false, plan, hrefOverride }: { provider: "microsoft" | "google"; signup?: boolean; plan?: "workspace" | "managed-calling"; hrefOverride?: string }) {
   const query = new URLSearchParams();
-  if (signup) query.set("flow", "signup");
+  if (signup) {
+    query.set("flow", "signup");
+    if (plan) query.set("plan", plan);
+  }
   query.set("provider", provider);
   const href = hrefOverride ?? `/staff/login?${query}`;
 

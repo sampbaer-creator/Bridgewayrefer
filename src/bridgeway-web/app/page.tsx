@@ -1,5 +1,5 @@
+import { planCopy } from "../lib/plan-copy";
 import LandingPage from "../components/LandingPage";
-import "./landing.css";
 
 export const metadata = {
   alternates: { canonical: "/" },
@@ -38,8 +38,8 @@ export default function HomePage() {
             url: "https://bridgewayrefer.com",
             description: "NFC referral cards, partner attribution, and referral follow-up for businesses",
             offers: [
-              { "@type": "Offer", name: "Referral Workspace", price: "50", priceCurrency: "USD", description: "Per business per month. All locations included." },
-              { "@type": "Offer", name: "Managed Calling", price: "400", priceCurrency: "USD", description: "Per location per month, including the Referral Workspace." },
+              { "@type": "Offer", name: planCopy.workspace.name, price: String(planCopy.workspace.fromUsd), priceCurrency: "USD", description: planCopy.billing },
+              { "@type": "Offer", name: planCopy.managedCalling.name, price: String(planCopy.managedCalling.fromUsd), priceCurrency: "USD", description: planCopy.billing },
             ],
           }),
         }}

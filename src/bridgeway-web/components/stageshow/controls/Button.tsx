@@ -1,6 +1,5 @@
 import { useLayoutEffect, useState, type HTMLAttributes, type ReactNode } from 'react'
 import { Roll } from '../motion/Roll'
-import './Button.css'
 
 export type ButtonProps = HTMLAttributes<HTMLSpanElement> & {
   /** primary: the accent fill, for the one action a moment is about. secondary

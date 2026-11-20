@@ -1,3 +1,4 @@
+import { planCopy } from "../../lib/plan-copy";
 import Link from "next/link";
 
 const CHECK_ICON = (
@@ -6,29 +7,29 @@ const CHECK_ICON = (
   </svg>
 );
 
-export const metadata = { title: "Pricing", description: "Referral Workspace is $50 per business per month with all locations included, unlimited referrals and partners, and NFC cards for your partners. Managed Calling adds cold calling and CRM support for $400 per business per month.", alternates: { canonical: "/pricing" } };
+export const metadata = { title: "Pricing", description: "Compare BridgeWay plans for referral tracking, NFC card management, and managed follow-up.", alternates: { canonical: "/pricing" } };
 
 export default function PricingPage() {
   return (
-    <main className="bw-page" id="main-content">
+    <main className="bw-page bw-pricing-page" id="main-content">
       <section className="bw-page-hero">
         <p className="eyebrow">PRICING</p>
         <h1>Simple monthly plans.<br />No per-referral fees.</h1>
-        <p className="muted">Track referrals yourself, or let us make the follow-up calls.</p>
+        <p className="bw-page-sub">Track referrals yourself, or let us make the follow-up calls.</p>
       </section>
 
       <section className="bw-section" aria-label="Monthly plans">
         <div className="bw-pricing-grid">
           <article className="bw-plan-card">
-            <h3>Referral Workspace</h3>
+            <h3>{planCopy.workspace.name}</h3>
             <div className="bw-plan-price">
               <span className="bw-currency">$</span>
-              <strong>50</strong>
-              <span className="bw-per">/ business / month</span>
+              <strong>{planCopy.workspace.fromUsd}</strong>
+              <span className="bw-per">/ month and up</span>
             </div>
             <ul className="bw-plan-list">
-              <li>{CHECK_ICON}All locations included</li>
-              <li>{CHECK_ICON}NFC cards for your partners</li>
+              <li>{CHECK_ICON}Manage multiple locations</li>
+              <li>{CHECK_ICON}NFC card and QR link management</li>
               <li>{CHECK_ICON}Referral tracking</li>
               <li>{CHECK_ICON}Unlimited partners</li>
               <li>{CHECK_ICON}Staff invitations</li>
@@ -37,14 +38,14 @@ export default function PricingPage() {
             <Link className="bw-btn bw-btn-primary bw-btn-block" href="/signup?plan=workspace">Get started</Link>
           </article>
           <article className="bw-plan-card">
-            <h3>Managed Calling</h3>
+            <h3>{planCopy.managedCalling.name}</h3>
             <div className="bw-plan-price">
               <span className="bw-currency">$</span>
-              <strong>400</strong>
-              <span className="bw-per">/ location / month</span>
+              <strong>{planCopy.managedCalling.fromUsd}</strong>
+              <span className="bw-per">/ month and up</span>
             </div>
             <ul className="bw-plan-list">
-              <li>{CHECK_ICON}Includes the full $50 Referral Workspace plan</li>
+              <li>{CHECK_ICON}Includes Referral Workspace</li>
               <li>{CHECK_ICON}BridgeWay handles cold calling and CRM follow-up</li>
               <li>{CHECK_ICON}Our team calls your referrals</li>
               <li>{CHECK_ICON}Follow-up recorded in your workspace</li>
@@ -59,28 +60,25 @@ export default function PricingPage() {
               <li>{CHECK_ICON}For corporate groups and many locations</li>
               <li>{CHECK_ICON}Volume pricing</li>
               <li>{CHECK_ICON}Guided setup</li>
-              <li>{CHECK_ICON}NFC cards for every location</li>
+              <li>{CHECK_ICON}Card routing by location</li>
             </ul>
             <Link className="bw-btn bw-btn-primary bw-btn-block" href="/contact">Request a custom quote</Link>
           </article>
         </div>
-        <p className="bw-price-fine">Every card link also works as a QR code. Customers need no app.</p>
+        <p className="bw-price-fine">{planCopy.billing} Every card link also works as a QR code.</p>
       </section>
 
-      <section className="bw-section bw-section-alt" aria-label="What setup involves">
+      <section className="bw-section bw-section-alt bw-setup-section" aria-label="What setup involves">
         <div className="bw-section-head">
           <p className="eyebrow">WHAT SETUP INVOLVES</p>
           <h2>Four steps to your first referral.</h2>
         </div>
-        <div className="bw-flow" aria-label="Setup steps">
-          <div className="bw-flow-step"><span className="bw-flow-num">01</span><p>Sign up and subscribe.</p></div>
-          <span className="bw-flow-arrow" aria-hidden="true">→</span>
-          <div className="bw-flow-step"><span className="bw-flow-num">02</span><p>Add your locations and partners.</p></div>
-          <span className="bw-flow-arrow" aria-hidden="true">→</span>
-          <div className="bw-flow-step"><span className="bw-flow-num">03</span><p>Request your NFC cards.</p></div>
-          <span className="bw-flow-arrow" aria-hidden="true">→</span>
-          <div className="bw-flow-step"><span className="bw-flow-num">04</span><p>Test a card and alerts, then go live.</p></div>
-        </div>
+        <ol className="bw-setup-steps" aria-label="Setup steps">
+          <li className="bw-flow-step"><span className="bw-flow-num" aria-hidden="true">01</span><h3>Choose a plan</h3><p>Sign up and subscribe.</p></li>
+          <li className="bw-flow-step"><span className="bw-flow-num" aria-hidden="true">02</span><h3>Set up your workspace</h3><p>Add your locations and referring partners.</p></li>
+          <li className="bw-flow-step"><span className="bw-flow-num" aria-hidden="true">03</span><h3>Request your cards</h3><p>Assign each NFC card to a partner and location.</p></li>
+          <li className="bw-flow-step"><span className="bw-flow-num" aria-hidden="true">04</span><h3>Test and go live</h3><p>Test a card and confirm your team receives alerts.</p></li>
+        </ol>
       </section>
 
       <section className="bw-section" aria-label="NFC cards and billing">
@@ -88,7 +86,7 @@ export default function PricingPage() {
           <div>
             <p className="eyebrow">NFC CARDS</p>
             <h2>NFC cards for your partners.</h2>
-            <p>Order your first set of NFC cards from your workspace. Replacements and additional cards are quoted per order — request them any time.</p>
+            <p>{planCopy.cards}</p>
           </div>
           <div>
             <p className="eyebrow">BILLING</p>

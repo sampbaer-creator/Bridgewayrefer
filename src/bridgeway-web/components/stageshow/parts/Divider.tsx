@@ -1,5 +1,4 @@
 import type { HTMLAttributes } from 'react'
-import './Divider.css'
 
 /**
  * A hairline between groups. Horizontal by default; `vertical` for a rule

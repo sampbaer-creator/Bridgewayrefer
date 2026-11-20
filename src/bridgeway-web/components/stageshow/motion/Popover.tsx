@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
-import './Popover.css'
 
 /** CSS transform-origin keywords: a side, or a vertical and horizontal pair. */
 export type PopoverOrigin = 'top' | 'bottom' | 'left' | 'right' | 'center' | `${'top' | 'bottom' | 'center'} ${'left' | 'right' | 'center'}` | `${'left' | 'right'} center`

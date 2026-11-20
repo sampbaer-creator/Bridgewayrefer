@@ -11,11 +11,11 @@ export default function HealthcareIndustryPage() {
         <p className="muted">A healthcare provider shares a BridgeWay card with a patient, whether the referral is to a medical or dental specialist. The patient opens your practice’s short referral form, and your team sees which office sent them.</p>
         <div className="bw-hero-actions">
           <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started →</Link>
-          <Link className="bw-btn bw-btn-ghost" href="/#how-it-works">See the handoff</Link>
+          <Link className="bw-btn bw-btn-ghost" href="#referral-workflow">See the handoff</Link>
         </div>
       </section>
 
-      <section className="bw-section" aria-label="Healthcare referral workflow">
+      <section className="bw-section" id="referral-workflow" aria-label="Healthcare referral workflow">
         <div className="bw-flow" aria-label="Healthcare referral workflow">
           <div className="bw-flow-step"><span className="bw-flow-num">01</span><p className="hint">REFERRING OFFICE</p><p><b>Healthcare provider</b></p><p className="muted">Shares a card assigned to their office.</p></div>
           <span className="bw-flow-arrow" aria-hidden="true">→</span>

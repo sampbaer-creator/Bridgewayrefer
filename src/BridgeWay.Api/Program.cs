@@ -206,14 +206,14 @@ app.MapGet("/admin/login", () => settings.IdentityConfigured
     ? Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + "/admin" }, [OpenIdConnectDefaults.AuthenticationScheme])
     : Results.Redirect("/sign-in?error=configuration"));
 app.MapGet("/api/auth/providers", () => Results.Ok(new { google = googleConfigured }));
-app.MapGet("/staff/login", (string? workspace, string? flow, string? provider) =>
+app.MapGet("/staff/login", (string? workspace, string? flow, string? provider, string? plan) =>
 {
     var useGoogle = provider == "google";
     if (useGoogle ? !googleConfigured : !settings.IdentityConfigured)
         return Results.Redirect("/sign-in?error=configuration");
     var destination = flow switch
     {
-        "signup" => "/signup",
+        "signup" => plan is "workspace" or "managed-calling" ? "/signup?plan=" + plan : "/signup",
         "admin" => "/admin",
         _ => "/staff" + (string.IsNullOrWhiteSpace(workspace) ? "" : "?workspace=" + Uri.EscapeDataString(workspace))
     };

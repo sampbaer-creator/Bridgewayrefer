@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Icon } from './Icon'
-import './Chip.css'
 
 /**
  * A filter chip with a remove x. It arrives by opening its own width (the
