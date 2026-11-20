@@ -1,5 +1,7 @@
 "use client";
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import AccountMenu from "./AccountMenu";
+import { signOut as sharedSignOut, type Account } from "../lib/account";
 import QRCode from "qrcode";
 import { api, ApiError, statuses, WORKSPACE_KEY, type Alerts, type Business, type Partner, type Referral, type ReferralHistory, type ReferralTotals, type Report, type PublicConfig } from "../lib/api";
 import FollowUpEditor from "./FollowUpEditor";
@@ -14,7 +16,7 @@ type Member = { id: string; name: string; email: string; role: string; etag: str
 type BusinessProfile = { name: string; officeName: string; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; accepting: boolean; suspended: boolean; alertEmail: string; billingStatus: string; monthlyPriceUsd: number; etag: string };
 type Billing = { plan?: string; amountUsd: number; interval: string; status: string; billingExempt: boolean; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; managedCallingConfigured?: boolean; testMode: boolean; customerLinked: boolean };
 type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string; etag: string };
-type Session = { businessId?: string | null; role: string; businesses: Business[] };
+type Session = { businessId?: string | null; role: string; businesses: Business[]; account?: Account; platformAdmin?: boolean };
 
 const NAV_ICONS: Record<string, string[]> = {
   cards: ["M3 6h18v12H3z", "M7 14h4", "M15 9.5a3 3 0 0 1 0 5", "M18 8a6 6 0 0 1 0 8"],
@@ -47,6 +49,7 @@ function StaffDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
   const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [account, setAccount] = useState<Account | null>(null);
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
   const [detailId, setDetailId] = useState(""), [history, setHistory] = useState<Record<string, ReferralHistory[]>>({}), [qrCard, setQrCard] = useState<{ id: string; data: string } | null>(null), [inviteLink, setInviteLink] = useState("");
   const [nextCursor, setNextCursor] = useState<string | null>(null), [unresolvedOnly, setUnresolvedOnly] = useState(false);
@@ -87,7 +90,7 @@ function StaffDashboard() {
     try {
       const auth = await api<Session & { ok: boolean }>("/api/staff/session", options);
       if (!current()) return;
-      const available = auth.businesses || []; setBusinesses(available); setSession("active"); setPlatformAdmin(Boolean((auth as { platformAdmin?: boolean }).platformAdmin));
+      const available = auth.businesses || []; setBusinesses(available); setSession("active"); setPlatformAdmin(Boolean(auth.platformAdmin)); setAccount(auth.account ?? null);
       if (!auth.businessId && requestWorkspace && !available.some(b => b.businessId === requestWorkspace)) {
         workspaceRef.current = ""; localStorage.removeItem(WORKSPACE_KEY); setWorkspace(""); setReferrals([]); setReport(null); return;
       }
@@ -304,9 +307,7 @@ function StaffDashboard() {
   async function makeQr(card: CardLink) { try { setQrCard({ id: card.id, data: await QRCode.toDataURL(card.url, { width: 320, margin: 1, errorCorrectionLevel: "M" }) }); } catch { setError("Could not create the QR code. Copy the link instead."); } }
   async function testAlert() { setBusy("alert"); setNotice(""); try { await api("/api/staff/alerts/test", { method: "POST", body: "{}" }); setNotice("Test alert queued."); } catch (e) { handleError(e); } finally { setBusy(""); } }
   async function signOut() {
-    await fetch("/api/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-    localStorage.removeItem(WORKSPACE_KEY);
-    window.location.assign("/sign-in");
+    await sharedSignOut();
   }
 
   const selectedBusiness = businesses.find(b => b.businessId === workspace), isAdmin = selectedBusiness?.role === "Admin";
@@ -388,7 +389,7 @@ function StaffDashboard() {
       <header className="staff-topbar">
         <button className="staff-menu-toggle" aria-label={sidebarOpen ? "Close navigation" : "Open navigation"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(value => !value)}><span aria-hidden="true">☰</span></button>
         <label className="staff-workspace-label" htmlFor="workspace-select"><span className="sr-only">Workspace</span><select id="workspace-select" value={workspace} onChange={e => selectWorkspace(e.target.value)}><option value="">Choose a workspace…</option>{businesses.map(b => <option value={b.businessId} key={b.businessId}>{b.name} · {b.role}</option>)}</select></label>
-        <div className="staff-topbar-user">{platformAdmin && <a className="staff-admin-link" href="/admin">Platform admin</a>}</div>
+        <div className="staff-topbar-user"><AccountMenu account={account} area="staff" platformAdmin={platformAdmin} role={businesses.find(b => b.businessId === workspace)?.role} workspaces={businesses} currentWorkspace={workspace} onSwitchWorkspace={selectWorkspace} /></div>
       </header>
       <div className="staff-content">
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>

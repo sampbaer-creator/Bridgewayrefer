@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import GoogleSignIn from "./GoogleSignIn";
+import AccountMenu from "./AccountMenu";
+import { signOut, type Account } from "../lib/account";
 import { api, ApiError } from "../lib/api";
 
-type AdminSession = { email: string; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number; publicOrigin?: string; canonicalOriginReady?: boolean };
+type AdminSession = { email: string; account?: Account; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number; publicOrigin?: string; canonicalOriginReady?: boolean };
 type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; archived?: boolean; logoUrl?: string; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
@@ -114,7 +116,7 @@ export default function AdminConsole() {
   }
 
   if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Platform admin sign-in</h1><p>Sign in with your BridgeWay owner account.</p><a className="session-sign-in" href="/admin/login">Continue with Microsoft</a><GoogleSignIn admin /></section></main>;
-  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Access denied</h1><p>This account is not a platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a></section></main>;
+  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Access denied</h1><p>This account is not a platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a><button type="button" className="secondary" onClick={() => void signOut()}>Sign out and use another account</button></section></main>;
 
   const b = detail?.business.businessId === selected ? detail.business : undefined;
   const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", leads: "Demo requests", website: "Website status" }[tab];
@@ -143,6 +145,7 @@ export default function AdminConsole() {
           {businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}{business.archived ? " (archived)" : ""}</option>)}
         </select>
       </label>}
+      <AccountMenu account={session?.account ?? null} area="admin" platformAdmin />
     </header>
     {error && <div className="admin-error">
       <p className="error-message" role="alert">{error}</p>

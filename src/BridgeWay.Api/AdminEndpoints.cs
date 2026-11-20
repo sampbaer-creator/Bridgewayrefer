@@ -55,7 +55,7 @@ public static class AdminEndpoints
 
         admin.MapGet("/session", (HttpContext ctx) => Results.Ok(new
         {
-            ok = true, email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "",
+            ok = true, email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "", account = AccountIdentity.From(ctx.User),
             acceptingGlobally = settings.AcceptReferrals, smtpConfigured = settings.SmtpConfigured,
             stripeConfigured = settings.StripeConfigured, monthlyPriceUsd = settings.MonthlyPriceUsd,
             publicOrigin = settings.PublicOrigin, canonicalOriginReady = new Uri(settings.PublicOrigin).Host == "bridgewayrefer.com",

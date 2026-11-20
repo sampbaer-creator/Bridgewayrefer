@@ -227,7 +227,7 @@ public static class Endpoints
                 };
             }));
             var selected = businesses.FirstOrDefault(b => b?.businessId == scope.BusinessId);
-            return Results.Ok(new { ok = true, platformAdmin = settings.IsPlatformAdmin(ctx.User),
+            return Results.Ok(new { ok = true, account = AccountIdentity.From(ctx.User), platformAdmin = settings.IsPlatformAdmin(ctx.User),
                 businessId = selected?.businessId, role = selected?.role, businesses = businesses.Where(b => b is not null) });
         });
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>
