@@ -34,6 +34,7 @@ settings.PublicOrigin = settings.PublicOrigin.TrimEnd('/');
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 524288);
 builder.Services.AddSingleton(settings);
 builder.Services.AddHttpClient<StripeBillingService>();
+builder.Services.AddSingleton<BusinessLogoStorage>();
 builder.Services.AddSingleton(_ =>
 {
     var endpoint = builder.Configuration["Cosmos:Endpoint"] ?? throw new InvalidOperationException("Set Cosmos:Endpoint.");

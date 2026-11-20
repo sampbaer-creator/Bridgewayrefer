@@ -93,7 +93,7 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
     public Task<List<JObject>> BusinessCards(string? businessId = null, CancellationToken ct = default) => Collect(Cards,
         new QueryDefinition("SELECT * FROM c WHERE c.businessId = @business").WithParameter("@business", businessId ?? BusinessId), null, 2000, ct);
     public Task<List<JObject>> AllBusinesses(CancellationToken ct = default) => Collect(Operations,
-        new QueryDefinition("SELECT * FROM c WHERE c.type = 'business' AND c.id = 'business'"), null, 5000, ct);
+        new QueryDefinition("SELECT * FROM c WHERE c.type = 'business' AND c.id = 'business' AND NOT IS_DEFINED(c.deletedAt)"), null, 5000, ct);
     public async Task<Dictionary<(string Business, string Type), long>> CountsByBusiness(CancellationToken ct = default)
     {
         var rows = await Collect(Operations, new QueryDefinition("SELECT c.businessId, c.type, COUNT(1) AS n FROM c WHERE (c.type = 'referral' AND (NOT IS_DEFINED(c.isTest) OR c.isTest = false)) OR c.type = 'link-open' GROUP BY c.businessId, c.type"), null, null, ct);
@@ -112,6 +112,42 @@ public sealed class CosmosStore(CosmosClient client, IConfiguration config, Sett
             rows.AddRange(await iterator.ReadNextAsync(ct));
         return limit.HasValue ? rows.Take(limit.Value).ToList() : rows;
     }
+    public Task<List<JObject>> AdminActivity(CancellationToken ct) => Collect(Operations,
+        new QueryDefinition("""
+            SELECT TOP 50 c.id, c.createdAt, c.actor, c.action FROM c
+            WHERE c.type = 'audit' AND (STARTSWITH(c.action, 'platform-') OR
+                c.action IN ('update-business-profile', 'update-office', 'create-office', 'cancel-invitation', 'accept-invitation', 'revoke-member'))
+            ORDER BY c.createdAt DESC
+            """), BusinessKey, 50, ct);
+
+    public async Task UpdateMember(JObject member, string etag, string? role, bool revoke, string actor, CancellationToken ct)
+    {
+        var id = member.Value<string>("id")!;
+        var batch = Operations.CreateTransactionalBatch(BusinessKey);
+        if (member.Value<string>("role") == "Admin" && (revoke || role == "Staff"))
+        {
+            var witness = (await Query("membership", ct: ct)).FirstOrDefault(m =>
+                m.Value<string>("id") != id && m.Value<bool?>("active") == true && m.Value<string>("role") == "Admin");
+            if (witness is null) throw new ApiError(409, "Keep at least one active business admin.");
+            // Both removals must not be allowed to rely on each other as the remaining admin.
+            batch.ReplaceItem(witness.Value<string>("id"), witness,
+                new TransactionalBatchItemRequestOptions { IfMatchEtag = witness.Value<string>("_etag") });
+        }
+        if (revoke)
+        {
+            member["active"] = false;
+            member["revokedAt"] = DateTimeOffset.UtcNow.ToString("O");
+            member["revokedBy"] = actor;
+        }
+        else
+        {
+            member["role"] = role;
+        }
+        using var result = await batch.ReplaceItem(id, member, new TransactionalBatchItemRequestOptions { IfMatchEtag = etag })
+            .CreateItem(Audit(actor, revoke ? "revoke-member" : "platform-member-role:" + role, id)).ExecuteAsync(ct);
+        Check(result);
+    }
+
     public JObject Document(string type, string id, string? businessId = null) => new() { ["id"] = id, ["businessId"] = businessId ?? BusinessId, ["type"] = type, ["createdAt"] = DateTimeOffset.UtcNow.ToString("O") };
     public JObject Audit(string actor, string action, string target)
     {

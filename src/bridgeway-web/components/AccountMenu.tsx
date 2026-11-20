@@ -12,9 +12,10 @@ type Props = {
   workspaces?: Business[];
   currentWorkspace?: string;
   onSwitchWorkspace?: (businessId: string) => void;
+  actions?: { label: string; onSelect: () => void }[];
 };
 
-export default function AccountMenu({ account, area, platformAdmin, role, workspaces = [], currentWorkspace, onSwitchWorkspace }: Props) {
+export default function AccountMenu({ account, area, platformAdmin, role, workspaces = [], currentWorkspace, onSwitchWorkspace, actions = [] }: Props) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -61,6 +62,10 @@ export default function AccountMenu({ account, area, platformAdmin, role, worksp
         {area === "staff" && others.map(w => <button key={w.businessId} type="button" className="account-menu-item" onClick={() => { setOpen(false); onSwitchWorkspace?.(w.businessId); }}>
           <span>{w.name}</span><small>{w.signupPending ? "Setup pending" : w.role}</small>
         </button>)}
+      </div>}
+      {actions.length > 0 && <div className="account-menu-section" role="group" aria-label="Workspace actions">
+        {actions.map(action => <button key={action.label} type="button" className="account-menu-item"
+          onClick={() => { setOpen(false); action.onSelect(); button.current?.focus(); }}>{action.label}</button>)}
       </div>}
       <div className="account-menu-section">
         <a className="account-menu-item" href="/contact">Help and support</a>

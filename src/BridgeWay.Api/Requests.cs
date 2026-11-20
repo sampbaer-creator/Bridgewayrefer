@@ -39,7 +39,12 @@ public sealed record InvitationCancel(string Etag);
 public sealed record AssignmentUpdate(string? OwnerId, string? OwnerName, string Etag);
 public sealed record DemoRequest(string Name, string Email, string BusinessName, string SubmissionId, bool Consent, string? Interest = null);
 public sealed record BusinessProfileUpdate(string Name, string WelcomeText, string Phone, bool AcceptReferrals, string LogoUrl, string Etag, string? AlertEmail = null);
-public sealed record AdminBusinessUpdate(string Etag, bool? Suspended = null, bool? BillingExempt = null, string? AlertEmail = null, string? LogoUrl = null, bool? Archived = null, bool? AcceptReferrals = null);
+public sealed record AdminLogoUpload(string Etag, string? Image);
+public sealed record AdminMemberUpdate(string Etag, string? Role, bool Revoke = false);
+public sealed record AdminInvitationUpdate(string Etag, bool Replace = false);
+public sealed record AdminStripeUpdate(bool? CancelAtPeriodEnd);
+public sealed record AdminBusinessDelete(string Etag, string? Name);
+public sealed record AdminBusinessUpdate(string Etag, bool? Suspended = null, bool? BillingExempt = null, string? AlertEmail = null, string? LogoUrl = null, bool? Archived = null, bool? AcceptReferrals = null, string? WelcomeText = null, string? Phone = null, string? PatientCardCode = null);
 public sealed record OfficeCreate(string Name);
 public sealed record OfficeLogoUpdate(string? LogoUrl, string Etag);
 

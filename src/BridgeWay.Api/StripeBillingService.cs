@@ -104,6 +104,16 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         return await Send(request, ct);
     }
 
+    public async Task<JObject> SetCancelAtPeriodEnd(string subscriptionId, bool cancel, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, Api + "subscriptions/" + Uri.EscapeDataString(subscriptionId));
+        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["cancel_at_period_end"] = cancel ? "true" : "false",
+        });
+        return await Send(request, ct);
+    }
+
     public async Task<JObject> GetSubscription(string subscriptionId, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, Api + "subscriptions/" + Uri.EscapeDataString(subscriptionId));
