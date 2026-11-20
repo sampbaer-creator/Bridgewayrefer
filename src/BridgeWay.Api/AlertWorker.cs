@@ -70,10 +70,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 message.Subject = "New referral received - Bridgewayrefer";
                 message.MessageId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(businessId + ":" + id))) + "@" + new Uri(settings.PublicOrigin).Host;
                 message.Body = new TextPart("plain") { Text = "A new referral is waiting in your secure office dashboard.\n\nSign in to review it:\n" + settings.PublicOrigin + "/sign-in\n\nPatient details are available only in the dashboard." };
-                using var smtp = new SmtpClient { Timeout = 20000 };
-                await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, settings.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls, ct);
-                await smtp.AuthenticateAsync(settings.SmtpUsername, settings.SmtpPassword, ct);
-                await smtp.SendAsync(message, ct); await smtp.DisconnectAsync(true, ct);
+                await SendEmail(settings, message, ct);
                 doc["state"] = "Accepted"; doc["acceptedAt"] = DateTimeOffset.UtcNow.ToString("O"); doc["readyAt"] = 0;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -92,5 +89,12 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 catch (CosmosException) { logger.LogWarning("Email state write failed after delivery; the alert may be re-sent."); }
             }
         }
+    }
+    internal static async Task SendEmail(Settings settings, MimeMessage message, CancellationToken ct)
+    {
+        using var smtp = new SmtpClient { Timeout = 20000 };
+        await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, settings.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls, ct);
+        await smtp.AuthenticateAsync(settings.SmtpUsername, settings.SmtpPassword, ct);
+        await smtp.SendAsync(message, ct); await smtp.DisconnectAsync(true, ct);
     }
 }

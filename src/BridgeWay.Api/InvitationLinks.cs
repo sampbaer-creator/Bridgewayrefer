@@ -52,6 +52,7 @@ public static class InvitationLinks
             throw new ApiError(403, "This invitation is unavailable or was sent to another account.");
 
         var business = await store.Business(businessId, ct) ?? throw new ApiError(403, "This workspace is unavailable.");
+        if (BusinessRules.IsArchived(business)) throw new ApiError(403, "This workspace is unavailable.");
         var memberId = CosmosStore.MembershipId(tenant, oid);
         var existing = await store.Read(memberId, ct);
         var batch = store.Operations.CreateTransactionalBatch(store.BusinessKey);
