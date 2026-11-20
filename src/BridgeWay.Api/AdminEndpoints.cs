@@ -34,7 +34,7 @@ public static class AdminEndpoints
         long Count(string type) => counts.TryGetValue((id, type), out var n) ? n : 0;
         return new
         {
-            businessId = id, name = b.Value<string>("name"),
+            businessId = id, name = b.Value<string>("name"), archived = BusinessRules.IsArchived(b), logoUrl = b.Value<string>("logoUrl") ?? "",
             createdAt = b.Value<string>("createdAt"), suspended = b.Value<bool?>("suspended") ?? false,
             acceptReferrals = b.Value<bool?>("acceptReferrals") ?? false, billingExempt = b.Value<bool?>("billingExempt") ?? false,
             billingStatus = b.Value<string>("billingStatus") ?? "not_configured", alertEmail = b.Value<string>("alertEmail") ?? "",
@@ -55,7 +55,7 @@ public static class AdminEndpoints
 
         admin.MapGet("/session", (HttpContext ctx) => Results.Ok(new
         {
-            ok = true, email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "",
+            ok = true, email = ctx.User.FindFirstValue("email") ?? ctx.User.FindFirstValue("preferred_username") ?? "", account = AccountIdentity.From(ctx.User),
             acceptingGlobally = settings.AcceptReferrals, smtpConfigured = settings.SmtpConfigured,
             stripeConfigured = settings.StripeConfigured, monthlyPriceUsd = settings.MonthlyPriceUsd,
             publicOrigin = settings.PublicOrigin, canonicalOriginReady = new Uri(settings.PublicOrigin).Host == "bridgewayrefer.com",
@@ -69,7 +69,7 @@ public static class AdminEndpoints
             return Results.Ok(new
             {
                 businesses = rows,
-                totals = new { businesses = rows.Count, cards = counts.Result.Where(x => x.Key.Type == "card").Sum(x => x.Value), taps = counts.Result.Where(x => x.Key.Type == "link-open").Sum(x => x.Value), referrals = counts.Result.Where(x => x.Key.Type == "referral").Sum(x => x.Value) },
+                totals = new { businesses = businesses.Result.Count(b => !BusinessRules.IsArchived(b)), cards = counts.Result.Where(x => x.Key.Type == "card").Sum(x => x.Value), taps = counts.Result.Where(x => x.Key.Type == "link-open").Sum(x => x.Value), referrals = counts.Result.Where(x => x.Key.Type == "referral").Sum(x => x.Value) },
             });
         });
 
@@ -123,7 +123,19 @@ public static class AdminEndpoints
             if (string.IsNullOrWhiteSpace(data.Etag)) throw new ApiError(400, "Refresh and try again.");
             var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant();
             if (alertEmail is { Length: > 0 } && !Endpoints.ValidEmail(alertEmail)) throw new ApiError(400, "Enter a valid alert email or leave it blank.");
+            var logo = data.LogoUrl?.Trim();
+            if (logo is not null && !BusinessRules.ValidLogoUrl(logo))
+                throw new ApiError(400, "Enter an HTTPS logo URL or leave it blank.");
+            if (BusinessRules.IsArchived(business) && data.Archived != false)
+                throw new ApiError(409, "Restore this business before making changes.");
             var changes = new List<string>();
+            if (data.Archived is bool archived)
+            {
+                business["archived"] = archived;
+                changes.Add(archived ? "archived" : "restored");
+            }
+            if (logo is not null) { business["logoUrl"] = logo; changes.Add("logoUrl"); }
+            if (data.AcceptReferrals is bool accepting) { business["acceptReferrals"] = accepting; changes.Add("acceptReferrals:" + accepting); }
             if (data.Suspended is bool suspended) { business["suspended"] = suspended; changes.Add("suspended:" + suspended); }
             if (data.BillingExempt is bool exempt) { business["billingExempt"] = exempt; changes.Add("billingExempt:" + exempt); }
             if (alertEmail is not null) { business["alertEmail"] = alertEmail; changes.Add("alertEmail"); }
@@ -136,7 +148,8 @@ public static class AdminEndpoints
 
         admin.MapPost("/businesses/{businessId}/invitations", async (string businessId, InvitationCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            await RequireBusiness(store, businessId, ct);
+            var business = await RequireBusiness(store, businessId, ct);
+            if (BusinessRules.IsArchived(business)) throw new ApiError(409, "Restore this business before inviting people.");
             var email = data.Email?.Trim().ToLowerInvariant() ?? "";
             if (!Endpoints.ValidEmail(email) || data.Role is not ("Admin" or "Staff")) throw new ApiError(400, "Enter a valid email and choose Admin or Staff.");
             var (invite, inviteUrl) = InvitationLinks.Create(store, settings, email, data.Role, Actor(ctx), 14);
@@ -148,6 +161,7 @@ public static class AdminEndpoints
         admin.MapPost("/businesses/{businessId}/cards", async (string businessId, CardCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             var business = await RequireBusiness(store, businessId, ct);
+            if (BusinessRules.IsArchived(business)) throw new ApiError(409, "Restore this business before issuing cards.");
             if (BusinessRules.SignupPending(business)) throw new ApiError(409, "This business is still awaiting its first payment.");
             if (data.Quantity is < 1 or > MaxCardsPerRequest) throw new ApiError(400, $"Create between 1 and {MaxCardsPerRequest} cards at a time.");
             var label = data.Label?.Trim() ?? ""; if (label.Length > 80) throw new ApiError(400, "Keep the card label under 80 characters.");
@@ -190,7 +204,8 @@ public static class AdminEndpoints
         {
             if (!CardCodePattern.IsMatch(code) || string.IsNullOrEmpty(data.Etag)) throw new ApiError(400, "Please check the update.");
             var card = await store.Read(store.Cards, code, new PartitionKey(code), ct) ?? throw new ApiError(404, "Card not found.");
-            store.UseBusiness(card.Value<string>("businessId") ?? throw new ApiError(404, "Card not found."));
+            var business = await RequireBusiness(store, card.Value<string>("businessId") ?? throw new ApiError(404, "Card not found."), ct);
+            if (BusinessRules.IsArchived(business)) throw new ApiError(409, "Restore this business before updating cards.");
             card["active"] = data.Active;
             try { await store.Cards.ReplaceItemAsync(card, code, new PartitionKey(code), new ItemRequestOptions { IfMatchEtag = data.Etag }, ct); }
             catch (CosmosException e) when (e.StatusCode == HttpStatusCode.PreconditionFailed) { throw new ApiError(409, "This card changed. Refresh and try again."); }
