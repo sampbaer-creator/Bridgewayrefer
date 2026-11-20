@@ -8,10 +8,10 @@ import AdminStripeSubscription from "./AdminStripeSubscription";
 import PatientForm from "./PatientForm";
 import AccountMenu from "./AccountMenu";
 import { signOut, type Account } from "../lib/account";
-import { api, ApiError, type PublicConfig } from "../lib/api";
+import { api, ApiError, type PublicConfig, type PatientFormDesign } from "../lib/api";
 
 type AdminSession = { email: string; account?: Account; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number; publicOrigin?: string; canonicalOriginReady?: boolean };
-type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; archived?: boolean; logoUrl?: string; patientCardCode?: string; welcomeText?: string; phone?: string; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; hasStripeSubscription?: boolean; intakeOpen?: boolean; checkoutExpiresAt?: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
+type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; archived?: boolean; logoUrl?: string; officeName?: string; patientForm?: PatientFormDesign | null; patientCardCode?: string; welcomeText?: string; phone?: string; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; hasStripeSubscription?: boolean; intakeOpen?: boolean; checkoutExpiresAt?: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
@@ -30,7 +30,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 
 export default function AdminConsole() {
   const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website">("businesses");
-  const [workspaceView, setWorkspaceView] = useState<"cards" | "settings" | "people" | "activity">("cards");
+  const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
   const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null);
   const [selected, setSelected] = useState(""), [detail, setDetail] = useState<Detail | null>(null);
@@ -85,7 +85,7 @@ export default function AdminConsole() {
       form.reset(); setNotice(`${created.name} created. Send the business admin this sign-in link: ${created.inviteUrl}`); await loadList(); setSelected(created.businessId); setWorkspaceView("cards"); setTab("cards");
     });
   }
-  function updateBusiness(changes: { suspended?: boolean; billingExempt?: boolean; alertEmail?: string; logoUrl?: string; archived?: boolean; acceptReferrals?: boolean; welcomeText?: string; phone?: string; patientCardCode?: string }) {
+  function updateBusiness(changes: { suspended?: boolean; billingExempt?: boolean; alertEmail?: string; logoUrl?: string; archived?: boolean; acceptReferrals?: boolean; welcomeText?: string; phone?: string; patientCardCode?: string; patientForm?: PatientFormDesign }) {
     if (!detail) return;
     void run("update", async () => { await api("/api/admin/businesses/" + detail.business.businessId, { method: "PATCH", body: JSON.stringify({ ...changes, etag: detail.business.etag }) }); if (changes.archived !== undefined) {
         setNotice(changes.archived ? "Business archived. Use the Archived filter to find it." : "Business restored.");
@@ -117,10 +117,39 @@ export default function AdminConsole() {
     });
   }
 
+  function patientDraft(form: HTMLFormElement) {
+    const data = new FormData(form);
+    const text = (name: string) => String(data.get(name) ?? "").trim();
+    const patientForm: PatientFormDesign = {
+      template: text("template") === "consultation" ? "consultation" : "general",
+      headline: text("headline"), introduction: text("introduction"), formHeading: text("formHeading"),
+      submitLabel: text("submitLabel"), successHeading: text("successHeading"), websiteUrl: text("websiteUrl"),
+    };
+    return { welcomeText: text("welcomeText"), phone: text("phone"), patientCardCode: data.get("patientCardCode")?.toString(), patientForm };
+  }
+
   function savePatientForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    updateBusiness({ welcomeText: String(form.get("welcomeText") ?? ""), phone: String(form.get("phone") ?? ""), patientCardCode: form.get("patientCardCode")?.toString() });
+    updateBusiness(patientDraft(event.currentTarget));
+  }
+
+  function previewPatientDraft(form: HTMLFormElement | null) {
+    if (!form || !detail || !form.reportValidity()) return;
+    const draft = patientDraft(form);
+    const { business, cards, offices } = detail;
+    const card = cards.find(item => item.active && item.id === draft.patientCardCode);
+    const office = card && offices.find(item => item.id === card.officeId);
+    setPreview({
+      officeName: card?.officeName || business.officeName || business.name,
+      businessName: business.name,
+      partnerName: card?.partnerName,
+      logoUrl: business.logoUrl,
+      officeLogoUrl: office?.logoUrl,
+      welcomeText: draft.welcomeText,
+      phone: draft.phone,
+      patientForm: draft.patientForm,
+      accepting: Boolean(business.intakeOpen),
+    });
   }
 
   function requestDeletion(business: BusinessSummary) {
@@ -131,12 +160,12 @@ export default function AdminConsole() {
 
   async function deleteBusiness(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!deleting || deleteName !== deleting.name || busy) return;
+    if (!deleting || deleteName.trim() !== deleting.name.trim() || busy) return;
     setBusy("delete");
     setDeleteError("");
     try {
       await api("/api/admin/businesses/" + deleting.businessId, {
-        method: "DELETE", body: JSON.stringify({ etag: deleting.etag, name: deleteName }),
+        method: "DELETE", body: JSON.stringify({ etag: deleting.etag, name: deleteName.trim() }),
       });
       setDeleting(null);
       setSelected("");
@@ -145,6 +174,10 @@ export default function AdminConsole() {
       setNotice("Workspace deleted from admin.");
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : "Could not delete this workspace.");
+      if (error instanceof ApiError && error.status === 412) {
+        setDeleteError("The workspace changed. Close this dialog and confirm again after it refreshes.");
+        await loadDetail(deleting.businessId);
+      }
     } finally {
       setBusy("");
     }
@@ -223,7 +256,7 @@ export default function AdminConsole() {
   const b = detail?.business.businessId === selected ? detail.business : undefined;
   const routingCard = detail?.cards.find(card => card.id === b?.patientCardCode && card.active);
   const routingOffice = detail?.offices.find(office => office.id === routingCard?.officeId);
-  const effectiveLogo = routingOffice?.logoUrl || b?.logoUrl;
+  const effectiveLogo = b?.logoUrl || routingOffice?.logoUrl;
   const patientLink = b ? (session?.publicOrigin ?? "") + "/p/" + b.businessId : "";
   const checkoutOpen = Boolean(b?.checkoutExpiresAt && Date.parse(b.checkoutExpiresAt) > Date.now());
   const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status" }[tab];
@@ -252,14 +285,17 @@ export default function AdminConsole() {
       <form className="admin-field-stack" onSubmit={deleteBusiness}>
         <h2 id="admin-delete-title">Delete workspace</h2>
         <p>Delete <strong>{deleting.name}</strong> from admin and disable its staff and patient links. Existing records are retained.</p>
-        <p>Any linked Stripe subscription must have ended and any open checkout must have expired.</p>
+        <p className="hint">Workspace ID: {deleting.businessId}</p>
+        <p>{deleting.hasStripeSubscription
+          ? "End the linked Stripe subscription before deleting this workspace."
+          : "Any open Stripe checkout must expire before deletion."}</p>
         <label htmlFor="admin-delete-name">Enter the workspace name to confirm</label>
         <input id="admin-delete-name" autoComplete="off" value={deleteName}
           onChange={event => setDeleteName(event.target.value)} disabled={busy === "delete"} />
         {deleteError && <p role="alert" className="error-message">{deleteError}</p>}
         <div className="billing-actions">
           <button type="button" className="secondary" onClick={() => setDeleting(null)} disabled={busy === "delete"}>Cancel</button>
-          <button className="admin-destructive" disabled={busy === "delete" || deleteName !== deleting.name}>
+          <button className="admin-destructive" disabled={busy === "delete" || deleteName.trim() !== deleting.name.trim()}>
             {busy === "delete" ? "Deleting..." : "Delete workspace"}
           </button>
         </div>
@@ -267,7 +303,7 @@ export default function AdminConsole() {
     </dialog>}
     {preview && <dialog className="admin-patient-preview" aria-label="Patient form preview"
       ref={node => { if (node && !node.open) node.showModal(); }} onClose={() => setPreview(null)}>
-      <form method="dialog"><button className="secondary">Close preview</button></form>
+      <form method="dialog" className="admin-preview-bar"><strong>Preview only</strong><button className="secondary">Close preview</button></form>
       <PatientForm config={preview} preview />
     </dialog>}
     <header className="admin-page-heading">
@@ -280,11 +316,12 @@ export default function AdminConsole() {
       {tab === "cards" && <label className="business-switcher-light" htmlFor="admin-workspace">Workspace
         <select id="admin-workspace" value={selected} disabled={Boolean(busy)} onChange={event => setSelected(event.target.value)}>
           <option value="">Choose a workspace</option>
-          {businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}{business.archived ? " (archived)" : ""}</option>)}
+          {businesses.map(business => <option key={business.businessId} value={business.businessId}>{business.name}{businesses.some(other => other.businessId !== business.businessId && other.name.toLowerCase() === business.name.toLowerCase()) ? " / " + business.businessId.slice(-10) : ""}{business.archived ? " (archived)" : ""}</option>)}
         </select>
       </label>}
       <AccountMenu account={session?.account ?? null} area="admin" platformAdmin actions={b && !b.archived ? [
         { label: "NFC cards", onSelect: () => { setTab("cards"); setWorkspaceView("cards"); } },
+        { label: "Patient form", onSelect: () => { setTab("cards"); setWorkspaceView("patient"); } },
         { label: "Workspace settings", onSelect: () => { setTab("cards"); setWorkspaceView("settings"); } },
         { label: "People and invitations", onSelect: () => { setTab("cards"); setWorkspaceView("people"); } },
       ] : []} />
@@ -330,7 +367,7 @@ export default function AdminConsole() {
     {b && !b.archived && detail && tab === "cards" && <div id="admin-cards" className="admin-workspace-detail">
       <div className="admin-workspace-bar">
         <nav aria-label="Workspace sections" className="admin-workspace-tabs">
-          {([["cards", "Cards"], ["settings", "Business settings"], ["people", "People"], ["activity", "Activity"]] as const).map(([key, label]) =>
+          {([["cards", "Cards"], ["patient", "Patient form"], ["settings", "Business settings"], ["people", "People"], ["activity", "Activity"]] as const).map(([key, label]) =>
             <button type="button" key={key} aria-current={workspaceView === key ? "page" : undefined} onClick={() => key === "activity" ? showActivity(b.businessId) : setWorkspaceView(key)}>{label}</button>)}
         </nav>
         <span className="admin-status-pill" data-live={liveState(b, session) === "Live"}>{liveState(b, session)}</span>
@@ -349,9 +386,77 @@ export default function AdminConsole() {
         <div className="section-heading" style={{ marginTop: 24 }}><p className="eyebrow">ISSUED CARDS</p>{detail.cards.length > 0 && <button className="secondary" onClick={downloadCsv}>Download CSV</button>}</div>
         <div className="partner-card-list">{detail.cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.label ? card.label + " · " : ""}{card.partnerName} → {card.officeName}</strong><dl className="facts">{[["Status", card.active ? "Active" : "Inactive"], ["Taps", String(card.taps)], ["Referrals", String(card.referrals)]].map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}</dl><small className="card-url"><a href={card.url} target="_blank" rel="noreferrer">Open patient form</a><br /><span>{card.url}</span></small></div><div className="card-row-actions"><button className="secondary" onClick={() => copy(card.url)}>Copy NFC link</button>{card.active && <button className="secondary" disabled={Boolean(busy)} onClick={() => previewCard(b, card)}>Preview patient form</button>}<button className="secondary" onClick={() => void makeQr(card)}>Show QR code</button><button className="secondary" disabled={busy === card.id} onClick={() => toggleCard(card)}>{card.active ? "Deactivate" : "Activate"}</button></div>{qr?.id === card.id && <div className="qr-download"><img src={qr.data} alt={`QR code for ${card.partnerName}`}/><a href={qr.data} download={`bridgeway-${card.id}.png`}>Download QR PNG</a></div>}</article>)}{!detail.cards.length && <p className="empty">No cards yet.</p>}</div>
       </section>}
+      {workspaceView === "patient" && <div className="admin-settings-grid">
+        <section className="card">
+          <h2>Patient form</h2>
+          <p className="muted">Saved changes apply to this workspace's NFC cards and unique patient page.</p>
+          <form key={b.businessId + ":" + b.etag} className="admin-field-stack" onSubmit={savePatientForm}>
+            <label htmlFor="admin-patient-template">Default wording</label>
+            <select id="admin-patient-template" name="template" defaultValue={b.patientForm?.template ?? "general"}>
+              <option value="general">General referral</option>
+              <option value="consultation">Orthodontic consultation</option>
+            </select>
+            <p className="hint">Every form uses the same layout. Leave text fields blank to use the selected wording.</p>
+            <label htmlFor="admin-patient-headline">Page headline</label>
+            <input id="admin-patient-headline" name="headline" maxLength={120} defaultValue={b.patientForm?.headline ?? ""} />
+            <label htmlFor="admin-patient-introduction">Intro paragraph</label>
+            <textarea id="admin-patient-introduction" name="introduction" rows={3} maxLength={500} defaultValue={b.patientForm?.introduction ?? ""} />
+            <label htmlFor="admin-patient-form-heading">Form heading</label>
+            <input id="admin-patient-form-heading" name="formHeading" maxLength={100} defaultValue={b.patientForm?.formHeading ?? ""} />
+            <label htmlFor="admin-welcome">Welcome message</label>
+            <textarea id="admin-welcome" name="welcomeText" rows={3} maxLength={500} defaultValue={b.welcomeText ?? ""} />
+            <label htmlFor="admin-patient-submit">Submit button text</label>
+            <input id="admin-patient-submit" name="submitLabel" maxLength={60} defaultValue={b.patientForm?.submitLabel ?? ""} />
+            <label htmlFor="admin-patient-success">Confirmation heading</label>
+            <input id="admin-patient-success" name="successHeading" maxLength={120} defaultValue={b.patientForm?.successHeading ?? ""} />
+            <label htmlFor="admin-patient-website">Office website (HTTPS)</label>
+            <input id="admin-patient-website" name="websiteUrl" type="url" maxLength={2048} defaultValue={b.patientForm?.websiteUrl ?? ""} />
+            <label htmlFor="admin-patient-phone">Business phone</label>
+            <input id="admin-patient-phone" name="phone" type="tel" maxLength={40} defaultValue={b.phone ?? ""} />
+            <label htmlFor="admin-patient-card">Receiving office and partner</label>
+            <select id="admin-patient-card" name="patientCardCode" defaultValue={b.patientCardCode ?? ""}>
+              <option value="">Patient link disabled</option>
+              {b.patientCardCode && !detail.cards.some(card => card.active && card.id === b.patientCardCode) &&
+                <option value={b.patientCardCode} disabled>Previous card unavailable</option>}
+              {detail.cards.filter(card => card.active).map(card => <option key={card.id} value={card.id}>
+                {card.officeName} / {card.partnerName}{card.label ? " / " + card.label : ""}
+              </option>)}
+            </select>
+            <p className="hint">Select an active card to enable this business's unique patient link.</p>
+            <div className="billing-actions">
+              <button className="admin-primary-action" disabled={Boolean(busy)}>Save patient form</button>
+              <button type="button" className="secondary" disabled={Boolean(busy)} onClick={event => previewPatientDraft(event.currentTarget.form)}>Preview patient form</button>
+            </div>
+          </form>
+        </section>
+        <section className="card">
+          <h2>Unique patient page</h2>
+          {!routingCard && <p className="muted">Choose an active card and save to publish this workspace's patient page.</p>}
+          <dl className="admin-service-list">
+            <div><dt>Intake</dt><dd>{b.intakeOpen ? "Open" : "Closed"}</dd></div>
+            <div><dt>Routing</dt><dd>{routingCard ? routingCard.officeName + " / " + routingCard.partnerName : "Choose an active card"}</dd></div>
+            <div><dt>Logo</dt><dd>{effectiveLogo ? logoCheck?.url === effectiveLogo ? (logoCheck.loaded ? "Loads" : "Could not load") : "Checking" : "Office name in text"}</dd></div>
+          </dl>
+          {effectiveLogo && <img className="admin-business-logo" src={effectiveLogo} alt="Patient form logo"
+            referrerPolicy="no-referrer" onLoad={() => setLogoCheck({ url: effectiveLogo, loaded: true })}
+            onError={event => { event.currentTarget.hidden = true; setLogoCheck({ url: effectiveLogo, loaded: false }); }} key={effectiveLogo} />}
+          {routingCard && <div className="admin-patient-link">
+            <p className="card-url">{patientLink}</p>
+            <a href={patientLink} target="_blank" rel="noreferrer">Open patient link</a>
+            <button type="button" className="secondary" onClick={() => copy(new URL(patientLink, window.location.origin).href)}>Copy patient link</button>
+            <button type="button" className="secondary" onClick={() => void makeQr({ ...routingCard, url: new URL(patientLink, window.location.origin).href, id: "patient-link" })}>Show patient QR</button>
+            {qr?.id === "patient-link" && <div className="qr-download"><img src={qr.data} alt="Patient link QR code" />
+              <a href={qr.data} download={`bridgeway-${b.businessId}-patient.png`}>Download QR PNG</a></div>}
+            <button type="button" className="secondary" disabled={Boolean(busy)} onClick={() => {
+              if (window.confirm("Unpublish this workspace's unique patient page? Existing NFC card links will stay active.")) updateBusiness({ patientCardCode: "" });
+            }}>Unpublish patient page</button>
+          </div>}
+        </section>
+      </div>}
       {workspaceView === "settings" && <div className="admin-settings-grid">
         <section className="card">
           <h2>Business branding</h2>
+          <p className="muted">Your uploaded logo appears at the top of every patient form for this workspace.</p>
           {b.logoUrl && <img key={b.logoUrl} src={b.logoUrl} alt={b.name + " logo"} className="admin-business-logo" referrerPolicy="no-referrer" onError={event => { event.currentTarget.hidden = true; }} />}
           <div className="admin-logo-drop" data-dragging={dragging} onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true); }}
             onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
@@ -367,42 +472,6 @@ export default function AdminConsole() {
             <p id="admin-logo-help" className="hint">Use an HTTPS image link. Leave blank to remove the logo.</p>
             <button className="secondary" disabled={Boolean(busy)}>Save logo</button>
           </form>
-        </section>
-        <section className="card">
-          <h2>Patient form</h2>
-          <form key={b.businessId + ":" + b.welcomeText + ":" + b.phone + ":" + b.patientCardCode} className="admin-field-stack" onSubmit={savePatientForm}>
-            <label htmlFor="admin-welcome">Welcome message</label>
-            <textarea id="admin-welcome" name="welcomeText" rows={3} maxLength={500} defaultValue={b.welcomeText ?? ""} />
-            <label htmlFor="admin-patient-phone">Business phone</label>
-            <input id="admin-patient-phone" name="phone" type="tel" maxLength={40} defaultValue={b.phone ?? ""} />
-            <label htmlFor="admin-patient-card">Receiving office and partner</label>
-            <select id="admin-patient-card" name="patientCardCode" defaultValue={b.patientCardCode ?? ""}>
-              <option value="">Patient link disabled</option>
-              {b.patientCardCode && !detail.cards.some(card => card.active && card.id === b.patientCardCode) &&
-                <option value={b.patientCardCode} disabled>Previous card unavailable</option>}
-              {detail.cards.filter(card => card.active).map(card => <option key={card.id} value={card.id}>
-                {card.officeName} / {card.partnerName}{card.label ? " / " + card.label : ""}
-              </option>)}
-            </select>
-            <p className="hint">Select an active card to enable this business's unique patient link.</p>
-            <button className="secondary" disabled={Boolean(busy)}>Save patient form</button>
-          </form>
-          <dl className="admin-service-list">
-            <div><dt>Intake</dt><dd>{b.intakeOpen ? "Open" : "Closed"}</dd></div>
-            <div><dt>Routing</dt><dd>{routingCard ? routingCard.officeName + " / " + routingCard.partnerName : "Choose an active card"}</dd></div>
-            <div><dt>Logo</dt><dd>{effectiveLogo ? logoCheck?.url === effectiveLogo ? (logoCheck.loaded ? "Loads" : "Could not load") : "Checking" : "Office name in text"}</dd></div>
-          </dl>
-          {effectiveLogo && <img className="admin-business-logo" src={effectiveLogo} alt="Patient form logo"
-            referrerPolicy="no-referrer" onLoad={() => setLogoCheck({ url: effectiveLogo, loaded: true })}
-            onError={event => { event.currentTarget.hidden = true; setLogoCheck({ url: effectiveLogo, loaded: false }); }} key={effectiveLogo} />}
-          {routingCard && <div className="admin-patient-link">
-            <a href={patientLink} target="_blank" rel="noreferrer">Open patient link</a>
-            <button type="button" className="secondary" disabled={Boolean(busy)} onClick={() => previewCard(b, routingCard)}>Preview patient form</button>
-            <button type="button" className="secondary" onClick={() => copy(new URL(patientLink, window.location.origin).href)}>Copy patient link</button>
-            <button type="button" className="secondary" onClick={() => void makeQr({ ...routingCard, url: new URL(patientLink, window.location.origin).href, id: "patient-link" })}>Show patient QR</button>
-            {qr?.id === "patient-link" && <div className="qr-download"><img src={qr.data} alt="Patient link QR code" />
-              <a href={qr.data} download={`bridgeway-${b.businessId}-patient.png`}>Download QR PNG</a></div>}
-          </div>}
         </section>
         <section className="card"><h2>Intake and billing</h2>
           <p className="muted">Billing mode <b>{b.billingExempt ? "Exempt (comped)" : "Subscription required"}</b></p>

@@ -4,12 +4,17 @@ import { api, type PublicConfig } from "../lib/api";
 
 function IntakeBrand({ config }: { config: PublicConfig }) {
   const [failedUrls, setFailedUrls] = useState<string[]>([]);
-  const name = config.officeName || config.businessName || "BridgeWayRefer";
-  const logo = [config.officeLogoUrl, config.logoUrl].map(url => url?.trim()).find(url => url && !failedUrls.includes(url));
+  const office = config.officeName || config.businessName || "BridgeWayRefer";
+  const candidates = [
+    { url: config.logoUrl?.trim(), name: config.businessName || office },
+    { url: config.officeLogoUrl?.trim(), name: office },
+  ];
+  const logo = candidates.find(({ url }) => url && !failedUrls.includes(url));
 
-  return logo
-    ? <img key={logo} src={logo} alt={name} onError={() => setFailedUrls(urls => [...urls, logo])} />
-    : <span className="bw-intake-brand-name">{name}</span>;
+  if (!logo?.url) return <span className="bw-intake-brand-name">{office}</span>;
+  const { url, name } = logo;
+  return <img key={url} src={url} alt={name} referrerPolicy="no-referrer"
+    onError={() => setFailedUrls(urls => [...urls, url])} />;
 }
 
 export default function PatientForm({ config, code = "", preview = false }: { config: PublicConfig; code?: string; preview?: boolean }) {
@@ -39,37 +44,63 @@ export default function PatientForm({ config, code = "", preview = false }: { co
     finally { setBusy(false); }
   }
   const callback = config.phone ? <a href={"tel:" + config.phone.replace(/[^\d]/g, "")}>{config.phone}</a> : null;
+  const design = config.patientForm;
+  const consultation = design?.template === "consultation";
+  const office = config.officeName || config.businessName || "the receiving office";
+  const website = design?.websiteUrl && /^https:\/\//i.test(design.websiteUrl.trim()) ? design.websiteUrl.trim() : undefined;
+  const introSteps = consultation
+    ? [
+        ["Tell us a little about you", "Share your name and the best way to reach you."],
+        ["We will be in touch", "Our office will contact you to arrange your visit."],
+        ["Take the next step", "Meet the team and explore your smile options."],
+      ]
+    : [
+        ["Tell us a little about you", "Use the best way to reach you."],
+        ["We will be in touch", "The receiving business will contact you directly."],
+        ["Agree on a next step", "Plan together with the team."],
+      ];
+  const IntakeContainer = preview ? "div" : "main";
   return <>
     <header className="bw-intake-header">
-      <a className="bw-intake-brand" href="/" aria-label="BridgeWayRefer home">
+      <div className="bw-intake-brand">
         <IntakeBrand config={config} />
-      </a>
+      </div>
       <span className="bw-intake-label">SECURE REFERRAL REQUEST</span>
     </header>
-    <main className="bw-intake" id="main-content">
+    <IntakeContainer className="bw-intake" id={preview ? undefined : "main-content"}>
       <aside className="bw-intake-copy">
-        <p className="eyebrow">A CLEARER WAY TO GET STARTED</p>
-        <h1>Your next step<br />starts with<br /><em>a conversation.</em></h1>
-        <p className="bw-page-sub">Share a few details with {config.officeName || config.businessName}. Their team will follow up to learn more and plan a next step.</p>
-        <div className="bw-intake-steps" aria-label="What happens next">
-          <div><span>01</span><p><b>Tell us a little about you</b><small>Use the best way to reach you.</small></p></div>
-          <div><span>02</span><p><b>We’ll be in touch</b><small>The receiving business will contact you directly.</small></p></div>
-          <div><span>03</span><p><b>Agree on a next step</b><small>Plan together with the team.</small></p></div>
-        </div>
+        <p className="eyebrow">{consultation ? "A PERSONAL INTRODUCTION" : "A CLEARER WAY TO GET STARTED"}</p>
+        <h1>{design?.headline || (consultation
+          ? <>Your next chapter starts with <em>a smile.</em></>
+          : <>Your next step starts with <em>a conversation.</em></>)}</h1>
+        <p className="bw-page-sub">{design?.introduction || (consultation
+          ? "A more confident smile starts with a conversation. Share a few details and our team will help you arrange an orthodontic consultation."
+          : `Share a few details with ${office}. Their team will follow up to learn more and plan a next step.`)}</p>
+        <ol className="bw-intake-steps" aria-label="What happens next">
+          {introSteps.map(([title, copy], index) => <li key={title}><span aria-hidden="true">0{index + 1}</span><p><b>{title}</b><small>{copy}</small></p></li>)}
+        </ol>
         <div className="bw-intake-signoff">{callback ? <>Questions? Call {callback}</> : "Your information goes to the receiving business."}</div>
       </aside>
       {done ? <section className="bw-card bw-intake-success" id="success" tabIndex={-1} ref={success}>
         <span className="bw-success-icon" aria-hidden="true">✓</span>
         <p className="eyebrow">REQUEST RECEIVED</p>
-        <h2>Thanks for getting<br />in touch.</h2>
-        <p>{config.officeName} has your request. Their team will contact you using the email or phone number you provided.</p>
+        <h2>{design?.successHeading || (consultation ? "We look forward to meeting you." : "Thanks for getting in touch.")}</h2>
+        <p>{office} has your request. Their team will contact you using the email or phone number you provided.</p>
         {callback && <p>Need to reach them sooner? Call {callback}.</p>}
+        {website && <a href={website}>Visit the office website</a>}
       </section>
         : <section className="bw-card" id="form-panel">
-          <p className="bw-referrer-chip"><span className="bw-dot" aria-hidden="true" />Referred by <strong>{config.partnerName || config.officeName}</strong></p>
-          <h2>Tell us what you need.</h2>
-          <p className="muted">{config.welcomeText}</p>
-          {!config.accepting ? <p className="notice">Online requests are not open yet.{callback ? <> Please call {callback}.</> : " Please contact the receiving business directly."}</p> : <form id="referral-form" className="bw-intake-form" onSubmit={submit}>
+          {config.partnerName
+            ? <p className="bw-referrer-chip"><span className="bw-dot" aria-hidden="true" />Referred by <strong>{config.partnerName}</strong></p>
+            : <p className="eyebrow">WELCOME</p>}
+          <h2>{design?.formHeading || (consultation ? "Let's get acquainted." : "Tell us what you need.")}</h2>
+          <p className="muted">{config.welcomeText || (consultation
+            ? "Request a consultation below. For a child, use the parent or guardian's contact details."
+            : "Share a few details and our team will be in touch.")}</p>
+          {!config.accepting && <p className="notice">Online requests are not open yet.{callback
+            ? <> Please call {callback}.</>
+            : website ? <> Please <a href={website}>visit the office website</a>.</> : " Please contact the receiving business directly."}</p>}
+          {(config.accepting || preview) && <form id="referral-form" className="bw-intake-form" onSubmit={submit}>
             <div className="bw-name-row">
               <label htmlFor="firstName">First name<span className="hint">Required</span><input id="firstName" name="firstName" autoComplete={preview ? "off" : "given-name"} maxLength={80} required /></label>
               <label htmlFor="lastName">Last name<span className="hint">Required</span><input id="lastName" name="lastName" autoComplete={preview ? "off" : "family-name"} maxLength={100} required /></label>
@@ -87,10 +118,11 @@ export default function PatientForm({ config, code = "", preview = false }: { co
             <p className="bw-intake-notice">Please leave out payment details, clinical records, and other sensitive information.</p>
             <div className="trap" aria-hidden="true"><label htmlFor="website">Website</label><input id="website" name="website" tabIndex={-1} autoComplete="off" /></div>
             <label className="bw-check"><input type="checkbox" name="consent" required /><span>I agree that {config.businessName || config.officeName} may contact me by phone or email about this request. A parent or guardian may submit for a child. <a href="/privacy">Privacy notice</a>.</span></label>
-            <button type="submit" className="bw-btn bw-btn-primary bw-btn-lg" disabled={busy || preview}>{busy ? "Sending your request…" : "Send my request"}<span aria-hidden="true">→</span></button>
+            <button type="submit" className="bw-btn bw-btn-primary bw-btn-lg" disabled={busy || preview}>{busy ? "Sending your request..." : design?.submitLabel || (consultation ? "Request my consultation" : "Send my request")}<span aria-hidden="true">→</span></button>
             <p id="form-error" role="alert">{error}</p>
+            {callback && <p className="hint">For urgent help, call the office directly at {callback}.</p>}
           </form>}
         </section>}
-    </main>
+    </IntakeContainer>
   </>;
 }
