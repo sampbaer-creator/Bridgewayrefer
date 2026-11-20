@@ -44,7 +44,7 @@ public sealed record AdminMemberUpdate(string Etag, string? Role, bool Revoke = 
 public sealed record AdminInvitationUpdate(string Etag, bool Replace = false);
 public sealed record AdminStripeUpdate(bool? CancelAtPeriodEnd);
 public sealed record AdminBusinessDelete(string Etag, string? Name);
-public sealed record AdminBusinessUpdate(string Etag, bool? Suspended = null, bool? BillingExempt = null, string? AlertEmail = null, string? LogoUrl = null, bool? Archived = null, bool? AcceptReferrals = null, string? WelcomeText = null, string? Phone = null, string? PatientCardCode = null);
+public sealed record AdminBusinessUpdate(string Etag, bool? Suspended = null, bool? BillingExempt = null, string? AlertEmail = null, string? LogoUrl = null, bool? Archived = null, bool? AcceptReferrals = null, string? WelcomeText = null, string? Phone = null, string? PatientCardCode = null, PatientFormDesign? PatientForm = null);
 public sealed record OfficeCreate(string Name);
 public sealed record OfficeLogoUpdate(string? LogoUrl, string Etag);
 
@@ -52,3 +52,30 @@ public sealed record OfficeLogoUpdate(string? LogoUrl, string Etag);
 public sealed record FollowUpUpdate(string? NextAction, string? NextActionAt, string Etag);
 
 
+
+public sealed record PatientFormDesign(string? Template = null, string? Headline = null, string? Introduction = null,
+    string? FormHeading = null, string? SubmitLabel = null, string? SuccessHeading = null, string? WebsiteUrl = null)
+{
+    internal static PatientFormDesign? Read(Newtonsoft.Json.Linq.JObject? business) =>
+        (business?["patientForm"] as Newtonsoft.Json.Linq.JObject)?.ToObject<PatientFormDesign>();
+
+    internal PatientFormDesign Validate()
+    {
+        var template = Template ?? "general";
+        var website = Clean(WebsiteUrl, 2048);
+        if (template is not ("general" or "consultation"))
+            throw new ApiError(400, "Choose a patient form layout.");
+        if (website is not null && (!Uri.TryCreate(website, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.Host) || uri.UserInfo.Length != 0 || website.Contains('\\')))
+            throw new ApiError(400, "Enter an HTTPS office website URL.");
+        return new PatientFormDesign(template, Clean(Headline, 120), Clean(Introduction, 500),
+            Clean(FormHeading, 100), Clean(SubmitLabel, 60), Clean(SuccessHeading, 120), website);
+    }
+
+    static string? Clean(string? value, int maxLength)
+    {
+        var cleaned = value?.Trim();
+        if (cleaned?.Length > maxLength) throw new ApiError(400, "Shorten the patient form text and try again.");
+        return string.IsNullOrEmpty(cleaned) ? null : cleaned;
+    }
+}

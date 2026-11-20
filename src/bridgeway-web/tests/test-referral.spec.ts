@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
     }
     if (url.pathname.endsWith("/cards/card-code-a/preview")) {
       expect(route.request().headers()["x-bridgewayrefer-business"]).toBe("orthodontics-stage-a");
-      return route.fulfill({ json: { officeName: "Fictional Orthodontics", businessName: "Fictional Group", officeLogoUrl: "/missing-office-logo.png", logoUrl: "/brand-mark.png", welcomeText: "Welcome", accepting: true } });
+      return route.fulfill({ json: { officeName: "Fictional Orthodontics", businessName: "Fictional Group", officeLogoUrl: "/brand-logo.png", logoUrl: "/brand-mark.png", welcomeText: "Welcome", accepting: true } });
     }
     if (url.pathname.endsWith("/cards")) return route.fulfill({ json: { cards: [{ id: "card-code-a", partnerId: "partner-a", partnerName: "General Dentist", officeId: "office-a", officeName: "Fictional Orthodontics", active: true, etag: "v1", url: "https://example.invalid/r/card-code-a" }] } });
     if (url.pathname.endsWith("/members")) return route.fulfill({ json: { members: [] } });
@@ -54,7 +54,7 @@ test("office logo editor and patient preview preserve submission and open counts
   await page.getByRole("link", { name: "Cards", exact: true }).click();
   await page.getByRole("button", { name: "Preview Patient Form" }).click();
   await expect(page.getByText("Submissions are disabled.")).toBeVisible();
-  await expect(page.getByRole("img", { name: "Fictional Orthodontics" })).toHaveAttribute("src", "/brand-mark.png");
+  await expect(page.getByRole("img", { name: "Fictional Group" })).toHaveAttribute("src", "/brand-mark.png");
   await expect(page.getByRole("button", { name: "Send my request" })).toBeDisabled();
   await page.getByRole("button", { name: "Back to cards" }).click();
   await expect(page.getByRole("button", { name: "Preview Patient Form" })).toBeVisible();

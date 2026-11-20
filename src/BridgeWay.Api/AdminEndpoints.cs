@@ -48,6 +48,11 @@ public static class AdminEndpoints
         return subscription;
     }
 
+    internal static bool HasUnverifiedPaidBilling(JObject business) =>
+        BusinessRules.PaidStatuses.Contains(business.Value<string>("billingStatus")) &&
+        (!string.IsNullOrWhiteSpace(business.Value<string>("stripeCustomerId")) ||
+         !string.IsNullOrWhiteSpace(business.Value<string>("checkoutSessionId")));
+
     static object StripeSummary(JObject subscription, Settings settings, StripeBillingService stripe)
     {
         var id = Uri.EscapeDataString(subscription.Value<string>("id")!);
@@ -72,6 +77,8 @@ public static class AdminEndpoints
         return new
         {
             patientCardCode = b.Value<string>("patientCardCode") ?? "",
+            patientForm = PatientFormDesign.Read(b),
+            officeName = b.Value<string>("officeName"),
             welcomeText = b.Value<string>("welcomeText") ?? "", phone = b.Value<string>("phone") ?? "",
             businessId = id, name = b.Value<string>("name"), archived = BusinessRules.IsArchived(b), logoUrl = b.Value<string>("logoUrl") ?? "",
             createdAt = b.Value<string>("createdAt"), suspended = b.Value<bool?>("suspended") ?? false,
@@ -179,6 +186,11 @@ public static class AdminEndpoints
             var changes = new List<string>();
             if (welcome is not null) { business["welcomeText"] = welcome; changes.Add("welcomeText"); }
             if (phone is not null) { business["phone"] = phone; changes.Add("phone"); }
+            if (data.PatientForm is { } form)
+            {
+                business["patientForm"] = JObject.FromObject(form.Validate());
+                changes.Add("patientForm");
+            }
             if (data.PatientCardCode is { } code)
             {
                 if (code.Length != 0)
@@ -255,8 +267,13 @@ public static class AdminEndpoints
         admin.MapDelete("/businesses/{businessId}", async (string businessId, [Microsoft.AspNetCore.Mvc.FromBody] AdminBusinessDelete data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
         {
             var business = await RequireBusiness(store, businessId, ct);
-            if (string.IsNullOrEmpty(data.Etag) || data.Name != business.Value<string>("name"))
+            if (string.IsNullOrEmpty(data.Etag) || data.Name?.Trim() != business.Value<string>("name")?.Trim())
                 throw new ApiError(400, "Confirm the business name and try again.");
+            if (data.Etag != business.Value<string>("_etag"))
+                throw new ApiError(412, "This workspace changed. Refresh and confirm the name again.");
+            var checkoutLock = await store.Read("billing-checkout-lock", ct);
+            if (checkoutLock?.Value<long>("lockedUntil") > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                throw new ApiError(409, "Checkout is being prepared. Wait a few minutes and try again.");
             if (DateTimeOffset.TryParse(business.Value<string>("checkoutSessionExpiresAt"), out var checkoutExpiry) &&
                 checkoutExpiry > DateTimeOffset.UtcNow)
                 throw new ApiError(409, "Wait for the open Stripe checkout to expire before deleting this business.");
@@ -266,9 +283,9 @@ public static class AdminEndpoints
                 if (!StripeBillingEndpoints.IsTerminal(subscription.Value<string>("status")))
                     throw new ApiError(409, "End the Stripe subscription before deleting this business.");
             }
-            else if (BusinessRules.PaidStatuses.Contains(business.Value<string>("billingStatus")))
+            else if (HasUnverifiedPaidBilling(business))
             {
-                throw new ApiError(409, "Resolve the billing status before deleting this business.");
+                throw new ApiError(409, "Billing is marked active and Stripe references are present. Verify the billing record before deleting. You can archive the workspace while you resolve billing.");
             }
 
             business["archived"] = true;
