@@ -2,6 +2,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
+import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, Plus, Radio } from "lucide-react";
 import GoogleSignIn from "./GoogleSignIn";
 import AdminStripeSubscription from "./AdminStripeSubscription";
 import PatientForm from "./PatientForm";
@@ -15,6 +16,8 @@ type BusinessSummary = { businessId: string; name: string; createdAt: string; su
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
+
+const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity };
 
 const paid = ["active", "trialing", "past_due"];
 function liveState(b: BusinessSummary, session: AdminSession | null) {
@@ -38,6 +41,9 @@ export default function AdminConsole() {
   const [activity, setActivity] = useState<{ id: string; createdAt: string; actor: string; action: string }[]>([]);
   const [activityBusiness, setActivityBusiness] = useState("");
   const [logoCheck, setLogoCheck] = useState<{ url: string; loaded: boolean } | null>(null);
+  const [deleting, setDeleting] = useState<BusinessSummary | null>(null);
+  const [deleteName, setDeleteName] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState<PublicConfig | null>(null);
   const detailRequest = useRef(0);
@@ -83,7 +89,7 @@ export default function AdminConsole() {
   function updateBusiness(changes: { suspended?: boolean; billingExempt?: boolean; alertEmail?: string; logoUrl?: string; archived?: boolean; acceptReferrals?: boolean; welcomeText?: string; phone?: string; patientCardCode?: string }) {
     if (!detail) return;
     void run("update", async () => { await api("/api/admin/businesses/" + detail.business.businessId, { method: "PATCH", body: JSON.stringify({ ...changes, etag: detail.business.etag }) }); if (changes.archived !== undefined) {
-        setNotice(changes.archived ? "Business archived. Use the Archived filter to restore or delete it." : "Business restored.");
+        setNotice(changes.archived ? "Business archived. Use the Archived filter to find it." : "Business restored.");
         setSelected("");
         setLiveFilter("");
         setTab("businesses");
@@ -118,17 +124,31 @@ export default function AdminConsole() {
     updateBusiness({ welcomeText: String(form.get("welcomeText") ?? ""), phone: String(form.get("phone") ?? ""), patientCardCode: form.get("patientCardCode")?.toString() });
   }
 
-  function deleteBusiness(business: BusinessSummary) {
-    const name = window.prompt(`Delete ${business.name} from admin? Existing records are retained. Enter the business name to confirm.`);
-    if (name === null) return;
-    if (name !== business.name) { setError("The business name did not match."); return; }
-    void run("delete", async () => {
-      await api("/api/admin/businesses/" + business.businessId, { method: "DELETE", body: JSON.stringify({ etag: business.etag, name }) });
+  function requestDeletion(business: BusinessSummary) {
+    setDeleteName("");
+    setDeleteError("");
+    setDeleting(business);
+  }
+
+  async function deleteBusiness(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!deleting || deleteName !== deleting.name || busy) return;
+    setBusy("delete");
+    setDeleteError("");
+    try {
+      await api("/api/admin/businesses/" + deleting.businessId, {
+        method: "DELETE", body: JSON.stringify({ etag: deleting.etag, name: deleteName }),
+      });
+      setDeleting(null);
       setSelected("");
       setTab("businesses");
       await loadList();
-      setNotice("Business deleted from admin.");
-    });
+      setNotice("Workspace deleted from admin.");
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Could not delete this workspace.");
+    } finally {
+      setBusy("");
+    }
   }
 
   function previewCard(business: BusinessSummary, card: AdminCard) {
@@ -217,10 +237,35 @@ export default function AdminConsole() {
         { label: "Platform", items: [["website", "Website status"]] },
       ] as const).map(group => <div className="admin-nav-group" key={group.label}>
         <p>{group.label}</p>
-        {group.items.map(([key, label]) => <button type="button" key={key} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>{label}</button>)}
+        {group.items.map(([key, label]) => {
+          const Icon = adminIcons[key];
+          return <button type="button" key={key} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>
+            <Icon size={17} aria-hidden="true" />{label}
+          </button>;
+        })}
       </div>)}
     </nav>
     <div className="admin-workspace-content">
+    {deleting && <dialog className="admin-delete-dialog" aria-labelledby="admin-delete-title"
+      ref={node => { if (node && !node.open) node.showModal(); }}
+      onCancel={event => { if (busy === "delete") event.preventDefault(); }}
+      onClose={() => setDeleting(null)}>
+      <form className="admin-field-stack" onSubmit={deleteBusiness}>
+        <h2 id="admin-delete-title">Delete workspace</h2>
+        <p>Delete <strong>{deleting.name}</strong> from admin and disable its staff and patient links. Existing records are retained.</p>
+        <p>Any linked Stripe subscription must have ended and any open checkout must have expired.</p>
+        <label htmlFor="admin-delete-name">Enter the workspace name to confirm</label>
+        <input id="admin-delete-name" autoComplete="off" value={deleteName}
+          onChange={event => setDeleteName(event.target.value)} disabled={busy === "delete"} />
+        {deleteError && <p role="alert" className="error-message">{deleteError}</p>}
+        <div className="billing-actions">
+          <button type="button" className="secondary" onClick={() => setDeleting(null)} disabled={busy === "delete"}>Cancel</button>
+          <button className="admin-destructive" disabled={busy === "delete" || deleteName !== deleting.name}>
+            {busy === "delete" ? "Deleting..." : "Delete workspace"}
+          </button>
+        </div>
+      </form>
+    </dialog>}
     {preview && <dialog className="admin-patient-preview" aria-label="Patient form preview"
       ref={node => { if (node && !node.open) node.showModal(); }} onClose={() => setPreview(null)}>
       <form method="dialog"><button className="secondary">Close preview</button></form>
@@ -229,7 +274,7 @@ export default function AdminConsole() {
     <header className="admin-page-heading">
       <div>
         {b && tab === "cards"
-          ? <button type="button" className="admin-back-link" onClick={() => setTab("businesses")}>Back to businesses</button>
+          ? <button type="button" className="admin-back-link" onClick={() => setTab("businesses")}><ArrowLeft size={15} aria-hidden="true" />Back to businesses</button>
           : <p className="eyebrow">Platform admin</p>}
         <h1>{sectionTitle}</h1>
       </div>
@@ -254,18 +299,18 @@ export default function AdminConsole() {
     {session && (!session.acceptingGlobally || !session.smtpConfigured || !session.stripeConfigured) && <p className="notice">{!session.acceptingGlobally && "Global intake is off (AcceptReferrals). "}{!session.smtpConfigured && "Email alerts are not configured (SMTP). "}{!session.stripeConfigured && "Stripe billing is not configured."}</p>}
 
     {tab === "businesses" && totals && <dl className="admin-metrics">
-      <div><dt>Businesses</dt><dd>{totals.businesses} <small>{businesses.filter(x => liveState(x, session) === "Live").length} live</small></dd></div>
-      <div><dt>Card taps</dt><dd>{totals.taps} <small>{totals.cards} cards issued</small></dd></div>
-      <div><dt>Referrals submitted</dt><dd>{totals.referrals}</dd></div>
+      <div><Building2 className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Businesses</dt><dd>{totals.businesses} <span className="admin-metric-note">{businesses.filter(x => liveState(x, session) === "Live").length} live</span></dd></div>
+      <div><Radio className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Card taps</dt><dd>{totals.taps} <span className="admin-metric-note">{totals.cards} cards issued</span></dd></div>
+      <div><ClipboardList className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Referrals submitted</dt><dd>{totals.referrals}</dd></div>
     </dl>}
 
     <section className="card" id="admin-businesses" hidden={tab !== "businesses"}>
       <div className="admin-directory-heading"><h2>Workspace directory</h2>
-        <button className="primary" onClick={() => setTab("create")}>Add business</button>
+        <button className="admin-primary-action" onClick={() => setTab("create")}><Plus size={17} aria-hidden="true" />Add business</button>
       </div>
       <div className="admin-filters"><label className="sr-only" htmlFor="admin-search">Search businesses</label><input id="admin-search" type="search" placeholder="Search businesses" value={search} onChange={e => setSearch(e.target.value)} /><label className="sr-only" htmlFor="admin-state">Filter by status</label><select id="admin-state" value={liveFilter} onChange={e => setLiveFilter(e.target.value)}><option value="">Current businesses</option>{["Live", "Awaiting payment", "Intake off", "Intake closed globally", "Suspended", "Archived"].map(v => <option key={v}>{v}</option>)}</select></div>
-      <div className="table-scroll admin-table"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Card taps</th><th>Referrals</th></tr></thead><tbody>
-        {shownBusinesses.map(x => <tr key={x.businessId} className={x.businessId === selected ? "is-selected" : undefined}><td><button className="secondary admin-business-button" onClick={() => { setSelected(x.businessId); setWorkspaceView("cards"); setTab("cards"); }}>{x.name}</button><small className="admin-business-id">{x.businessId}</small></td><td data-label="Status">{liveState(x, session)}</td><td data-label="Billing">{x.billingExempt ? "Exempt" : x.billingStatus}</td><td data-label="Cards">{x.cards}</td><td data-label="Card taps">{x.taps}</td><td data-label="Referrals">{x.referrals}</td></tr>)}
+      <div className="admin-table"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Card taps</th><th>Referrals</th></tr></thead><tbody>
+        {shownBusinesses.map(x => <tr key={x.businessId} className={x.businessId === selected ? "is-selected" : undefined}><td><button className="secondary admin-business-button" onClick={() => { setSelected(x.businessId); setWorkspaceView("cards"); setTab("cards"); }}>{x.name}<ArrowRight size={14} aria-hidden="true" /></button><small className="admin-business-id" title={x.businessId}>ID {x.businessId.slice(-10)}</small></td><td data-label="Status"><span className="admin-status-pill" data-live={liveState(x, session) === "Live"}>{liveState(x, session)}</span></td><td data-label="Billing">{x.billingExempt ? "Exempt" : x.billingStatus === "not_configured" ? "Not configured" : (x.billingStatus ?? "Unknown").replaceAll("_", " ")}</td><td data-label="Cards">{x.cards}</td><td data-label="Card taps">{x.taps}</td><td data-label="Referrals">{x.referrals}</td></tr>)}
         {!shownBusinesses.length && <tr><td colSpan={6}>{error && state === "loading" ? "Directory unavailable." : state === "loading" ? "Loading…" : businesses.length ? "No businesses match." : "No businesses yet. Create the first one."}</td></tr>}
       </tbody></table></div>
     </section>
@@ -280,7 +325,7 @@ export default function AdminConsole() {
         : b.hasStripeSubscription
           ? "Deletion checks Stripe for an ended subscription. Existing records are retained."
           : "Deletion disables patient links and retains existing records."}</p>
-      <button className="secondary admin-destructive" disabled={Boolean(busy) || checkoutOpen} onClick={() => deleteBusiness(b)}>Delete business</button>
+      <button className="admin-destructive" disabled={Boolean(busy) || checkoutOpen} onClick={() => requestDeletion(b)}>Delete workspace</button>
       {b.hasStripeSubscription && <AdminStripeSubscription key={b.businessId} businessId={b.businessId} />}
     </section>}
     {b && !b.archived && detail && tab === "cards" && <div id="admin-cards" className="admin-workspace-detail">
@@ -289,9 +334,9 @@ export default function AdminConsole() {
           {([["cards", "Cards"], ["settings", "Business settings"], ["people", "People"], ["activity", "Activity"]] as const).map(([key, label]) =>
             <button type="button" key={key} aria-current={workspaceView === key ? "page" : undefined} onClick={() => key === "activity" ? showActivity(b.businessId) : setWorkspaceView(key)}>{label}</button>)}
         </nav>
-        <span className="admin-status">{liveState(b, session)}</span>
+        <span className="admin-status-pill" data-live={liveState(b, session) === "Live"}>{liveState(b, session)}</span>
       </div>
-      {workspaceView === "cards" && <section className="card" key={b.businessId}><h2>Issue NFC cards</h2>
+      {workspaceView === "cards" && <section className="card admin-card-issuer" key={b.businessId}><h2>Issue NFC cards</h2>
         <p className="muted">Copy the patient form link to NFC Tools. Choose Write, add a URL record, then tap the card against your phone. Use the same link for the QR code.</p>
         <form className="form-grid" onSubmit={issueCards}>
           <label htmlFor="card-partner">Referring partner<select id="card-partner" name="partnerId" required defaultValue=""><option value="" disabled>Choose partner</option>{detail.partners.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}<option value="__new">+ New partner…</option></select></label>
@@ -369,11 +414,14 @@ export default function AdminConsole() {
           <form className="inline" onSubmit={saveAlert}><label htmlFor="admin-alert">Alert email<input id="admin-alert" name="alertEmail" type="email" maxLength={254} defaultValue={b.alertEmail} key={b.etag}/></label><button className="secondary" disabled={busy === "update"}>Save</button></form>
         </section>
         <section className="card">
-          <h2>Archive business</h2>
+          <h2>Workspace access</h2>
           <p className="muted">Archiving hides the business from the default list, blocks staff access and stops new referrals. Records and billing are preserved.</p>
-          <button className="secondary" disabled={Boolean(busy)} onClick={() => {
+          <div className="billing-actions"><button className="secondary" disabled={Boolean(busy)} onClick={() => {
             if (window.confirm(`Archive ${b.name} and pause staff access and intake?`)) updateBusiness({ archived: true });
           }}>Archive business</button>
+            <button className="admin-destructive" disabled={Boolean(busy) || checkoutOpen} onClick={() => requestDeletion(b)}>Delete workspace</button>
+          </div>
+          {checkoutOpen && <p className="hint">Delete is available after the open Stripe checkout expires.</p>}
         </section>
       </div>}
       {workspaceView === "people" && (

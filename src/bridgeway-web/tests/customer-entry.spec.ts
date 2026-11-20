@@ -194,7 +194,7 @@ test("platform admin edits a business logo and can archive and restore the works
   });
   await page.route("**/api/admin/businesses/business-test", async route => {
     if (route.request().method() === "DELETE") {
-      expect(business.archived).toBe(true);
+      expect(business.archived).toBe(false);
       expect(route.request().postDataJSON()).toEqual({ etag: business.etag, name: business.name });
       deleted = true;
       return route.fulfill({ json: { ok: true } });
@@ -209,6 +209,11 @@ test("platform admin edits a business logo and can archive and restore the works
   });
 
   await page.goto("/admin");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".admin-table")).toHaveCSS("overflow-y", "visible");
+  await expect(page.locator(".admin-table")).toHaveCSS("max-height", "none");
+  await expect(page.locator(".admin-metrics")).toHaveCSS("display", "grid");
+  await page.setViewportSize({ width: 390, height: 844 });
   const businessButton = page.getByRole("button", { name: "Test Practice", exact: true });
   await businessButton.click();
   await page.getByRole("button", { name: "Business settings" }).click();
@@ -240,13 +245,13 @@ test("platform admin edits a business logo and can archive and restore the works
   await businessButton.click();
   await page.getByRole("button", { name: "Business settings" }).click();
   await expect(page.getByLabel("Welcome message")).toHaveValue("Welcome to Test Practice.");
-  page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Archive business", exact: true }).click();
-  await page.getByLabel("Filter by status").selectOption("Archived");
-  await businessButton.click();
-  page.once("dialog", dialog => dialog.accept("Test Practice"));
-  await page.getByRole("button", { name: "Delete business", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Business deleted from admin");
+  await page.getByRole("button", { name: "Delete workspace", exact: true }).click();
+  const deletion = page.getByRole("dialog", { name: "Delete workspace" });
+  const confirm = deletion.getByRole("button", { name: "Delete workspace" });
+  await expect(confirm).toBeDisabled();
+  await deletion.getByLabel("Enter the workspace name to confirm").fill("Test Practice");
+  await confirm.click();
+  await expect(page.getByRole("status")).toContainText("Workspace deleted from admin.");
   await expect(businessButton).toHaveCount(0);
 });
 

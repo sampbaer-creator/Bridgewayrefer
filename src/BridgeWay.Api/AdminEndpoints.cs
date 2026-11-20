@@ -257,8 +257,6 @@ public static class AdminEndpoints
             var business = await RequireBusiness(store, businessId, ct);
             if (string.IsNullOrEmpty(data.Etag) || data.Name != business.Value<string>("name"))
                 throw new ApiError(400, "Confirm the business name and try again.");
-            if (!BusinessRules.IsArchived(business))
-                throw new ApiError(409, "Archive this business before deleting it.");
             if (DateTimeOffset.TryParse(business.Value<string>("checkoutSessionExpiresAt"), out var checkoutExpiry) &&
                 checkoutExpiry > DateTimeOffset.UtcNow)
                 throw new ApiError(409, "Wait for the open Stripe checkout to expire before deleting this business.");
@@ -273,6 +271,7 @@ public static class AdminEndpoints
                 throw new ApiError(409, "Resolve the billing status before deleting this business.");
             }
 
+            business["archived"] = true;
             business["deletedAt"] = DateTimeOffset.UtcNow.ToString("O");
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey)
                 .ReplaceItem("business", business, new TransactionalBatchItemRequestOptions { IfMatchEtag = data.Etag })
