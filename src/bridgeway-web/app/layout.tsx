@@ -4,6 +4,7 @@ import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
 import Header from "../components/Header";
+import Analytics from "../components/Analytics";
 import "./globals.css";
 import "./staff.css";
 import "./landing.css";
@@ -40,10 +41,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/security">Security</a>
               <a href="/privacy">Privacy</a>
               <a href="/terms">Terms</a>
+              <button type="button" className="footer-cookie-settings" data-cookie-settings>Cookie settings</button>
             </nav>
             <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
           </div>
         </footer>
+        <Analytics />
       </body>
     </html>
   );
