@@ -22,6 +22,7 @@ test("the shared public header keeps its position across routes", async ({ page 
   expect(await walkthrough.evaluate(element => getComputedStyle(element, "::after").backgroundImage))
     .toMatch(/^conic-gradient/);
   const home = await positions();
+  await expect(page.locator("body")).toHaveCSS("background-image", /conic-gradient.*linear-gradient.*rgb\(245, 155, 27\)/);
   for (const path of ["/industries/healthcare", "/industries/trades", "/pricing", "/sign-in"]) {
     await page.goto(path);
     await page.evaluate(() => document.fonts.ready);
