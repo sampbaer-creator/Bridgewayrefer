@@ -16,8 +16,8 @@ export default function Hero() {
               Referral tracking software helps practices and service businesses capture introductions, record who sent them, and organize follow-up in one inbox. Partners can share a branded NFC card or QR link.
             </p>
             <div className="bw-hero-actions">
-              <Link className="bw-btn bw-btn-primary" href="/contact">
-                See where referrals go missing <span aria-hidden="true">→</span>
+              <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">
+                Get started
               </Link>
               <a className="bw-btn bw-btn-ghost" href="/how-it-works">
                 See how it works
