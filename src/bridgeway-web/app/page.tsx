@@ -3,10 +3,10 @@ import { FAQS } from "../components/landing/content";
 import LandingPage from "../components/LandingPage";
 
 export const metadata = {
-  title: { absolute: "Referral Tracking with NFC Cards & QR | BridgeWay" },
+  title: { absolute: "Referral Tracking Software for Teams | BridgeWay" },
   alternates: { canonical: "/" },
   description:
-    "BridgeWay referral tracking uses NFC cards and QR links to capture referrals, identify the source, and track follow-up in one inbox.",
+    "Referral tracking software to capture partner introductions, identify their source and organize team follow-up. NFC and QR links make the handoff simple.",
 };
 
 const faqSchema = {
@@ -32,7 +32,7 @@ export default function HomePage() {
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
             url: "https://bridgewayrefer.com",
-            description: "NFC referral cards, partner attribution, and referral follow-up for businesses",
+            description: "Referral management and tracking software for partner attribution and team follow-up",
             offers: [
               { "@type": "Offer", name: planCopy.workspace.name, price: String(planCopy.workspace.fromUsd), priceCurrency: "USD", description: planCopy.billing },
               { "@type": "Offer", name: planCopy.managedCalling.name, price: String(planCopy.managedCalling.fromUsd), priceCurrency: "USD", description: planCopy.billing },
