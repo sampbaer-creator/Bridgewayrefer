@@ -50,10 +50,17 @@ public static class Endpoints
         {
             var name = data.Name?.Trim() ?? ""; var email = data.Email?.Trim() ?? ""; var businessName = data.BusinessName?.Trim() ?? "";
             if (name.Length is < 1 or > 120 || businessName.Length is < 1 or > 120 || !Regex.IsMatch(email, @"\A[^\s@]+@[^\s@]+\.[^\s@]+\z") || !data.Consent || !Guid.TryParse(data.SubmissionId, out var submissionId)) throw new ApiError(400, "Please check the demo request form.");
+            var notes = data.Notes?.Trim();
+            var phone = data.Phone?.Trim();
+            if (data.NfcCardQuantity is < 1 or > 100000 || notes?.Length > 1000 || phone?.Length > 40)
+                throw new ApiError(400, "Please check the card quantity and contact details.");
             store.UseBusiness(CosmosStore.PlatformPartition); var id = "demo-request-" + submissionId;
             if (await store.Read(id, ct) is not null) return Results.Accepted(value: new { ok = true });
             if (!await store.Allow("demo-request-" + Address(ctx), 5, ct)) throw new ApiError(429, "Please wait before trying again.");
-            var doc = store.Document("demo-request", id); doc["name"] = name; doc["email"] = email.ToLowerInvariant(); doc["businessName"] = businessName; doc["interest"] = data.Interest == "managed-calling" ? "managed-calling" : "demo"; doc["consentVersion"] = "demo-contact-v1"; doc["consentAt"] = doc["createdAt"]!.DeepClone(); doc["ttl"] = 7776000;
+            var doc = store.Document("demo-request", id); doc["name"] = name; doc["email"] = email.ToLowerInvariant(); doc["businessName"] = businessName; doc["interest"] = data.Interest is "workspace" or "managed-calling" or "custom" ? data.Interest : "demo"; doc["consentVersion"] = "demo-contact-v1"; doc["consentAt"] = doc["createdAt"]!.DeepClone(); doc["ttl"] = 7776000;
+            if (data.NfcCardQuantity is int quantity) doc["nfcCardQuantity"] = quantity;
+            if (!string.IsNullOrEmpty(notes)) doc["notes"] = notes;
+            if (!string.IsNullOrEmpty(phone)) doc["phone"] = phone;
             try { await store.Create(doc, ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
             return Results.Accepted(value: new { ok = true });
         });

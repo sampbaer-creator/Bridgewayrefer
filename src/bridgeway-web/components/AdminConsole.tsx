@@ -16,7 +16,7 @@ type Totals = { businesses: number; cards: number; taps: number; referrals: numb
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
-const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity };
+const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, demos: Activity };
 
 const paid = ["active", "trialing", "past_due"];
 function liveState(b: BusinessSummary, session: AdminSession | null) {
@@ -29,7 +29,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 }
 
 export default function AdminConsole() {
-  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website">("businesses");
+  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "demos">("businesses");
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
   const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null);
@@ -259,14 +259,14 @@ export default function AdminConsole() {
   const effectiveLogo = b?.logoUrl || routingOffice?.logoUrl;
   const patientLink = b ? (session?.publicOrigin ?? "") + "/p/" + b.businessId : "";
   const checkoutOpen = Boolean(b?.checkoutExpiresAt && Date.parse(b.checkoutExpiresAt) > Date.now());
-  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status" }[tab];
+  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", demos: "Demo requests" }[tab];
   const shownBusinesses = businesses.filter(x => (!search || x.name.toLowerCase().includes(search.toLowerCase())) && (liveFilter ? liveState(x, session) === liveFilter : !x.archived));
   return <main className="dashboard dashboard-wide admin-workspace admin-console" id="main-content" aria-busy={state === "loading" && !error}>
     <nav className="section-nav admin-tabs" aria-label="Admin sections">
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
       {([
         { label: "Workspaces", items: [["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"]] },
-        { label: "Platform", items: [["website", "Website status"]] },
+        { label: "Platform", items: [["website", "Website status"], ["demos", "Demo requests"]] },
       ] as const).map(group => <div className="admin-nav-group" key={group.label}>
         <p>{group.label}</p>
         {group.items.map(([key, label]) => {
@@ -531,6 +531,7 @@ export default function AdminConsole() {
       </section>}
     </div>}
 
+    {tab === "demos" && <DemoRequests />}
     {tab === "website" && <section className="card" id="admin-website">
       <h2>Platform services</h2>
       {session && <dl className="admin-service-list">
@@ -556,4 +557,39 @@ export default function AdminConsole() {
   </main>;
 }
 
+
+
+function DemoRequests() {
+  type Request = { name: string; email: string; businessName: string; interest: string; nfcCardQuantity?: number; notes?: string; phone?: string; createdAt: string };
+  const [requests, setRequests] = useState<Request[]>();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    api<{ requests: Request[] }>("/api/admin/demo-requests", { signal: controller.signal })
+      .then(result => setRequests(result.requests))
+      .catch(() => { if (!controller.signal.aborted) setFailed(true); });
+    return () => controller.abort();
+  }, []);
+
+  const plans: Record<string, string> = {
+    workspace: "Referral Workspace",
+    "managed-calling": "Managed Calling",
+    custom: "Custom plan",
+  };
+
+  return <section className="card">
+    <h2>Demo requests</h2>
+    {failed ? <p role="alert">Could not load demo requests. Reopen this section to retry.</p>
+      : !requests ? <p role="status">Loading demo requests...</p>
+      : !requests.length ? <p>No demo requests yet.</p>
+      : <ul>{requests.map((request, index) => <li key={index}>
+        <h3>{request.businessName}</h3>
+        <p>{request.name} / <a href={`mailto:${encodeURIComponent(request.email)}`}>{request.email}</a></p>
+        {request.phone && <p>{request.phone}</p>}
+        <p>{plans[request.interest] ?? "Demo"}{request.nfcCardQuantity ? ` / ${request.nfcCardQuantity} NFC cards` : ""}</p>
+        {request.notes && <p>{request.notes}</p>}
+        <time dateTime={request.createdAt}>{new Date(request.createdAt).toLocaleDateString()}</time>
+      </li>)}</ul>}
+  </section>;
+}
 

@@ -64,7 +64,7 @@ test("unavailable Managed Calling requires an explicit switch", async ({ page })
   await expect(page.getByRole("button", { name: /continue to stripe/i })).toHaveCount(0);
   await page.getByRole("button", { name: "Switch to Referral Workspace" }).click();
   await expect(page).toHaveURL(/plan=workspace$/);
-  await expect(page.getByRole("radio", { name: /^referral workspace/i })).toBeChecked();
+  await expect(page.getByRole("region", { name: "Business signup" }).getByRole("radio", { name: /^referral workspace/i })).toBeChecked();
   expect(posts).toBe(0);
 });
 

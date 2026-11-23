@@ -1,6 +1,6 @@
 import DemoRequestForm from "../../components/DemoRequestForm";
 
-export const metadata = { title: "Contact", description: "Ask about BridgeWay referral tracking, NFC card orders, walkthroughs, service terms, or healthcare and data-handling agreements.", alternates: { canonical: "/contact" } };
+export const metadata = { title: "Book a Referral Tracking Demo", description: "Request a BridgeWay referral tracking demo and discuss your referral sources, follow-up workflow, and NFC card needs.", alternates: { canonical: "/contact" } };
 
 export default function ContactPage() {
   return (
@@ -9,9 +9,9 @@ export default function ContactPage() {
         <div className="bw-contact-grid">
           <div className="bw-contact-copy">
             <p className="eyebrow">CONTACT</p>
-            <h1>Talk to BridgeWay.</h1>
+            <h1>Book a referral tracking demo</h1>
             <div className="bw-contact-points">
-              <p>Book a walkthrough or ask a question. No sign-in or payment needed.</p>
+              <p>Request a demo and get a custom referral breakdown for your business. We will email you to arrange a time.</p>
               <p className="muted">For an existing referral, contact the receiving business.</p>
             </div>
           </div>

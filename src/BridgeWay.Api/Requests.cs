@@ -37,7 +37,7 @@ public sealed record InvitationCreate(string Email, string Role);
 public sealed record MemberStatusUpdate(bool Active, string Etag);
 public sealed record InvitationCancel(string Etag);
 public sealed record AssignmentUpdate(string? OwnerId, string? OwnerName, string Etag);
-public sealed record DemoRequest(string Name, string Email, string BusinessName, string SubmissionId, bool Consent, string? Interest = null);
+public sealed record DemoRequest(string Name, string Email, string BusinessName, string SubmissionId, bool Consent, string? Interest = null, int? NfcCardQuantity = null, string? Notes = null, string? Phone = null);
 public sealed record BusinessProfileUpdate(string Name, string WelcomeText, string Phone, bool AcceptReferrals, string LogoUrl, string Etag, string? AlertEmail = null);
 public sealed record AdminLogoUpload(string Etag, string? Image);
 public sealed record AdminMemberUpdate(string Etag, string? Role, bool Revoke = false);

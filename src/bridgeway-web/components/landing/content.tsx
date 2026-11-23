@@ -120,7 +120,10 @@ export const FEATURES = [
 ];
 
 export const FAQS: [string, string][] = [
-  ["How do NFC cards work?", "Tap the card on a phone to open the receiving business's referral form. QR links work with any camera."],
+  ["What is a referral tracking system?", "It records where an introduction came from, who owns follow-up, and what happened next."],
+  ["Can I replace my referral spreadsheet?", "Use the BridgeWay referral inbox to capture requests and assign follow-up. Keep your spreadsheet if you need a separate historical record."],
+  ["Do patient details go in emails?", "Standard referral alerts link authorized staff to the inbox. They omit patient names, contact details, and notes."],
+  ["How do NFC referral cards work?", "Tap the card on a phone to open the receiving business's referral form. QR links work with any camera."],
   ["Do customers need an app?", "No. The form opens in the phone's browser."],
   ["How is this different from a shared link or QR code?", "A link tells you a referral happened. BridgeWay tells you who sent it, who it is for, and whether your team followed up — with the status visible until it is done."],
   ["What happens if a referral is not followed up?", "It stays open on your dashboard until someone closes it out, so follow-ups cannot quietly disappear."],

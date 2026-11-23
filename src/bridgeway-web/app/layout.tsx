@@ -1,3 +1,4 @@
+import ResourceLinks from "../components/ResourceLinks";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
   title: { default: "Referral tracking and NFC cards | BridgeWay", template: "%s | BridgeWay" },
   description: siteDescription,
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION },
   openGraph: { type: "website", siteName: "BridgeWay", title: "Referral tracking and NFC cards | BridgeWay", description: siteDescription, images: [{ url: "/share.png", width: 1200, height: 630, alt: "BridgeWay referral tracking" }] },
   twitter: { card: "summary_large_image", images: ["/share.png"] },
 };
@@ -38,7 +40,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/terms">Terms</a>
               <button type="button" className="footer-cookie-settings" data-cookie-settings>Cookie settings</button>
             </nav>
-            <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
+            <ResourceLinks />
+          <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
           </div>
         </footer>
       </body>

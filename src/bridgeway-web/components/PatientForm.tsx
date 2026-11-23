@@ -123,6 +123,7 @@ export default function PatientForm({ config, code = "", preview = false }: { co
             {callback && <p className="hint">For urgent help, call the office directly at {callback}.</p>}
           </form>}
         </section>}
+      {!preview && <p className="hint">Powered by BridgeWay referral tracking</p>}
     </IntakeContainer>
   </>;
 }

@@ -4,7 +4,7 @@ export type Consent = "granted" | "denied";
 
 /** Public marketing pages that may load Google Tag Manager. Everything else (dashboards, sign-in,
  *  signup, referral intake under /r and /p, admin, legal pages) is never tracked. */
-const TRACKED = new Set(["/", "/pricing", "/contact", "/industries/dental", "/industries/trades", "/industries/healthcare"]);
+const TRACKED = new Set(["/", "/how-it-works", "/pricing", "/contact", "/industries/dental", "/industries/trades", "/industries/healthcare"]);
 
 export function isTrackedPath(pathname: string | null | undefined) {
   if (!pathname) return false;

@@ -8,7 +8,7 @@ import LeadCapture from "./landing/LeadCapture";
 import Close from "./landing/Close";
 import Footer from "./landing/Footer";
 
-/* The landing page coordinates page-wide motion (scroll reveals, pipeline lighting, counters, sticky CTA). Each
+/* The landing page coordinates page-wide motion (scroll reveals, counters, sticky CTA). Each
    content section lives in components/landing/. */
 
 export default function LandingPage() {
@@ -42,35 +42,6 @@ export default function LandingPage() {
       return () => io.disconnect();
     }
     revealEls.forEach((node) => node.classList.add("in"));
-  }, []);
-
-  useEffect(() => {
-    const el = root.current;
-    if (!el) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    /* ---- Pipeline step lighting ---- */
-    const steps = el.querySelectorAll<HTMLElement>(".bw-pipe-step");
-    if (reducedMotion) {
-      steps.forEach((s) => s.classList.add("lit"));
-      return;
-    }
-    let timers: ReturnType<typeof setTimeout>[] = [];
-    const lightSteps = () => {
-      steps.forEach((s) => s.classList.remove("lit"));
-      steps[0]?.classList.add("lit");
-      timers = [
-        setTimeout(() => steps[1]?.classList.add("lit"), 1900),
-        setTimeout(() => steps[2]?.classList.add("lit"), 3900),
-        setTimeout(() => steps.forEach((s) => s.classList.remove("lit")), 5900),
-      ];
-    };
-    lightSteps();
-    const interval = setInterval(lightSteps, 6000);
-    return () => {
-      timers.forEach(clearTimeout);
-      clearInterval(interval);
-    };
   }, []);
 
   useEffect(() => {

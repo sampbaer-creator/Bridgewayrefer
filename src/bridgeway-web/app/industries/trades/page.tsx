@@ -1,14 +1,14 @@
 import Link from "next/link";
 
-export const metadata = { title: "Referral tracking for home service trades", description: "Give plumbers, property managers, and other partners a branded way to refer homeowners to your HVAC, plumbing, or electrical team, and track follow-up through a booked job.", alternates: { canonical: "/industries/trades" }, openGraph: { title: "Home service referral tracking | BridgeWay", description: "Attribute partner introductions and track each homeowner request through follow-up and a booked job." } };
+export const metadata = { title: "Home Service Referral Tracking", description: "Home service referral tracking helps contractors capture job leads, credit the partner who sent them, and track follow-up.", alternates: { canonical: "/industries/trades" }, openGraph: { title: "Home service referral tracking | BridgeWay", description: "Attribute partner introductions and track each homeowner request through follow-up and a booked job." } };
 
 export default function TradesIndustryPage() {
   return (
     <main className="bw-page" id="main-content">
       <section className="bw-page-hero">
         <p className="eyebrow">FOR HOME SERVICE TEAMS</p>
-        <h1>Know which partner sent the next job.</h1>
-        <p className="muted">A plumber or property manager shares your BridgeWay card with a homeowner. They open a short form for your HVAC team, and the request arrives with its partner and location attached.</p>
+        <h1>Home service referral tracking for booked jobs</h1>
+        <p className="muted">Home service referral tracking helps contractors capture job leads, credit the partner who sent them, and track follow-up.</p>
         <div className="bw-hero-actions">
           <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started →</Link>
           <Link className="bw-btn bw-btn-ghost" href="#referral-workflow">See the handoff</Link>
