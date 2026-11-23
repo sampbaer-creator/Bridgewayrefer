@@ -12,6 +12,15 @@ test("the shared public header keeps its position across routes", async ({ page 
   });
   await page.goto("/");
   await page.evaluate(() => document.fonts.ready);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-family", /DM Sans Variable/);
+  expect(await page.evaluate(() => Array.from(document.fonts).some(
+    font => font.family.includes("DM Sans Variable") && font.status === "loaded",
+  ))).toBe(true);
+  await expect(header.locator(".public-nav-cta")).toHaveCSS("background-image", /^linear-gradient/);
+  const walkthrough = page.locator(".bw-lead-card");
+  await expect(walkthrough).toHaveCSS("background-image", /^linear-gradient.*rgb\(245, 155, 27\)/);
+  expect(await walkthrough.evaluate(element => getComputedStyle(element, "::after").backgroundImage))
+    .toMatch(/^conic-gradient/);
   const home = await positions();
   for (const path of ["/industries/healthcare", "/industries/trades", "/pricing", "/sign-in"]) {
     await page.goto(path);
