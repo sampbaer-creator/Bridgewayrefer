@@ -35,9 +35,11 @@
   --radius: 16px;
   --radius-sm: 8px;
   --orange-ink: #A74617;
-  --orange: #F49C62;
+  --orange: #F59B1B;
   --orange-line: #FFD5BB;
   --orange-wash: #FFF4EB;
+  --brand-gradient: linear-gradient(135deg, #6ea1b8 0%, #b4daea 25%, #d1ecf8 50%, #e7f0f4 75%, #f59b1b 100%);
+  --brand-sheen: conic-gradient(from 90deg at 100% 100%, transparent 0deg 180deg, rgb(231 240 244 / 38%) 220deg, rgb(180 218 234 / 20%) 250deg, transparent 270deg 360deg);
   --button-gradient: linear-gradient(135deg, #93D8F6, #48B2E6);
   --button-shadow: 0 2px 5px rgb(13 35 57 / 9%), 0 0 12px rgb(72 178 230 / 12%);
   --slate: #A8B5BD;      /* light silver-slate */
@@ -1143,7 +1145,7 @@ body:has(.bw-landing:not(.bw-how-it-works, .bw-signup-inquiry)) > .site-footer {
   background:
     linear-gradient(105deg, rgba(123, 200, 237, 0.42) 0%, rgba(210, 236, 248, 0.14) 44%, rgba(238, 247, 250, 0) 72%),
     radial-gradient(46rem 30rem at 88% -8%, rgba(72, 178, 230, 0.1), transparent 62%),
-    radial-gradient(38rem 26rem at -6% 108%, rgb(244 156 98 / 10%), transparent 60%);
+    radial-gradient(38rem 26rem at -6% 108%, rgb(245 155 27 / 10%), transparent 60%);
 }
 .bw-hero-copy, .bw-hero-visual { min-width: 0; }
 .bw-hero-inner {
@@ -1510,8 +1512,8 @@ body:has(.bw-landing:not(.bw-how-it-works, .bw-signup-inquiry)) > .site-footer {
 .bw-lead { padding: var(--bw-section-y) 2rem 0; }
 .bw-lead-card {
   max-width: 1200px; margin: 0 auto;
-  background: linear-gradient(135deg, var(--bw-blue) 0%, var(--bw-sky) 58%, var(--bw-pale) 100%);
-  border-radius: 20px; color: var(--ink);
+  background: var(--brand-gradient);
+  border-radius: 20px; color: var(--navy);
   padding: clamp(2.2rem, 5vw, 3.8rem);
   display: grid; grid-template-columns: 1fr 1.05fr; gap: clamp(2rem, 4vw, 3.5rem);
   align-items: center;
@@ -1520,7 +1522,7 @@ body:has(.bw-landing:not(.bw-how-it-works, .bw-signup-inquiry)) > .site-footer {
 }
 .bw-lead-card::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(34rem 22rem at 108% -12%, rgba(72, 178, 230, 0.35), transparent 62%);
+  background: var(--brand-sheen);
 }
 .bw-lead-copy { position: relative; z-index: 1; }
 .bw-lead-copy h2 { color: var(--navy); }
@@ -1878,11 +1880,10 @@ body:has(.staff-shell) > .site-footer { display: none; }
 
 /* ============ CTA band ============ */
 /* Matches the homepage closing card (.bw-lead-card) so industry pages end on the same brand treatment. */
-.bw-cta-band { max-width: 1200px; margin: 0 auto; position: relative; overflow: hidden; background: linear-gradient(135deg, var(--bw-blue) 0%, var(--bw-sky) 58%, var(--bw-pale) 100%); border-radius: 20px; box-shadow: var(--bw-shadow-lg); color: var(--ink); text-align: center; padding: clamp(3rem, 7vw, 5rem) 2rem; }
-.bw-cta-band::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(34rem 22rem at 108% -12%, rgba(72, 178, 230, 0.35), transparent 62%); }
+.bw-cta-band { max-width: 1200px; margin: 0 auto; position: relative; overflow: hidden; background: var(--brand-gradient); border-radius: 20px; box-shadow: var(--bw-shadow-lg); color: var(--ink); text-align: center; padding: clamp(3rem, 7vw, 5rem) 2rem; }
 .bw-cta-band > * { position: relative; z-index: 1; }
 .bw-cta-band h2 { color: var(--navy); max-width: 26ch; margin: 0.4rem auto 0; }
-.bw-cta-band p { color: var(--ink); margin-top: 1rem; font-size: 1.05rem; }
+.bw-cta-band p { color: var(--navy); margin-top: 1rem; font-size: 1.05rem; }
 .bw-cta-band .bw-btn { margin-top: 2rem; }
 
 /* ============ Document pages (security, privacy, terms, 404) ============ */
