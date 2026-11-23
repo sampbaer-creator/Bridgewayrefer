@@ -1062,7 +1062,7 @@ body:has(.admin-workspace) > .site-header { position: static; }
 }
 
 /* The landing page renders its own footer. */
-body:has(.bw-landing) > .site-footer {
+body:has(.bw-landing:not(.bw-how-it-works, .bw-signup-inquiry)) > .site-footer {
   display: none;
 }
 
@@ -1084,7 +1084,6 @@ body:has(.bw-landing) > .site-footer {
 .bw-landing a:not(.bw-btn):not(.bw-brand) { color: var(--bw-link); text-decoration: none; }
 .bw-landing a:not(.bw-btn):not(.bw-brand):hover { text-decoration: underline; text-underline-offset: 3px; }
 
-.bw-landing #how-it-works,
 .bw-landing #pricing,
 .bw-landing #faq,
 .bw-landing #walkthrough,
@@ -1289,8 +1288,14 @@ body:has(.bw-landing) > .site-footer {
 /* ============ Journey (dark band) ============ */
 .bw-journey { background: var(--pale); color: var(--ink); }
 .bw-journey-inner { max-width: 1200px; margin: 0 auto; padding: var(--bw-section-y) 2rem; }
-.bw-journey h2 { color: var(--navy); }
+.bw-journey h1, .bw-journey h2 { color: var(--navy); }
 .bw-journey-sub { color: var(--ink-blue); max-width: 42rem; margin-top: 1rem; font-size: 1.1rem; }
+
+.bw-resource-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem 2rem; grid-column: 1 / -1; padding-block: 1rem; }
+.bw-resource-links ul { list-style: none; padding: 0; margin: .5rem 0 0; }
+.bw-resource-links li { margin-bottom: .35rem; }
+
+.bw-journey-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
 
 .bw-pipeline { position: relative; margin-top: 3.2rem; }
 .bw-pipeline-track {
@@ -1328,7 +1333,6 @@ body:has(.bw-landing) > .site-footer {
   width: 26px; height: 26px; fill: none; stroke: var(--bw-sky);
   stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
-.bw-pipe-step.lit .bw-pipe-icon { border-color: var(--bw-sky); box-shadow: 0 0 24px rgba(72, 178, 230, 0.35); }
 .bw-pipe-step b { display: block; font-size: 1.06rem; color: var(--navy); margin-bottom: 0.5rem; }
 .bw-pipe-step p { color: var(--ink-blue); font-size: 1rem; }
 .bw-step-num {
@@ -1527,7 +1531,9 @@ body:has(.bw-landing) > .site-footer {
 .bw-lead-sub { color: var(--ink-blue); margin-top: 1rem; font-size: 1.02rem; }
 .bw-lead-forms { position: relative; z-index: 1; display: grid; gap: 1.3rem; }
 .bw-lead-form { display: grid; gap: 0.7rem; }
-.bw-lead-form input {
+.bw-signup-inquiry .bw-lead { padding-bottom: 2rem; }
+.bw-signup-inquiry .bw-lead-copy h1 { font-size: clamp(2rem, 4vw, 3rem); }
+.bw-lead-form input, .bw-lead-form textarea {
   width: 100%; font: 500 0.95rem/1.4 var(--font-body);
   padding: 0.85rem 1rem; border-radius: var(--bw-radius-sm);
   border: 1px solid rgba(24, 62, 82, 0.3);
@@ -1535,6 +1541,12 @@ body:has(.bw-landing) > .site-footer {
   display: block; margin: 0; box-shadow: none;
   transition: border-color 0.15s, background 0.15s;
 }
+.bw-demo-name { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.bw-demo-plans { display: grid; gap: .4rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.bw-demo-plans label { display: flex; align-items: center; gap: .6rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: .6rem; cursor: pointer; }
+.bw-demo-plans label:has(:checked) { outline: 2px solid var(--navy); outline-offset: -2px; }
+.bw-demo-plans input { width: auto; flex-shrink: 0; padding: 0; }
+.bw-demo-plans strong { display: block; }
 .bw-lead-form input::placeholder { color: var(--muted); }
 .bw-lead-form input:focus { outline: none; border-color: var(--bw-accent); background: #fff; }
 .bw-lead-consent {

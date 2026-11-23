@@ -10,17 +10,16 @@ export default function Hero() {
           <div className="bw-hero-copy">
             <p className="bw-eyebrow">NFC referral cards and tracking</p>
             <h1>
-              Most partner referrals never get followed&nbsp;up. <span className="bw-accent">Yours will.</span>
+              Referral tracking from the first tap to follow-up.
             </h1>
             <p className="bw-hero-sub">
-              Built for local practices and service businesses: your partners hand out a branded NFC card, customers tap
-              to refer in seconds, and your team sees every referral and follow-up in one place — so none slip through.
+              BridgeWay referral tracking helps practices and service businesses capture referrals with branded NFC cards and QR links, record the referral source, and follow up in one inbox.
             </p>
             <div className="bw-hero-actions">
-              <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">
-                Get started <span aria-hidden="true">→</span>
+              <Link className="bw-btn bw-btn-primary" href="/contact">
+                See where referrals go missing <span aria-hidden="true">→</span>
               </Link>
-              <a className="bw-btn bw-btn-ghost" href="#how-it-works">
+              <a className="bw-btn bw-btn-ghost" href="/how-it-works">
                 See how it works
               </a>
             </div>
@@ -29,7 +28,7 @@ export default function Hero() {
                 {CHECK_ICON}No app for customers
               </li>
               <li>
-                {CHECK_ICON}Works on any phone
+                {CHECK_ICON}QR option for phones with a camera
               </li>
               <li>
                 {CHECK_ICON}Cancel anytime

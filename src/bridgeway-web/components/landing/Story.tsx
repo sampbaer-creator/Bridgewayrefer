@@ -1,6 +1,6 @@
 import { planCopy } from "../../lib/plan-copy";
 import Link from "next/link";
-import { FEATURES, PIPE_STEPS } from "./content";
+import { FEATURES } from "./content";
 
 export default function Story() {
   return (
@@ -39,37 +39,6 @@ export default function Story() {
               </span>
             </strong>
             <span>Starting monthly rate.</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ============ HOW IT WORKS (dark band) ============ */}
-      <section className="bw-journey" id="how-it-works">
-        <div className="bw-journey-inner">
-          <p className="bw-eyebrow bw-eyebrow-light">How a referral travels</p>
-          <h2>
-            From a tap to a booked job<span className="bw-accent-light">.</span>
-          </h2>
-          <p className="bw-journey-sub">
-            Every referral records who sent it and which office receives it.
-          </p>
-
-          <div className="bw-pipeline">
-            <div className="bw-pipeline-track" aria-hidden="true">
-              <span className="bw-pipeline-pulse" />
-            </div>
-            <ol className="bw-pipeline-steps">
-              {PIPE_STEPS.map((step, index) => (
-                <li className="bw-pipe-step" key={step.title}>
-                  <span className="bw-pipe-icon">{step.icon}</span>
-                  <b>{step.title}</b>
-                  <p>{step.copy}</p>
-                  <span className="bw-step-num" aria-hidden="true">
-                    0{index + 1}
-                  </span>
-                </li>
-              ))}
-            </ol>
           </div>
         </div>
       </section>
@@ -139,16 +108,15 @@ export default function Story() {
       <section className="bw-example" aria-labelledby="bw-example-heading">
         <div className="bw-example-card reveal">
           <div className="bw-example-copy">
-            <p className="bw-eyebrow">The referral math</p>
+            <p className="bw-eyebrow">Referral follow-up</p>
             <h2 id="bw-example-heading">
-              Where referrals leak<span className="bw-accent">.</span>
+              Referrals you might be missing<span className="bw-accent">.</span>
             </h2>
             <p>
-              A partner sends you a warm introduction. It lands on a sticky note or in a shared inbox. Nobody owns it, so
-              nobody follows up.
+              A partner intends to refer someone, but the handoff never happens. An introduction arrives without a referral source, or it gets written down and no one is assigned to follow up.
             </p>
             <p className="bw-example-kicker">
-              BridgeWay gives every referral an owner and a status, from first tap to booked job.
+              BridgeWay helps you capture referrals, assign an owner and see which introductions are still waiting for follow-up.
             </p>
             <span className="bw-example-tag">Illustrative example</span>
           </div>

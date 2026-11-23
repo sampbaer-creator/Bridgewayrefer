@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const metadata = { title: "Page not found", robots: { index: false } };
+
 export default function NotFound() {
   return (
     <main className="bw-page" id="main-content">

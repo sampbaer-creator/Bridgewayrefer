@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const publicLinks = [
-  { label: "How it works", href: "/#how-it-works" },
+  { label: "How it works", href: "/how-it-works" },
   { label: "Healthcare", href: "/industries/healthcare" },
   { label: "Trades", href: "/industries/trades" },
   { label: "Pricing", href: "/pricing" },

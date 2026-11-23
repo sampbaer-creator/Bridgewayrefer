@@ -1,14 +1,14 @@
 import Link from "next/link";
 
-export const metadata = { title: "Healthcare referral tracking", description: "Help healthcare providers send patient introductions to your medical or dental practice, then track each referral through follow-up and a scheduled visit.", alternates: { canonical: "/industries/healthcare" }, openGraph: { title: "Healthcare referrals | BridgeWay", description: "A branded partner handoff that your healthcare team can follow through to a scheduled visit." } };
+export const metadata = { title: "Dental & Orthodontic Referral Tracking", description: "Dental referral tracking helps your practice capture patient referrals, see the referring dentist, and follow up in one inbox.", alternates: { canonical: "/industries/healthcare" }, openGraph: { title: "Healthcare referrals | BridgeWay", description: "A branded partner handoff that your healthcare team can follow through to a scheduled visit." } };
 
 export default function HealthcareIndustryPage() {
   return (
     <main className="bw-page" id="main-content">
       <section className="bw-page-hero">
         <p className="eyebrow">FOR HEALTHCARE TEAMS</p>
-        <h1>Make every referring office easy to follow up with.</h1>
-        <p className="muted">A healthcare provider shares a BridgeWay card with a patient, whether the referral is to a medical or dental specialist. The patient opens your practice’s short referral form, and your team sees which office sent them.</p>
+        <h1>Dental referral tracking for referring offices</h1>
+        <p className="muted">Dental referral tracking helps your practice capture patient referrals, see the referring dentist, and follow up in one inbox.</p>
         <div className="bw-hero-actions">
           <Link className="bw-btn bw-btn-primary" href="/signup?plan=workspace">Get started →</Link>
           <Link className="bw-btn bw-btn-ghost" href="#referral-workflow">See the handoff</Link>
@@ -53,6 +53,7 @@ export default function HealthcareIndustryPage() {
           <Link className="bw-btn bw-btn-light" href="/signup?plan=workspace">Get started →</Link>
         </div>
       </section>
+      <p className="bw-doc"><a href="/industries/dental">Explore orthodontic referral tracking</a></p>
     </main>
   );
 }

@@ -1,4 +1,4 @@
-
+﻿
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
@@ -16,7 +16,7 @@ type Totals = { businesses: number; cards: number; taps: number; referrals: numb
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
-const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity };
+const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, demos: Activity };
 
 const paid = ["active", "trialing", "past_due"];
 function liveState(b: BusinessSummary, session: AdminSession | null) {
@@ -29,7 +29,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 }
 
 export default function AdminConsole() {
-  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website">("businesses");
+  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "demos">("businesses");
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
   const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null);
@@ -259,14 +259,14 @@ export default function AdminConsole() {
   const effectiveLogo = b?.logoUrl || routingOffice?.logoUrl;
   const patientLink = b ? (session?.publicOrigin ?? "") + "/p/" + b.businessId : "";
   const checkoutOpen = Boolean(b?.checkoutExpiresAt && Date.parse(b.checkoutExpiresAt) > Date.now());
-  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status" }[tab];
+  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", demos: "Demo requests" }[tab];
   const shownBusinesses = businesses.filter(x => (!search || x.name.toLowerCase().includes(search.toLowerCase())) && (liveFilter ? liveState(x, session) === liveFilter : !x.archived));
   return <main className="dashboard dashboard-wide admin-workspace admin-console" id="main-content" aria-busy={state === "loading" && !error}>
     <nav className="section-nav admin-tabs" aria-label="Admin sections">
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
       {([
         { label: "Workspaces", items: [["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"]] },
-        { label: "Platform", items: [["website", "Website status"]] },
+        { label: "Platform", items: [["website", "Website status"], ["demos", "Demo requests"]] },
       ] as const).map(group => <div className="admin-nav-group" key={group.label}>
         <p>{group.label}</p>
         {group.items.map(([key, label]) => {
@@ -347,7 +347,7 @@ export default function AdminConsole() {
       <div className="admin-filters"><label className="sr-only" htmlFor="admin-search">Search businesses</label><input id="admin-search" type="search" placeholder="Search businesses" value={search} onChange={e => setSearch(e.target.value)} /><label className="sr-only" htmlFor="admin-state">Filter by status</label><select id="admin-state" value={liveFilter} onChange={e => setLiveFilter(e.target.value)}><option value="">Current businesses</option>{["Live", "Awaiting payment", "Intake off", "Intake closed globally", "Suspended", "Archived"].map(v => <option key={v}>{v}</option>)}</select></div>
       <div className="admin-table"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Card taps</th><th>Referrals</th></tr></thead><tbody>
         {shownBusinesses.map(x => <tr key={x.businessId} className={x.businessId === selected ? "is-selected" : undefined}><td><button className="secondary admin-business-button" onClick={() => { setSelected(x.businessId); setWorkspaceView("cards"); setTab("cards"); }}>{x.name}<ArrowRight size={14} aria-hidden="true" /></button><small className="admin-business-id" title={x.businessId}>ID {x.businessId.slice(-10)}</small></td><td data-label="Status"><span className="admin-status-pill" data-live={liveState(x, session) === "Live"}>{liveState(x, session)}</span></td><td data-label="Billing">{x.billingExempt ? "Exempt" : x.billingStatus === "not_configured" ? "Not configured" : (x.billingStatus ?? "Unknown").replaceAll("_", " ")}</td><td data-label="Cards">{x.cards}</td><td data-label="Card taps">{x.taps}</td><td data-label="Referrals">{x.referrals}</td></tr>)}
-        {!shownBusinesses.length && <tr><td colSpan={6}>{error && state === "loading" ? "Directory unavailable." : state === "loading" ? "Loading…" : businesses.length ? "No businesses match." : "No businesses yet. Create the first one."}</td></tr>}
+        {!shownBusinesses.length && <tr><td colSpan={6}>{error && state === "loading" ? "Directory unavailable." : state === "loading" ? "Loadingâ€¦" : businesses.length ? "No businesses match." : "No businesses yet. Create the first one."}</td></tr>}
       </tbody></table></div>
     </section>
 
@@ -375,16 +375,16 @@ export default function AdminConsole() {
       {workspaceView === "cards" && <section className="card admin-card-issuer" key={b.businessId}><h2>Issue NFC cards</h2>
         <p className="muted">Copy the patient form link to NFC Tools. Choose Write, add a URL record, then tap the card against your phone. Use the same link for the QR code.</p>
         <form className="form-grid" onSubmit={issueCards}>
-          <label htmlFor="card-partner">Referring partner<select id="card-partner" name="partnerId" required defaultValue=""><option value="" disabled>Choose partner</option>{detail.partners.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}<option value="__new">+ New partner…</option></select></label>
+          <label htmlFor="card-partner">Referring partner<select id="card-partner" name="partnerId" required defaultValue=""><option value="" disabled>Choose partner</option>{detail.partners.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}<option value="__new">+ New partnerâ€¦</option></select></label>
           <label htmlFor="card-partner-name">New partner name<input id="card-partner-name" name="partnerName" maxLength={120} placeholder="Only for a new partner"/></label>
           <label htmlFor="card-office">Receiving office<select id="card-office" name="officeId" defaultValue="">{detail.offices.filter(o => o.active).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
           <label htmlFor="card-quantity">How many cards<input id="card-quantity" name="quantity" type="number" min={1} max={50} defaultValue={1}/></label>
           <label className="span-two" htmlFor="card-label">Label<input id="card-label" name="label" maxLength={80} placeholder="e.g. Dr. Lee front desk"/></label>
-          <button className="primary span-two" disabled={busy === "cards"}>{busy === "cards" ? "Issuing…" : "Issue card links"}</button>
+          <button className="primary span-two" disabled={busy === "cards"}>{busy === "cards" ? "Issuingâ€¦" : "Issue card links"}</button>
         </form>
         {issued.length > 0 && <div className="notice"><strong>Write these URLs to NFC tags:</strong>{issued.map(c => <div className="card-row" key={c.url}><div><strong>{c.label || "Card"}</strong><small>{c.url}</small></div><button className="secondary" onClick={() => copy(c.url)}>Copy</button></div>)}<button className="secondary" onClick={() => copy(issued.map(c => c.url).join("\n"))}>Copy all</button></div>}
         <div className="section-heading" style={{ marginTop: 24 }}><p className="eyebrow">ISSUED CARDS</p>{detail.cards.length > 0 && <button className="secondary" onClick={downloadCsv}>Download CSV</button>}</div>
-        <div className="partner-card-list">{detail.cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.label ? card.label + " · " : ""}{card.partnerName} → {card.officeName}</strong><dl className="facts">{[["Status", card.active ? "Active" : "Inactive"], ["Taps", String(card.taps)], ["Referrals", String(card.referrals)]].map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}</dl><small className="card-url"><a href={card.url} target="_blank" rel="noreferrer">Open patient form</a><br /><span>{card.url}</span></small></div><div className="card-row-actions"><button className="secondary" onClick={() => copy(card.url)}>Copy NFC link</button>{card.active && <button className="secondary" disabled={Boolean(busy)} onClick={() => previewCard(b, card)}>Preview patient form</button>}<button className="secondary" onClick={() => void makeQr(card)}>Show QR code</button><button className="secondary" disabled={busy === card.id} onClick={() => toggleCard(card)}>{card.active ? "Deactivate" : "Activate"}</button></div>{qr?.id === card.id && <div className="qr-download"><img src={qr.data} alt={`QR code for ${card.partnerName}`}/><a href={qr.data} download={`bridgeway-${card.id}.png`}>Download QR PNG</a></div>}</article>)}{!detail.cards.length && <p className="empty">No cards yet.</p>}</div>
+        <div className="partner-card-list">{detail.cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.label ? card.label + " Â· " : ""}{card.partnerName} â†’ {card.officeName}</strong><dl className="facts">{[["Status", card.active ? "Active" : "Inactive"], ["Taps", String(card.taps)], ["Referrals", String(card.referrals)]].map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}</dl><small className="card-url"><a href={card.url} target="_blank" rel="noreferrer">Open patient form</a><br /><span>{card.url}</span></small></div><div className="card-row-actions"><button className="secondary" onClick={() => copy(card.url)}>Copy NFC link</button>{card.active && <button className="secondary" disabled={Boolean(busy)} onClick={() => previewCard(b, card)}>Preview patient form</button>}<button className="secondary" onClick={() => void makeQr(card)}>Show QR code</button><button className="secondary" disabled={busy === card.id} onClick={() => toggleCard(card)}>{card.active ? "Deactivate" : "Activate"}</button></div>{qr?.id === card.id && <div className="qr-download"><img src={qr.data} alt={`QR code for ${card.partnerName}`}/><a href={qr.data} download={`bridgeway-${card.id}.png`}>Download QR PNG</a></div>}</article>)}{!detail.cards.length && <p className="empty">No cards yet.</p>}</div>
       </section>}
       {workspaceView === "patient" && <div className="admin-settings-grid">
         <section className="card">
@@ -531,6 +531,7 @@ export default function AdminConsole() {
       </section>}
     </div>}
 
+    {tab === "demos" && <DemoRequests />}
     {tab === "website" && <section className="card" id="admin-website">
       <h2>Platform services</h2>
       {session && <dl className="admin-service-list">
@@ -556,4 +557,39 @@ export default function AdminConsole() {
   </main>;
 }
 
+
+
+function DemoRequests() {
+  type Request = { name: string; email: string; businessName: string; interest: string; nfcCardQuantity?: number; notes?: string; phone?: string; createdAt: string };
+  const [requests, setRequests] = useState<Request[]>();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    api<{ requests: Request[] }>("/api/admin/demo-requests", { signal: controller.signal })
+      .then(result => setRequests(result.requests))
+      .catch(() => { if (!controller.signal.aborted) setFailed(true); });
+    return () => controller.abort();
+  }, []);
+
+  const plans: Record<string, string> = {
+    workspace: "Referral Workspace",
+    "managed-calling": "Managed Calling",
+    custom: "Custom plan",
+  };
+
+  return <section className="card">
+    <h2>Demo requests</h2>
+    {failed ? <p role="alert">Could not load demo requests. Reopen this section to retry.</p>
+      : !requests ? <p role="status">Loading demo requests...</p>
+      : !requests.length ? <p>No demo requests yet.</p>
+      : <ul>{requests.map((request, index) => <li key={index}>
+        <h3>{request.businessName}</h3>
+        <p>{request.name} / <a href={`mailto:${encodeURIComponent(request.email)}`}>{request.email}</a></p>
+        {request.phone && <p>{request.phone}</p>}
+        <p>{plans[request.interest] ?? "Demo"}{request.nfcCardQuantity ? ` / ${request.nfcCardQuantity} NFC cards` : ""}</p>
+        {request.notes && <p>{request.notes}</p>}
+        <time dateTime={request.createdAt}>{new Date(request.createdAt).toLocaleDateString()}</time>
+      </li>)}</ul>}
+  </section>;
+}
 

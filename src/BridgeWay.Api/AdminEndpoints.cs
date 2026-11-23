@@ -446,7 +446,7 @@ public static class AdminEndpoints
         {
             store.UseBusiness(CosmosStore.PlatformPartition);
             var rows = await store.Query("demo-request", limit: 200, ct: ct);
-            return Results.Ok(new { requests = rows.OrderByDescending(r => r.Value<string>("createdAt"), StringComparer.Ordinal).Select(r => new { name = r.Value<string>("name"), email = r.Value<string>("email"), businessName = r.Value<string>("businessName"), interest = r.Value<string>("interest"), createdAt = r.Value<string>("createdAt") }) });
+            return Results.Ok(new { requests = rows.OrderByDescending(r => r.Value<string>("createdAt"), StringComparer.Ordinal).Select(r => new { name = r.Value<string>("name"), email = r.Value<string>("email"), businessName = r.Value<string>("businessName"), interest = r.Value<string>("interest"), nfcCardQuantity = r.Value<int?>("nfcCardQuantity"), notes = r.Value<string>("notes"), phone = r.Value<string>("phone"), createdAt = r.Value<string>("createdAt") }) });
         });
     }
 }

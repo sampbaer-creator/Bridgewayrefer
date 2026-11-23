@@ -1,3 +1,4 @@
+import ResourceLinks from "../ResourceLinks";
 import { planCopy } from "../../lib/plan-copy";
 import Link from "next/link";
 
@@ -19,6 +20,7 @@ export default function Footer() {
             <Link href="/terms">Terms</Link>
             <button type="button" className="footer-cookie-settings" data-cookie-settings>Cookie settings</button>
           </nav>
+          <ResourceLinks />
           <p className="bw-footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
         </div>
       </footer>

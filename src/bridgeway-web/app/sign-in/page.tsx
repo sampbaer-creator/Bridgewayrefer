@@ -1,3 +1,5 @@
+export const metadata = { title: "Sign in", description: "Sign in to your BridgeWay referral tracking workspace." };
+
 import GoogleSignIn, { ProviderButton } from "../../components/GoogleSignIn";
 
 export default function SignIn() {

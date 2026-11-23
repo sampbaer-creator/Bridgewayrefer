@@ -7,15 +7,15 @@ const CHECK_ICON = (
   </svg>
 );
 
-export const metadata = { title: "Pricing", description: "Compare BridgeWay plans for referral tracking, NFC card management, and managed follow-up.", alternates: { canonical: "/pricing" } };
+export const metadata = { title: "Referral Tracking Software Pricing", description: "Compare BridgeWay referral tracking software pricing for Workspace, Managed Calling, and custom plans.", alternates: { canonical: "/pricing" } };
 
 export default function PricingPage() {
   return (
     <main className="bw-page bw-pricing-page" id="main-content">
       <section className="bw-page-hero">
         <p className="eyebrow">PRICING</p>
-        <h1>Simple monthly plans.<br />No per-referral fees.</h1>
-        <p className="bw-page-sub">Track referrals yourself, or let us make the follow-up calls.</p>
+        <h1>Referral tracking software pricing</h1>
+        <p className="bw-page-sub">Compare monthly referral tracking plans. Ask BridgeWay for a quote for your locations and physical NFC cards.</p>
       </section>
 
       <section className="bw-section" aria-label="Monthly plans">
