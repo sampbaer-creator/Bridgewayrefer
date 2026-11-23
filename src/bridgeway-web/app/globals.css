@@ -52,7 +52,9 @@ html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 
 body {
   margin: 0;
-  background: var(--offwhite) var(--brand-canvas) fixed;
+  background-color: var(--offwhite);
+  background-image: var(--brand-canvas);
+  background-attachment: fixed;
   font: 400 16px/1.65 var(--font-body);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
