@@ -277,6 +277,17 @@ export default function AdminConsole() {
     const key = row.plan === "managed-calling" ? "Managed Calling" : "Referral Workspace";
     all[key] ??= { count: 0, mrr: 0 }; all[key].count += 1; all[key].mrr += row.monthlyPriceUsd ?? 0; return all;
   }, {});
+  const chartPlans = stripeFinance
+    ? Object.entries(stripeRows.reduce<Record<string, { count: number; mrr: number }>>((all, row) => { const key = row.plan === "managed-calling" ? "Managed Calling" : "Referral Workspace"; all[key] ??= { count: 0, mrr: 0 }; all[key].count += 1; all[key].mrr += row.monthlyAmountUsd; return all; }, {}))
+    : Object.entries(planTotals);
+  const maxPlanMrr = Math.max(1, ...chartPlans.map(([, value]) => value.mrr));
+  const pipeline = [
+    { label: "Active", count: stripeFinance ? liveStripeCount(["active"]) : activeBilling.length, color: "#287b9f" },
+    { label: "Trialing", count: stripeFinance ? liveStripeCount(["trialing"]) : trialingBilling.length, color: "#5c7fc2" },
+    { label: "Past due", count: stripeFinance ? liveStripeCount(["past_due", "unpaid"]) : pastDueBilling.length, color: "#c27b5c" },
+    { label: "Exempt", count: exemptBilling.length, color: "#8a98a3" },
+  ];
+  const maxPipelineCount = Math.max(1, ...pipeline.map(item => item.count));
   return <main className="dashboard dashboard-wide admin-workspace admin-console" id="main-content" aria-busy={state === "loading" && !error}>
     <nav className="section-nav admin-tabs" aria-label="Admin sections">
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
@@ -364,6 +375,16 @@ export default function AdminConsole() {
         <div><dt>Active subscriptions</dt><dd>{stripeFinance ? liveStripeCount(["active"]) : activeBilling.length}<small>earning workspaces</small></dd></div>
         <div><dt>At-risk MRR</dt><dd>${(stripeFinance ? liveStripeMrr(["past_due", "unpaid"]) : pastDueMrr).toLocaleString()}<small>{stripeFinance ? liveStripeCount(["past_due", "unpaid"]) : pastDueBilling.length} past due</small></dd></div>
       </dl>
+      <div className="admin-finance-charts">
+        <section className="card admin-finance-chart" aria-labelledby="revenue-plan-chart-title">
+          <div className="admin-directory-heading"><div><h3 id="revenue-plan-chart-title">Monthly revenue by plan</h3><p className="muted">Current recurring subscription value</p></div><span className="muted">USD</span></div>
+          <div className="admin-bar-chart">{chartPlans.map(([plan, value]) => <div className="admin-bar-row" key={plan}><div className="admin-bar-label"><span>{plan}</span><strong>${value.mrr.toLocaleString()}</strong></div><div className="admin-bar-track"><span style={{ width: `${Math.max(4, value.mrr / maxPlanMrr * 100)}%` }} /></div><small>{value.count} subscription{value.count === 1 ? "" : "s"}</small></div>)}{!chartPlans.length && <p className="empty">No subscriptions to chart yet.</p>}</div>
+        </section>
+        <section className="card admin-finance-chart" aria-labelledby="billing-status-chart-title">
+          <div className="admin-directory-heading"><div><h3 id="billing-status-chart-title">Workspace billing status</h3><p className="muted">Subscription health at a glance</p></div><span className="muted">Count</span></div>
+          <div className="admin-bar-chart">{pipeline.map(item => <div className="admin-bar-row" key={item.label}><div className="admin-bar-label"><span>{item.label}</span><strong>{item.count}</strong></div><div className="admin-bar-track"><span style={{ width: `${Math.max(item.count ? 4 : 0, item.count / maxPipelineCount * 100)}%`, background: item.color }} /></div></div>)}</div>
+        </section>
+      </div>
       <div className="admin-finance-grid">
         <section className="card"><div className="admin-directory-heading"><h3>Billing pipeline</h3><span className="admin-status-pill" data-live={trialingBilling.length === 0}>Live data</span></div><dl className="admin-finance-list"><div><dt>Trialing</dt><dd>{trialingBilling.length}<span>${trialingMrr.toLocaleString()} potential MRR</span></dd></div><div><dt>Past due</dt><dd>{pastDueBilling.length}<span>${pastDueMrr.toLocaleString()} needs attention</span></dd></div><div><dt>Billing exempt</dt><dd>{exemptBilling.length}<span>pilot or comped workspaces</span></dd></div><div><dt>Awaiting payment</dt><dd>{businesses.filter(x => !x.archived && !x.billingExempt && !paid.includes(x.billingStatus)).length}<span>not counted in revenue</span></dd></div></dl></section>
         <section className="card"><div className="admin-directory-heading"><h3>Revenue by plan</h3><span className="muted">All non-exempt</span></div><dl className="admin-finance-list">{Object.entries(planTotals).map(([plan, value]) => <div key={plan}><dt>{plan}</dt><dd>{value.count}<span>${value.mrr.toLocaleString()} MRR</span></dd></div>)}{!Object.keys(planTotals).length && <p className="empty">No billable workspaces yet.</p>}</dl></section>

@@ -2276,7 +2276,7 @@ main.admin-console {
 @media (max-width: 640px) {
   .admin-console .admin-settings-grid { grid-template-columns: minmax(0, 1fr); }
   .admin-finance-intro { align-items: start; flex-direction: column; }
-  .admin-finance-metrics, .admin-finance-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-finance-metrics, .admin-finance-grid, .admin-finance-charts { grid-template-columns: minmax(0, 1fr); }
   .admin-console .admin-table tr { margin-bottom: 8px; }
   .admin-console .admin-table .office-table td { padding-block: 5px; }
   .admin-console .admin-table .office-table td:first-child { border-bottom: 1px solid var(--admin-line); margin-bottom: 3px; }
@@ -2328,6 +2328,17 @@ main.admin-console {
 .admin-finance-metrics .admin-finance-primary dd small { color: #c9e5f1; }
 .admin-finance-primary > svg { float: right; opacity: .8; }
 .admin-finance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-finance-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-finance-chart h3 { margin: 0; color: var(--admin-ink); font-size: 17px; }
+.admin-finance-chart .admin-directory-heading { align-items: start; }
+.admin-finance-chart .admin-directory-heading p { margin: 3px 0 0; font-size: 12px; }
+.admin-bar-chart { display: grid; gap: 15px; padding-top: 5px; }
+.admin-bar-row { display: grid; gap: 6px; }
+.admin-bar-label { display: flex; justify-content: space-between; gap: 12px; color: var(--admin-ink); font-size: 13px; }
+.admin-bar-label strong { font-variant-numeric: tabular-nums; }
+.admin-bar-track { height: 10px; overflow: hidden; border-radius: 999px; background: #e8eff3; }
+.admin-bar-track span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: #287b9f; transition: width .25s ease; }
+.admin-bar-row small { color: var(--admin-muted); font-size: 11px; }
 .admin-finance-grid h3 { margin: 0; color: var(--admin-ink); font-size: 17px; }
 .admin-finance-list { margin: 0; }
 .admin-finance-list > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--admin-line); }
