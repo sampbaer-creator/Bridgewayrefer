@@ -1707,7 +1707,7 @@ body:has(.bw-landing:not(.bw-how-it-works, .bw-signup-inquiry)) > .site-footer {
 /* Public pages and patient forms */
 
 /* ============ Sticky footer shell ============ */
-html { height: 100%; }
+html { height: 100%; scrollbar-gutter: stable; }
 body { min-height: 100%; display: flex; flex-direction: column; }
 body > .site-header, body > footer.site-footer { flex-shrink: 0; }
 .bw-page, .bw-landing, .bw-intake { flex: 1 0 auto; width: 100%; }
