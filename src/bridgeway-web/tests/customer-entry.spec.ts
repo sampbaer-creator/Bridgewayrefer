@@ -25,7 +25,7 @@ test("the homepage has customer paths for both industries, pricing, and walkthro
   await expect(page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "/pricing");
   await expect(page.getByRole("link", { name: "Get started" }).first()).toHaveAttribute("href", "/signup?plan=workspace");
   await expect(page.getByRole("link", { name: "Request a custom quote" })).toHaveAttribute("href", "/contact");
-  await expect(page.getByText("Book a demo", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Book a demo" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Managed Calling", exact: true })).toBeVisible();
   await expect(page.getByText("400", { exact: true })).toBeVisible();
   await page.getByText("View the follow-up checklist", { exact: true }).click();
