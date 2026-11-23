@@ -13,7 +13,7 @@ test("a scheduled referral only becomes overdue when its action deadline is miss
 test("marketing routes expose metadata and private routes are excluded from indexing", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Referral tracking");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Track every referral from tap to follow-up.");
   await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Referral tracking software.*NFC and QR links/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

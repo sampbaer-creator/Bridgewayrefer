@@ -1125,7 +1125,7 @@ body:has(.bw-landing:not(.bw-how-it-works, .bw-signup-inquiry)) > .site-footer {
 .bw-btn-sm { padding: 8px 16px; font-size: 0.88rem; }
 .bw-btn-lg { padding: 16px 32px; font-size: 1.05rem; }
 .bw-btn-block { width: 100%; }
-.bw-btn-primary { background: var(--button-gradient); color: var(--bw-navy); box-shadow: var(--button-shadow); }
+.bw-btn-primary { background: var(--bw-accent) var(--button-gradient); color: var(--bw-navy); box-shadow: var(--button-shadow); }
 .bw-btn-primary:hover { background: var(--bw-accent-strong); }
 .bw-btn-secondary { background: var(--bw-pale); color: var(--bw-ink); border-color: var(--bw-line); }
 .bw-btn-secondary:hover { background: var(--bw-silver); }
@@ -1743,7 +1743,7 @@ html:has(.public-header) { scrollbar-gutter: stable; }
 .public-header .public-nav-signin:hover { border-color: var(--navy); color: var(--navy); }
 .public-header .public-nav-cta {
   padding: 8px 16px; border-radius: 8px;
-  background: var(--button-gradient); color: var(--navy); font-weight: 600; border: 1px solid var(--accent); box-shadow: var(--button-shadow);
+  background: var(--accent) var(--button-gradient); color: var(--navy); font-weight: 600; border: 1px solid var(--accent); box-shadow: var(--button-shadow);
 }
 .public-header .public-nav-cta:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--navy); }
 .menu-toggle {
