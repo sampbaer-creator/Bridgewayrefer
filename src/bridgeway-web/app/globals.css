@@ -2275,6 +2275,8 @@ main.admin-console {
 }
 @media (max-width: 640px) {
   .admin-console .admin-settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-finance-intro { align-items: start; flex-direction: column; }
+  .admin-finance-metrics, .admin-finance-grid, .admin-finance-charts { grid-template-columns: minmax(0, 1fr); }
   .admin-console .admin-table tr { margin-bottom: 8px; }
   .admin-console .admin-table .office-table td { padding-block: 5px; }
   .admin-console .admin-table .office-table td:first-child { border-bottom: 1px solid var(--admin-line); margin-bottom: 3px; }
@@ -2309,6 +2311,45 @@ main.admin-console {
 
 .admin-patient-link { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 16px; }
 .admin-field-stack select { width: 100%; margin: 0; }
+
+.admin-finance { display: grid; gap: 18px; padding: 4px 0 28px; }
+.admin-finance-intro { display: flex; justify-content: space-between; align-items: end; gap: 16px; }
+.admin-finance-intro h2 { margin: 3px 0 5px; color: var(--admin-ink); font-size: clamp(22px, 3vw, 30px); }
+.admin-finance-intro p { margin: 0; }
+.admin-finance-updated { color: var(--admin-muted); font-size: 13px; white-space: nowrap; }
+.admin-finance-metrics { display: grid; grid-template-columns: 1.5fr repeat(3, 1fr); gap: 12px; margin: 0; }
+.admin-finance-metrics > div { min-width: 0; padding: 18px; border: 1px solid var(--dashboard-border); border-top: 3px solid var(--blue); border-radius: 14px; background: #fff; box-shadow: 0 8px 22px rgb(13 35 57 / 7%); }
+.admin-finance-metrics > div:nth-child(2) { border-top-color: #27746c; }
+.admin-finance-metrics > div:nth-child(3) { border-top-color: var(--accent); }
+.admin-finance-metrics > div:nth-child(4) { border-top-color: #b5656f; }
+.admin-finance-metrics .admin-finance-primary { background: linear-gradient(135deg, var(--navy-deep), #28698e 72%, var(--blue)); color: #fff; border-color: var(--navy-deep); }
+.admin-finance-metrics dt { color: var(--admin-muted); font-size: 13px; }
+.admin-finance-metrics .admin-finance-primary dt { color: #d9eef7; }
+.admin-finance-metrics dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 8px; margin: 8px 0 0; color: var(--admin-ink); font-size: 27px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-finance-metrics .admin-finance-primary dd { color: #fff; }
+.admin-finance-metrics dd small { flex-basis: 100%; color: var(--admin-muted); font-size: 12px; font-weight: 500; }
+.admin-finance-metrics .admin-finance-primary dd small { color: #c9e5f1; }
+.admin-finance-primary > svg { float: right; opacity: .8; }
+.admin-finance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-finance-charts { display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; }
+.admin-finance-chart h3 { margin: 0; color: var(--admin-ink); font-size: 17px; }
+.admin-finance-chart { min-height: 250px; border: 1px solid var(--dashboard-border); box-shadow: 0 8px 22px rgb(13 35 57 / 5%); }
+.admin-finance-chart .admin-directory-heading { align-items: start; }
+.admin-finance-chart .admin-directory-heading p { margin: 3px 0 0; font-size: 12px; }
+.admin-bar-chart { display: grid; gap: 15px; padding-top: 5px; }
+.admin-bar-row { display: grid; gap: 6px; }
+.admin-bar-label { display: flex; justify-content: space-between; gap: 12px; color: var(--admin-ink); font-size: 13px; }
+.admin-bar-label strong { font-variant-numeric: tabular-nums; }
+.admin-bar-track { height: 10px; overflow: hidden; border-radius: 999px; background: #e8eff3; }
+.admin-bar-track span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--navy), var(--blue)); transition: width .25s ease; }
+.admin-bar-row small { color: var(--admin-muted); font-size: 11px; }
+.admin-finance-grid h3 { margin: 0; color: var(--admin-ink); font-size: 17px; }
+.admin-finance-list { margin: 0; }
+.admin-finance-list > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--admin-line); }
+.admin-finance-list > div:last-child { border-bottom: 0; }
+.admin-finance-list dt { color: var(--admin-ink); font-weight: 600; }
+.admin-finance-list dd { margin: 0; color: var(--admin-ink); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.admin-finance-list dd span { display: block; color: var(--admin-muted); font-size: 12px; font-weight: 500; }
 
 /* Analytics consent */
 

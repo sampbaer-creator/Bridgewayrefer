@@ -119,6 +119,12 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         using var request = new HttpRequestMessage(HttpMethod.Get, Api + "subscriptions/" + Uri.EscapeDataString(subscriptionId));
         return await Send(request, ct);
     }
+
+    public async Task<JObject> ListSubscriptions(CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, Api + "subscriptions?limit=100&status=all");
+        return await Send(request, ct);
+    }
 }
 
 public static class StripeWebhookSignature
