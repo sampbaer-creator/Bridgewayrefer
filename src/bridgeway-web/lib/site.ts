@@ -1,6 +1,6 @@
 export const siteOrigin = "https://bridgewayrefer.com";
-export const siteDescription = "Capture partner referrals with branded NFC cards and QR links. Assign follow-up and track every referral through completion.";
-const corePaths = ["/", "/how-it-works", "/industries/healthcare", "/industries/trades", "/pricing", "/contact", "/security", "/privacy", "/terms"];
+export const siteDescription = "Referral management and tracking software to capture partner introductions, attribute their source and organize team follow-up. NFC and QR links make handoffs simple.";
+const corePaths = ["/", "/how-it-works", "/referral-management-software", "/referral-tracking-software", "/industries/healthcare", "/industries/trades", "/pricing", "/contact", "/security", "/privacy", "/terms"];
 
 export const guideLinks = [
   { href: "/referral-tracking-system", label: "What Is a Referral Tracking System?" },

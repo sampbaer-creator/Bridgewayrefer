@@ -8,12 +8,12 @@ export default function Hero() {
       <section className="bw-hero">
         <div className="bw-hero-inner">
           <div className="bw-hero-copy">
-            <p className="bw-eyebrow">NFC referral cards and tracking</p>
+            <p className="bw-eyebrow">Referral tracking software</p>
             <h1>
-              Referral tracking from the first tap to follow-up.
+              Referral tracking software for every partner introduction.
             </h1>
             <p className="bw-hero-sub">
-              BridgeWay referral tracking helps practices and service businesses capture referrals with branded NFC cards and QR links, record the referral source, and follow up in one inbox.
+              Referral tracking software helps practices and service businesses capture introductions, record who sent them, and organize follow-up in one inbox. Partners can share a branded NFC card or QR link.
             </p>
             <div className="bw-hero-actions">
               <Link className="bw-btn bw-btn-primary" href="/contact">
@@ -23,6 +23,9 @@ export default function Hero() {
                 See how it works
               </a>
             </div>
+            <p className="bw-price-note">
+              Need a team referral pipeline? <Link href="/referral-management-software">Explore referral management software</Link>.
+            </p>
             <ul className="bw-trust-row" aria-label="Product facts">
               <li>
                 {CHECK_ICON}No app for customers

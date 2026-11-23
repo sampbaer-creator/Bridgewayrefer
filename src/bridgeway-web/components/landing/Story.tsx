@@ -104,6 +104,26 @@ export default function Story() {
         </div>
       </section>
 
+      <section className="bw-section" aria-labelledby="bw-software-links-heading">
+        <div className="bw-section-head reveal">
+          <p className="bw-eyebrow">Referral workflows</p>
+          <h2 id="bw-software-links-heading">A clear record from introduction to next step.</h2>
+          <p className="bw-section-sub">Capture the source when a partner shares a referral, then give your team a place to review and follow up.</p>
+        </div>
+        <div className="bw-industry-grid">
+          <Link className="bw-industry-card reveal" href="/referral-management-software">
+            <h3>Referral management software</h3>
+            <p>Organize new introductions, ownership, status and follow-up in a shared workspace.</p>
+            <span className="bw-industry-link">Explore referral management →</span>
+          </Link>
+          <Link className="bw-industry-card reveal" href="/referral-tracking-software">
+            <h3>Referral tracking software</h3>
+            <p>Attribute each submitted request to its referring partner and receiving location.</p>
+            <span className="bw-industry-link">Explore referral tracking →</span>
+          </Link>
+        </div>
+      </section>
+
       {/* ============ EXAMPLE ============ */}
       <section className="bw-example" aria-labelledby="bw-example-heading">
         <div className="bw-example-card reveal">

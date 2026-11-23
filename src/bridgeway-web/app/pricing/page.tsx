@@ -66,6 +66,7 @@ export default function PricingPage() {
           </article>
         </div>
         <p className="bw-price-fine">{planCopy.billing} Every card link also works as a QR code.</p>
+        <p className="bw-price-fine">Compare <Link href="/referral-management-software">referral management software</Link> and <Link href="/referral-tracking-software">referral tracking software</Link> workflows.</p>
       </section>
 
       <section className="bw-section bw-section-alt bw-setup-section" aria-label="What setup involves">
