@@ -125,6 +125,32 @@ public static class AdminEndpoints
             });
         });
 
+        admin.MapGet("/financial", async (StripeBillingService stripe, CancellationToken ct) =>
+        {
+            var subscriptions = await stripe.ListSubscriptions(ct);
+            var stripeRows = subscriptions["data"]?.Values<JObject>() ?? Enumerable.Empty<JObject>();
+            var rows = stripeRows
+                .Where(subscription => subscription.Value<bool?>("livemode") == stripe.LiveMode)
+                .Select(subscription =>
+                {
+                    var item = subscription["items"]?["data"]?.Values<JObject>().FirstOrDefault();
+                    var unitAmount = item?["price"]?.Value<long?>("unit_amount") ?? 0;
+                    var quantity = item?.Value<long?>("quantity") ?? 1;
+                    return new
+                    {
+                        businessId = subscription["metadata"]?.Value<string>("businessId") ?? "",
+                        plan = subscription["metadata"]?.Value<string>("plan") ?? BillingPlans.Workspace,
+                        status = subscription.Value<string>("status") ?? "unknown",
+                        monthlyAmountUsd = unitAmount * quantity / 100m,
+                        cancelAtPeriodEnd = subscription.Value<bool?>("cancel_at_period_end") == true,
+                        currentPeriodEnd = subscription.Value<long?>("current_period_end"),
+                    };
+                })
+                .Where(row => row.businessId.Length > 0)
+                .ToList();
+            return Results.Ok(new { connected = true, mode = stripe.LiveMode ? "live" : "test", subscriptions = rows });
+        });
+
         admin.MapPost("/businesses", async (BusinessCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
             var name = data.Name?.Trim() ?? "";

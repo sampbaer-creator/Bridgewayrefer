@@ -13,6 +13,7 @@ import { api, ApiError, type PublicConfig, type PatientFormDesign } from "../lib
 type AdminSession = { email: string; account?: Account; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number; publicOrigin?: string; canonicalOriginReady?: boolean };
 type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; archived?: boolean; logoUrl?: string; officeName?: string; patientForm?: PatientFormDesign | null; patientCardCode?: string; welcomeText?: string; phone?: string; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; plan?: string; monthlyPriceUsd?: number; hasStripeSubscription?: boolean; intakeOpen?: boolean; checkoutExpiresAt?: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
+type StripeFinance = { connected: boolean; mode: "live" | "test"; subscriptions: { businessId: string; plan: string; status: string; monthlyAmountUsd: number; cancelAtPeriodEnd: boolean; currentPeriodEnd?: number }[] };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
@@ -32,7 +33,7 @@ export default function AdminConsole() {
   const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial">("businesses");
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
-  const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null);
+  const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null), [stripeFinance, setStripeFinance] = useState<StripeFinance | null>(null);
   const [selected, setSelected] = useState(""), [detail, setDetail] = useState<Detail | null>(null);
   const [search, setSearch] = useState(""), [liveFilter, setLiveFilter] = useState("");
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [busy, setBusy] = useState(""), [issued, setIssued] = useState<{ label: string; url: string }[]>([]), [qr, setQr] = useState<{ id: string; data: string } | null>(null);
@@ -56,6 +57,7 @@ export default function AdminConsole() {
     try {
       const [s, list] = await Promise.all([api<AdminSession>("/api/admin/session"), api<{ businesses: BusinessSummary[]; totals: Totals }>("/api/admin/businesses")]);
       setSession(s); setBusinesses(list.businesses.sort((a, b) => a.name.localeCompare(b.name))); setTotals(list.totals); setState("ready");
+      try { setStripeFinance(await api<StripeFinance>("/api/admin/financial")); } catch { setStripeFinance(null); }
     } catch (e) { fail(e); }
   }, [fail]);
   const loadDetail = useCallback(async (businessId: string) => {
@@ -267,6 +269,10 @@ export default function AdminConsole() {
   const exemptBilling = businesses.filter(x => !x.archived && x.billingExempt);
   const monthlyTotal = (rows: BusinessSummary[]) => rows.reduce((sum, row) => sum + (row.monthlyPriceUsd ?? 0), 0);
   const activeMrr = monthlyTotal(activeBilling), trialingMrr = monthlyTotal(trialingBilling), pastDueMrr = monthlyTotal(pastDueBilling);
+  const stripeRows = stripeFinance?.subscriptions ?? [];
+  const liveStripeMrr = (statuses: string[]) => stripeRows.filter(row => statuses.includes(row.status)).reduce((sum, row) => sum + row.monthlyAmountUsd, 0);
+  const liveStripeCount = (statuses: string[]) => stripeRows.filter(row => statuses.includes(row.status)).length;
+  const revenueSource = stripeFinance ? "stripe" : "workspace records";
   const planTotals = businesses.filter(x => !x.archived && !x.billingExempt).reduce<Record<string, { count: number; mrr: number }>>((all, row) => {
     const key = row.plan === "managed-calling" ? "Managed Calling" : "Referral Workspace";
     all[key] ??= { count: 0, mrr: 0 }; all[key].count += 1; all[key].mrr += row.monthlyPriceUsd ?? 0; return all;
@@ -351,18 +357,18 @@ export default function AdminConsole() {
     </dl>}
 
     {tab === "financial" && <section className="admin-finance" aria-label="Financial overview">
-      <div className="admin-finance-intro"><div><p className="eyebrow">REVENUE SNAPSHOT</p><h2>Subscription performance</h2><p className="muted">Totals use the billing status and monthly amount recorded for each active workspace. Exempt workspaces are shown separately.</p></div><span className="admin-finance-updated">{businesses.length} workspaces tracked</span></div>
+      <div className="admin-finance-intro"><div><p className="eyebrow">REVENUE SNAPSHOT</p><h2>Subscription performance</h2><p className="muted">Totals are connected to Stripe when configured and fall back to workspace records while Stripe is unavailable.</p></div><span className="admin-finance-updated">{stripeFinance ? `Stripe ${stripeFinance.mode}` : `${businesses.length} workspaces tracked`}</span></div>
       <dl className="admin-finance-metrics">
-        <div className="admin-finance-primary"><DollarSign size={21} aria-hidden="true" /><dt>Active MRR</dt><dd>${activeMrr.toLocaleString()}<small>per month</small></dd></div>
-        <div><dt>Projected ARR</dt><dd>${(activeMrr * 12).toLocaleString()}<small>active subscriptions</small></dd></div>
-        <div><dt>Active subscriptions</dt><dd>{activeBilling.length}<small>earning workspaces</small></dd></div>
-        <div><dt>At-risk MRR</dt><dd>${pastDueMrr.toLocaleString()}<small>{pastDueBilling.length} past due</small></dd></div>
+        <div className="admin-finance-primary"><DollarSign size={21} aria-hidden="true" /><dt>Active MRR</dt><dd>${(stripeFinance ? liveStripeMrr(["active"]) : activeMrr).toLocaleString()}<small>per month · {revenueSource}</small></dd></div>
+        <div><dt>Projected ARR</dt><dd>${((stripeFinance ? liveStripeMrr(["active"]) : activeMrr) * 12).toLocaleString()}<small>active subscriptions</small></dd></div>
+        <div><dt>Active subscriptions</dt><dd>{stripeFinance ? liveStripeCount(["active"]) : activeBilling.length}<small>earning workspaces</small></dd></div>
+        <div><dt>At-risk MRR</dt><dd>${(stripeFinance ? liveStripeMrr(["past_due", "unpaid"]) : pastDueMrr).toLocaleString()}<small>{stripeFinance ? liveStripeCount(["past_due", "unpaid"]) : pastDueBilling.length} past due</small></dd></div>
       </dl>
       <div className="admin-finance-grid">
         <section className="card"><div className="admin-directory-heading"><h3>Billing pipeline</h3><span className="admin-status-pill" data-live={trialingBilling.length === 0}>Live data</span></div><dl className="admin-finance-list"><div><dt>Trialing</dt><dd>{trialingBilling.length}<span>${trialingMrr.toLocaleString()} potential MRR</span></dd></div><div><dt>Past due</dt><dd>{pastDueBilling.length}<span>${pastDueMrr.toLocaleString()} needs attention</span></dd></div><div><dt>Billing exempt</dt><dd>{exemptBilling.length}<span>pilot or comped workspaces</span></dd></div><div><dt>Awaiting payment</dt><dd>{businesses.filter(x => !x.archived && !x.billingExempt && !paid.includes(x.billingStatus)).length}<span>not counted in revenue</span></dd></div></dl></section>
         <section className="card"><div className="admin-directory-heading"><h3>Revenue by plan</h3><span className="muted">All non-exempt</span></div><dl className="admin-finance-list">{Object.entries(planTotals).map(([plan, value]) => <div key={plan}><dt>{plan}</dt><dd>{value.count}<span>${value.mrr.toLocaleString()} MRR</span></dd></div>)}{!Object.keys(planTotals).length && <p className="empty">No billable workspaces yet.</p>}</dl></section>
       </div>
-      <p className="hint">Stripe remains the source of truth for charges, refunds, and payouts. This view summarizes workspace subscription records so you can spot revenue and billing follow-up in one place.</p>
+      <p className="hint">{stripeFinance ? `Connected to Stripe ${stripeFinance.mode} mode. Subscription totals reflect Stripe prices and quantities; use Stripe for invoices, refunds, payouts, and tax reporting.` : "Stripe is not available to this admin session yet. Configure the server-side Stripe key, price IDs, and webhook secret to connect live totals."}</p>
     </section>}
 
     <section className="card" id="admin-businesses" hidden={tab !== "businesses"}>
