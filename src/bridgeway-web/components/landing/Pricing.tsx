@@ -54,8 +54,8 @@ export default function Pricing() {
               <li>{CHECK_ICON}Our team calls your referrals</li>
               <li>{CHECK_ICON}Follow-up recorded in your workspace</li>
             </ul>
-            <Link className="bw-btn bw-btn-secondary bw-btn-block" href="/signup?plan=managed-calling">
-              Get Managed Calling <span aria-hidden="true">→</span>
+            <Link className="bw-btn bw-btn-secondary bw-btn-block" href="/contact?plan=managed-calling">
+              Request a Managed Calling demo <span aria-hidden="true">→</span>
             </Link>
             <p className="bw-plan-note">We confirm calling hours during setup.</p>
           </article>

@@ -10,7 +10,7 @@ export default function Hero() {
           <div className="bw-hero-copy">
             <p className="bw-eyebrow">Referral tracking software</p>
             <h1>
-              Referral tracking software for every partner introduction.
+              Track every referral from tap to follow-up.
             </h1>
             <p className="bw-hero-sub">
               Referral tracking software helps practices and service businesses capture introductions, record who sent them, and organize follow-up in one inbox. Partners can share a branded NFC card or QR link.
