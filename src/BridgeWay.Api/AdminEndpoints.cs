@@ -83,6 +83,7 @@ public static class AdminEndpoints
             businessId = id, name = b.Value<string>("name"), archived = BusinessRules.IsArchived(b), logoUrl = b.Value<string>("logoUrl") ?? "",
             createdAt = b.Value<string>("createdAt"), suspended = b.Value<bool?>("suspended") ?? false,
             acceptReferrals = b.Value<bool?>("acceptReferrals") ?? false, billingExempt = b.Value<bool?>("billingExempt") ?? false,
+            plan = BillingPlans.Normalize(b.Value<string>("selectedPlan")), monthlyPriceUsd = b.Value<int?>("monthlyPriceUsd") ?? settings.MonthlyPriceFor(BillingPlans.Normalize(b.Value<string>("selectedPlan"))),
             intakeOpen = BusinessRules.AcceptsReferrals(settings, b),
             checkoutExpiresAt = b.Value<string>("checkoutSessionExpiresAt"),
             hasStripeSubscription = b.Value<string>("stripeSubscriptionId") is { Length: > 0 },

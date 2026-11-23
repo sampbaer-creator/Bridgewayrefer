@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, Plus, Radio } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, Plus, Radio } from "lucide-react";
 import GoogleSignIn from "./GoogleSignIn";
 import AdminStripeSubscription from "./AdminStripeSubscription";
 import PatientForm from "./PatientForm";
@@ -11,12 +11,12 @@ import { signOut, type Account } from "../lib/account";
 import { api, ApiError, type PublicConfig, type PatientFormDesign } from "../lib/api";
 
 type AdminSession = { email: string; account?: Account; acceptingGlobally: boolean; smtpConfigured: boolean; stripeConfigured: boolean; monthlyPriceUsd: number; publicOrigin?: string; canonicalOriginReady?: boolean };
-type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; archived?: boolean; logoUrl?: string; officeName?: string; patientForm?: PatientFormDesign | null; patientCardCode?: string; welcomeText?: string; phone?: string; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; hasStripeSubscription?: boolean; intakeOpen?: boolean; checkoutExpiresAt?: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
+type BusinessSummary = { businessId: string; name: string; createdAt: string; suspended: boolean; archived?: boolean; logoUrl?: string; officeName?: string; patientForm?: PatientFormDesign | null; patientCardCode?: string; welcomeText?: string; phone?: string; acceptReferrals: boolean; billingExempt: boolean; billingStatus: string; plan?: string; monthlyPriceUsd?: number; hasStripeSubscription?: boolean; intakeOpen?: boolean; checkoutExpiresAt?: string; alertEmail: string; cards: number; taps: number; referrals: number; etag: string };
 type Totals = { businesses: number; cards: number; taps: number; referrals: number };
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
-const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, demos: Activity };
+const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign };
 
 const paid = ["active", "trialing", "past_due"];
 function liveState(b: BusinessSummary, session: AdminSession | null) {
@@ -29,7 +29,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 }
 
 export default function AdminConsole() {
-  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "demos">("businesses");
+  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial">("businesses");
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
   const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null);
@@ -259,14 +259,24 @@ export default function AdminConsole() {
   const effectiveLogo = b?.logoUrl || routingOffice?.logoUrl;
   const patientLink = b ? (session?.publicOrigin ?? "") + "/p/" + b.businessId : "";
   const checkoutOpen = Boolean(b?.checkoutExpiresAt && Date.parse(b.checkoutExpiresAt) > Date.now());
-  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", demos: "Demo requests" }[tab];
+  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", financial: "Financial overview" }[tab];
   const shownBusinesses = businesses.filter(x => (!search || x.name.toLowerCase().includes(search.toLowerCase())) && (liveFilter ? liveState(x, session) === liveFilter : !x.archived));
+  const activeBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "active");
+  const trialingBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "trialing");
+  const pastDueBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "past_due");
+  const exemptBilling = businesses.filter(x => !x.archived && x.billingExempt);
+  const monthlyTotal = (rows: BusinessSummary[]) => rows.reduce((sum, row) => sum + (row.monthlyPriceUsd ?? 0), 0);
+  const activeMrr = monthlyTotal(activeBilling), trialingMrr = monthlyTotal(trialingBilling), pastDueMrr = monthlyTotal(pastDueBilling);
+  const planTotals = businesses.filter(x => !x.archived && !x.billingExempt).reduce<Record<string, { count: number; mrr: number }>>((all, row) => {
+    const key = row.plan === "managed-calling" ? "Managed Calling" : "Referral Workspace";
+    all[key] ??= { count: 0, mrr: 0 }; all[key].count += 1; all[key].mrr += row.monthlyPriceUsd ?? 0; return all;
+  }, {});
   return <main className="dashboard dashboard-wide admin-workspace admin-console" id="main-content" aria-busy={state === "loading" && !error}>
     <nav className="section-nav admin-tabs" aria-label="Admin sections">
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
       {([
         { label: "Workspaces", items: [["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"]] },
-        { label: "Platform", items: [["website", "Website status"], ["demos", "Demo requests"]] },
+        { label: "Platform", items: [["website", "Website status"], ["financial", "Financial"]] },
       ] as const).map(group => <div className="admin-nav-group" key={group.label}>
         <p>{group.label}</p>
         {group.items.map(([key, label]) => {
@@ -339,6 +349,21 @@ export default function AdminConsole() {
       <div><Radio className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Card taps</dt><dd>{totals.taps} <span className="admin-metric-note">{totals.cards} cards issued</span></dd></div>
       <div><ClipboardList className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Referrals submitted</dt><dd>{totals.referrals}</dd></div>
     </dl>}
+
+    {tab === "financial" && <section className="admin-finance" aria-label="Financial overview">
+      <div className="admin-finance-intro"><div><p className="eyebrow">REVENUE SNAPSHOT</p><h2>Subscription performance</h2><p className="muted">Totals use the billing status and monthly amount recorded for each active workspace. Exempt workspaces are shown separately.</p></div><span className="admin-finance-updated">{businesses.length} workspaces tracked</span></div>
+      <dl className="admin-finance-metrics">
+        <div className="admin-finance-primary"><DollarSign size={21} aria-hidden="true" /><dt>Active MRR</dt><dd>${activeMrr.toLocaleString()}<small>per month</small></dd></div>
+        <div><dt>Projected ARR</dt><dd>${(activeMrr * 12).toLocaleString()}<small>active subscriptions</small></dd></div>
+        <div><dt>Active subscriptions</dt><dd>{activeBilling.length}<small>earning workspaces</small></dd></div>
+        <div><dt>At-risk MRR</dt><dd>${pastDueMrr.toLocaleString()}<small>{pastDueBilling.length} past due</small></dd></div>
+      </dl>
+      <div className="admin-finance-grid">
+        <section className="card"><div className="admin-directory-heading"><h3>Billing pipeline</h3><span className="admin-status-pill" data-live={trialingBilling.length === 0}>Live data</span></div><dl className="admin-finance-list"><div><dt>Trialing</dt><dd>{trialingBilling.length}<span>${trialingMrr.toLocaleString()} potential MRR</span></dd></div><div><dt>Past due</dt><dd>{pastDueBilling.length}<span>${pastDueMrr.toLocaleString()} needs attention</span></dd></div><div><dt>Billing exempt</dt><dd>{exemptBilling.length}<span>pilot or comped workspaces</span></dd></div><div><dt>Awaiting payment</dt><dd>{businesses.filter(x => !x.archived && !x.billingExempt && !paid.includes(x.billingStatus)).length}<span>not counted in revenue</span></dd></div></dl></section>
+        <section className="card"><div className="admin-directory-heading"><h3>Revenue by plan</h3><span className="muted">All non-exempt</span></div><dl className="admin-finance-list">{Object.entries(planTotals).map(([plan, value]) => <div key={plan}><dt>{plan}</dt><dd>{value.count}<span>${value.mrr.toLocaleString()} MRR</span></dd></div>)}{!Object.keys(planTotals).length && <p className="empty">No billable workspaces yet.</p>}</dl></section>
+      </div>
+      <p className="hint">Stripe remains the source of truth for charges, refunds, and payouts. This view summarizes workspace subscription records so you can spot revenue and billing follow-up in one place.</p>
+    </section>}
 
     <section className="card" id="admin-businesses" hidden={tab !== "businesses"}>
       <div className="admin-directory-heading"><h2>Workspace directory</h2>
@@ -531,7 +556,6 @@ export default function AdminConsole() {
       </section>}
     </div>}
 
-    {tab === "demos" && <DemoRequests />}
     {tab === "website" && <section className="card" id="admin-website">
       <h2>Platform services</h2>
       {session && <dl className="admin-service-list">
@@ -556,40 +580,3 @@ export default function AdminConsole() {
     </div>
   </main>;
 }
-
-
-
-function DemoRequests() {
-  type Request = { name: string; email: string; businessName: string; interest: string; nfcCardQuantity?: number; notes?: string; phone?: string; createdAt: string };
-  const [requests, setRequests] = useState<Request[]>();
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    const controller = new AbortController();
-    api<{ requests: Request[] }>("/api/admin/demo-requests", { signal: controller.signal })
-      .then(result => setRequests(result.requests))
-      .catch(() => { if (!controller.signal.aborted) setFailed(true); });
-    return () => controller.abort();
-  }, []);
-
-  const plans: Record<string, string> = {
-    workspace: "Referral Workspace",
-    "managed-calling": "Managed Calling",
-    custom: "Custom plan",
-  };
-
-  return <section className="card">
-    <h2>Demo requests</h2>
-    {failed ? <p role="alert">Could not load demo requests. Reopen this section to retry.</p>
-      : !requests ? <p role="status">Loading demo requests...</p>
-      : !requests.length ? <p>No demo requests yet.</p>
-      : <ul>{requests.map((request, index) => <li key={index}>
-        <h3>{request.businessName}</h3>
-        <p>{request.name} / <a href={`mailto:${encodeURIComponent(request.email)}`}>{request.email}</a></p>
-        {request.phone && <p>{request.phone}</p>}
-        <p>{plans[request.interest] ?? "Demo"}{request.nfcCardQuantity ? ` / ${request.nfcCardQuantity} NFC cards` : ""}</p>
-        {request.notes && <p>{request.notes}</p>}
-        <time dateTime={request.createdAt}>{new Date(request.createdAt).toLocaleDateString()}</time>
-      </li>)}</ul>}
-  </section>;
-}
-
