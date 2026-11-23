@@ -5,6 +5,7 @@ import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
 import Header from "../components/Header";
 import Analytics from "../components/Analytics";
+import "@fontsource-variable/dm-sans";
 import "./globals.css";
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
