@@ -254,6 +254,7 @@ export default function AdminConsole() {
 
   if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Platform admin sign-in</h1><p>Sign in with your BridgeWay owner account.</p><a className="session-sign-in" href="/admin/login">Continue with Microsoft</a><GoogleSignIn admin /></section></main>;
   if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Access denied</h1><p>This account is not a platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a><button type="button" className="secondary" onClick={() => void signOut()}>Sign out and use another account</button></section></main>;
+  if (state === "loading") return <main className="dashboard" id="main-content" aria-busy="true"><section className="card session-check"><p className="eyebrow">PLATFORM ADMIN</p><h1>Checking workspace access…</h1><p role="status">Your admin session is being verified before the directory loads.</p>{error && <><p role="alert">{error}</p><button className="secondary" onClick={() => { setError(""); void loadList(); }}>Retry</button></>}</section></main>;
 
   const b = detail?.business.businessId === selected ? detail.business : undefined;
   const routingCard = detail?.cards.find(card => card.id === b?.patientCardCode && card.active);
@@ -288,7 +289,7 @@ export default function AdminConsole() {
     { label: "Exempt", count: exemptBilling.length, color: "#8a98a3" },
   ];
   const maxPipelineCount = Math.max(1, ...pipeline.map(item => item.count));
-  return <main className="dashboard dashboard-wide admin-workspace admin-console" id="main-content" aria-busy={state === "loading" && !error}>
+  return <main className="dashboard dashboard-wide admin-workspace admin-console" id="main-content">
     <nav className="section-nav admin-tabs" aria-label="Admin sections">
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
       {([
@@ -355,7 +356,7 @@ export default function AdminConsole() {
     </header>
     {error && <div className="admin-error">
       <p className="error-message" role="alert">{error}</p>
-      {state === "loading" && <button className="secondary" onClick={() => { setError(""); void loadList(); }}>Retry</button>}
+      <button className="secondary" onClick={() => { setError(""); void loadList(); }}>Retry</button>
     </div>}
     <p className="hint" role="status" hidden={!notice}>{notice}</p>
     {session?.canonicalOriginReady === false && <p className="notice">Public URLs currently use {session.publicOrigin}. Coordinate the API PublicOrigin and Microsoft callback registration for https://bridgewayrefer.com before customer onboarding.</p>}
@@ -399,7 +400,7 @@ export default function AdminConsole() {
       <div className="admin-filters"><label className="sr-only" htmlFor="admin-search">Search businesses</label><input id="admin-search" type="search" placeholder="Search businesses" value={search} onChange={e => setSearch(e.target.value)} /><label className="sr-only" htmlFor="admin-state">Filter by status</label><select id="admin-state" value={liveFilter} onChange={e => setLiveFilter(e.target.value)}><option value="">Current businesses</option>{["Live", "Awaiting payment", "Intake off", "Intake closed globally", "Suspended", "Archived"].map(v => <option key={v}>{v}</option>)}</select></div>
       <div className="admin-table"><table className="office-table"><thead><tr><th>Business</th><th>Status</th><th>Billing</th><th>Cards</th><th>Card taps</th><th>Referrals</th></tr></thead><tbody>
         {shownBusinesses.map(x => <tr key={x.businessId} className={x.businessId === selected ? "is-selected" : undefined}><td><button className="secondary admin-business-button" onClick={() => { setSelected(x.businessId); setWorkspaceView("cards"); setTab("cards"); }}>{x.name}<ArrowRight size={14} aria-hidden="true" /></button><small className="admin-business-id" title={x.businessId}>ID {x.businessId.slice(-10)}</small></td><td data-label="Status"><span className="admin-status-pill" data-live={liveState(x, session) === "Live"}>{liveState(x, session)}</span></td><td data-label="Billing">{x.billingExempt ? "Exempt" : x.billingStatus === "not_configured" ? "Not configured" : (x.billingStatus ?? "Unknown").replaceAll("_", " ")}</td><td data-label="Cards">{x.cards}</td><td data-label="Card taps">{x.taps}</td><td data-label="Referrals">{x.referrals}</td></tr>)}
-        {!shownBusinesses.length && <tr><td colSpan={6}>{error && state === "loading" ? "Directory unavailable." : state === "loading" ? "Loading…" : businesses.length ? "No businesses match." : "No businesses yet. Create the first one."}</td></tr>}
+        {!shownBusinesses.length && <tr><td colSpan={6}>{error ? "Directory unavailable." : businesses.length ? "No businesses match." : "No businesses yet. Create the first one."}</td></tr>}
       </tbody></table></div>
     </section>
 
@@ -563,7 +564,7 @@ export default function AdminConsole() {
               </div>;
             })}
             {detail.invitations.map(invite => <div className="card-row" key={invite.id}>
-              <div><strong>{invite.email}</strong><small>{invite.role} ? Expires {new Date(invite.expiresAt).toLocaleDateString()}</small></div>
+              <div><strong>{invite.email}</strong><small>{invite.role}<span aria-hidden="true"> · </span><time dateTime={invite.expiresAt}>Expires {new Date(invite.expiresAt).toLocaleDateString()}</time></small></div>
               <div className="card-row-actions">
                 <button className="secondary" disabled={!invite.id || Boolean(busy)} onClick={() => updateInvitation(b, invite, true)}>Resend invite</button>
                 <button className="secondary" disabled={!invite.id || Boolean(busy)} onClick={() => updateInvitation(b, invite, false)}>Revoke invite</button>
@@ -576,7 +577,7 @@ export default function AdminConsole() {
         <div className="admin-directory-heading"><h2>Recent activity</h2><button className="secondary" disabled={busy === "activity"} onClick={() => showActivity(b.businessId)}>Refresh</button></div>
         {activityBusiness === b.businessId && (activity.length ? <ol className="admin-service-list">
           {activity.map(event => <li key={event.id}>
-            <strong>{event.action.replace(/^platform-/, "").replaceAll("-", " ")}</strong>
+            <strong>{(typeof event.action === "string" && event.action.trim() ? event.action : "Activity recorded").replace(/^platform-/, "").replaceAll("-", " ")}</strong>
             <div>{event.actor} ? <time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time></div>
           </li>)}
         </ol> : <p>No recent activity.</p>)}

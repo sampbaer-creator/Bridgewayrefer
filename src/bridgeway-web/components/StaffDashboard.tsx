@@ -355,15 +355,16 @@ function StaffDashboard() {
   ).sort((a, b) => Number(overdueReferral(b)) - Number(overdueReferral(a)) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
   if (session === "active" && preview?.workspace === workspace) return <>
     <div className="bw-intake-header" role="region" aria-label="Preview controls">
-      <p><strong>Preview</strong> ? Submissions are disabled.</p>
+      <p><strong>Preview.</strong> Submissions are disabled.</p>
       <button className="secondary" autoFocus onClick={() => setPreview(null)}>Back to cards</button>
     </div>
     <PatientForm config={preview.config} preview />
   </>;
   if (session === "expired" || session === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>{session === "expired" ? "Please sign in again" : "Access denied"}</h1><p>{session === "expired" ? "Your session has ended. Sign in to continue." : "Your account does not have access to this workspace. Contact its administrator."}</p><a className="session-sign-in" href="/sign-in">Sign in</a></section></main>;
+  if (session === "loading") return <main className="dashboard" id="main-content" aria-busy="true"><section className="card session-check"><p className="eyebrow">WORKSPACE ACCESS</p><h1>Checking your workspace…</h1><p role="status">Your session is being verified before referral data loads.</p>{error && <><p role="alert">{error}</p><button className="secondary" onClick={() => { stopped.current = false; setError(""); void refresh(); }}>Retry</button></>}</section></main>;
   if (session === "active" && !businesses.length) return <main className="dashboard" id="main-content"><section className="card no-workspace"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><p className="eyebrow">STAFF ACCESS</p><h1>Invitation required</h1><p className="muted">Ask your workspace administrator to invite the email you sign in with.</p><a className="session-sign-in" href="/sign-in">Try another sign-in</a></section></main>;
 
-  return <main className="staff-shell" id="main-content" aria-busy={session === "loading" || refreshing}>
+  return <main className="staff-shell" id="main-content" aria-busy={refreshing}>
     <button className={`staff-sidebar-scrim${sidebarOpen ? " is-visible" : ""}`} aria-label="Dismiss navigation overlay" tabIndex={sidebarOpen ? 0 : -1} onClick={() => setSidebarOpen(false)} />
     <aside className={`staff-sidebar${sidebarOpen ? " is-open" : ""}`} aria-label="Staff workspace navigation">
       <a className="staff-sidebar-brand" href="/" aria-label="BridgeWayRefer home">
@@ -410,7 +411,7 @@ function StaffDashboard() {
         </div>
         <section className="staff-activity-panel" aria-labelledby="staff-activity-title">
           <div className="staff-activity-heading"><h2 id="staff-activity-title">Monthly referral activity</h2><div className="staff-chart-legend"><span><i className="opens-key"/>Card taps</span><span><i className="forms-key"/>Forms received</span></div></div>
-          {!selectedReport ? <p className="staff-chart-empty" role="status">{session === "loading" || refreshing ? "Loading monthly activity…" : "Monthly activity is not available."}</p> : !selectedReport.trend?.length ? <p className="staff-chart-empty">No monthly activity to display.</p> : <><table className="sr-only"><caption>Monthly card taps and forms received</caption><thead><tr><th scope="col">Month</th><th scope="col">Card taps</th><th scope="col">Forms received</th></tr></thead><tbody>{selectedReport.trend.map(item => <tr key={item.month}><th scope="row">{new Date(item.month + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</th><td>{item.opens}</td><td>{item.total}</td></tr>)}</tbody></table><div className="staff-bar-chart" aria-hidden="true">
+          {!selectedReport ? <p className="staff-chart-empty" role="status">{refreshing ? "Loading monthly activity…" : "Monthly activity is not available."}</p> : !selectedReport.trend?.length ? <p className="staff-chart-empty">No monthly activity to display.</p> : <><table className="sr-only"><caption>Monthly card taps and forms received</caption><thead><tr><th scope="col">Month</th><th scope="col">Card taps</th><th scope="col">Forms received</th></tr></thead><tbody>{selectedReport.trend.map(item => <tr key={item.month}><th scope="row">{new Date(item.month + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</th><td>{item.opens}</td><td>{item.total}</td></tr>)}</tbody></table><div className="staff-bar-chart" aria-hidden="true">
             {selectedReport.trend?.map(item => { const peak = Math.max(1, ...selectedReport.trend.flatMap(row => [row.opens, row.total])); const label = new Date(item.month + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }); return <div className="staff-bar-month" key={item.month} aria-label={`${label}: ${item.opens} opens, ${item.total} forms`}>
               <div className="staff-bars"><span className="staff-bar staff-bar-opens" style={{ height: `${Math.max(3, item.opens / peak * 100)}%` }} /><span className="staff-bar staff-bar-forms" style={{ height: `${Math.max(3, item.total / peak * 100)}%` }} /></div><span className="staff-bar-label">{label}</span>
             </div>; })}
@@ -492,7 +493,7 @@ function StaffDashboard() {
         </div>
         <div className="referrals staff-referrals" id="referrals" aria-busy={refreshing}>
           {!filtered.length && !error && <p className="empty" role="status">{
-            session === "loading" || refreshing ? "Loading referrals…" :
+            refreshing ? "Loading referrals…" :
             nextCursor ? "No matching referrals on the loaded pages." :
             hasFilters ? "No referrals match these filters." :
             readView === "Unread" ? "You're caught up. No unread referrals." :

@@ -339,7 +339,18 @@ public static class AdminEndpoints
         admin.MapGet("/businesses/{businessId}/activity", async (string businessId, CosmosStore store, CancellationToken ct) =>
         {
             await RequireBusiness(store, businessId, ct);
-            return Results.Ok(new { activity = await store.AdminActivity(ct) });
+            static string? ReadText(JObject row, string name) => row[name] is JValue { Value: string value } ? value : null;
+            var rows = await store.AdminActivity(ct);
+            return Results.Ok(new
+            {
+                activity = rows.Select(row => new
+                {
+                    id = ReadText(row, "id"),
+                    action = ReadText(row, "action") ?? "Activity recorded",
+                    actor = ReadText(row, "actor") ?? "Unknown actor",
+                    createdAt = ReadText(row, "createdAt") ?? ""
+                }).Where(row => row.id is not null)
+            });
         });
 
         admin.MapPatch("/businesses/{businessId}/members/{id}", async (string businessId, string id, AdminMemberUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
