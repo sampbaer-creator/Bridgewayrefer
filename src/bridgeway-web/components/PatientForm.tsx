@@ -65,7 +65,6 @@ export default function PatientForm({ config, code = "", preview = false }: { co
       <div className="bw-intake-brand">
         <IntakeBrand config={config} />
       </div>
-      <span className="bw-intake-label">SECURE REFERRAL REQUEST</span>
     </header>
     <IntakeContainer className="bw-intake" id={preview ? undefined : "main-content"}>
       <aside className="bw-intake-copy">
