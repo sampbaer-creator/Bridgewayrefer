@@ -1,4 +1,4 @@
-﻿import { expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { isOverdue } from "../lib/follow-up";
 import type { Referral } from "../lib/api";
 
@@ -13,7 +13,7 @@ test("a scheduled referral only becomes overdue when its action deadline is miss
 test("marketing routes expose metadata and private routes are excluded from indexing", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("partner referrals");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Referral tracking");
   await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /NFC cards and QR links/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -22,11 +22,11 @@ test("marketing routes expose metadata and private routes are excluded from inde
   const sitemap = await request.get("/sitemap.xml");
   expect(await sitemap.text()).toContain("/pricing"); expect(await sitemap.text()).toContain("/industries/healthcare"); expect(await sitemap.text()).toContain("/industries/trades"); expect(await sitemap.text()).not.toContain("/staff");
   await page.goto("/industries/dental");
-  await expect(page).toHaveURL(/\/industries\/healthcare$/);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("referring office");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/healthcare");
+  await expect(page).toHaveURL(/\/industries\/dental$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Orthodontic Referral Tracking");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/dental");
   await page.goto("/industries/trades");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("next job");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("booked jobs");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/trades");
   await page.goto("/staff");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
