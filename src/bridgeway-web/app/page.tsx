@@ -1,47 +1,28 @@
-import { planCopy } from "../lib/plan-copy";
-import { FAQS } from "../components/landing/content";
-import LandingPage from "../components/LandingPage";
+import Link from "next/link";
+import Image from "next/image";
 
-export const metadata = {
-  title: { absolute: "Referral Tracking Software for Teams | BridgeWay" },
-  alternates: { canonical: "/" },
-  description:
-    "Referral tracking software to capture partner introductions, identify their source and organize team follow-up. NFC and QR links make the handoff simple.",
-};
-
-const faqSchema = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQS.map(([name, answer]) => ({
-    "@type": "Question",
-    name,
-    acceptedAnswer: { "@type": "Answer", answerBody: answer },
-  })),
-};
+export const metadata = { title: "BridgeWay | Referrals, followed through", alternates: { canonical: "/" } };
 
 export default function HomePage() {
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
-            name: "BridgeWay",
-            applicationCategory: "BusinessApplication",
-            operatingSystem: "Web",
-            url: "https://bridgewayrefer.com",
-            description: "Referral management and tracking software for partner attribution and team follow-up",
-            offers: [
-              { "@type": "Offer", name: planCopy.workspace.name, price: String(planCopy.workspace.fromUsd), priceCurrency: "USD", description: planCopy.billing },
-              { "@type": "Offer", name: planCopy.managedCalling.name, price: String(planCopy.managedCalling.fromUsd), priceCurrency: "USD", description: planCopy.billing },
-            ],
-          }),
-        }}
-      />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <LandingPage />
-    </>
-  );
+  return <main className="editorial" id="main-content">
+    <section className="cover">
+      <div className="cover-copy">
+        <h1>Referrals, followed through.</h1>
+        <p>A partner makes the introduction. Your team knows who to call and who sent them.</p>
+        <a className="editorial-button" href="#walkthrough">Request a walkthrough</a>
+      </div>
+      <Image src="/photos/office.jpg" alt="Daylight across a shared office" width={1440} height={961} preload sizes="(max-width: 720px) 100vw, 55vw" />
+    </section>
+    <section className="industry-section">
+      <h2>Who we work with</h2>
+      <div className="industry-grid">{[
+        ["healthcare", "Healthcare", "From the referring office to the team scheduling the visit."],
+        ["trades", "Trades", "From a contractor’s introduction to the next service call."],
+      ].map(([slug, title, copy]) => <Link key={slug} href={`/industries/${slug}`}>
+        <Image src={`/photos/${slug}.jpg`} width={720} height={450} alt="" sizes="(max-width: 720px) 100vw, 45vw" />
+        <h3>{title} <span aria-hidden="true">↗︎</span></h3><p>{copy}</p>
+      </Link>)}</div>
+    </section>
+    <section className="handoff"><h2>One tap starts the handoff.</h2><p>A partner shares your card. The customer taps or scans, fills out a short form, and appears in your referral inbox. Assign the follow-up and record what happens next.</p></section>
+  </main>;
 }

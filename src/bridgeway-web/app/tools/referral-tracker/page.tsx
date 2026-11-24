@@ -9,6 +9,6 @@ export default function Page() {
     <h2>Give each office a clear owner</h2>
     <p>Record who is responsible for outreach and when your team will check in. Count submitted requests and scheduled outcomes separately.</p>
     <p><a href="/referring-office-tracker.csv" download>Download the referring-office tracker (CSV)</a></p>
-    <p><a href="/contact">Book a BridgeWay demo</a> or <a href="/">see how BridgeWay works</a>.</p>
+    <p><a href="#walkthrough">Request a walkthrough</a> or <a href="/">see how BridgeWay works</a>.</p>
   </article></main>;
 }

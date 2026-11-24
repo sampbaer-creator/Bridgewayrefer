@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 const developmentScripts = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
 const config: NextConfig = {
   output: "standalone",
+  async redirects() {
+    return [
+      { source: "/guides/nfc-referral-cards", destination: "/blog/nfc-referral-cards", permanent: true },
+      { source: "/guides/:path*", destination: "/blog", permanent: true },
+      { source: "/compare/spreadsheet", destination: "/how-it-works", permanent: true },
+      { source: "/referral-tracking-system", destination: "/how-it-works", permanent: true },
+      { source: "/referral-management-software", destination: "/how-it-works", permanent: true },
+      { source: "/referral-tracking-software", destination: "/how-it-works", permanent: true },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: [
       { key: "Strict-Transport-Security", value: "max-age=31536000" },
@@ -14,4 +24,3 @@ const config: NextConfig = {
   },
 };
 export default config;
-

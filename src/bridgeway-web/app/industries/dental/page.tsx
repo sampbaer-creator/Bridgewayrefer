@@ -10,6 +10,6 @@ export default function Page() {
     <p>Review patient requests for contact, assign follow-up and update status. Keep clinical records in the practice system your team uses for care. BridgeWay is an intake and follow-up workflow, not clinical referral interoperability or an EHR replacement.</p>
     <h2>Start with five referring offices</h2>
     <p>Choose the offices you want to pilot with, test each route and review attributed requests together after the first month.</p>
-    <p><a href="/contact">Book a BridgeWay demo</a> or <a href="/">see how BridgeWay works</a>.</p>
+    <p><a href="#walkthrough">Request a walkthrough</a> or <a href="/">see how BridgeWay works</a>.</p>
   </article></main>;
 }

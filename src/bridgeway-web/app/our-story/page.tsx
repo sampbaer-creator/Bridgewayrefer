@@ -1,0 +1,2 @@
+export const metadata = { title: "Our story", alternates: { canonical: "/our-story" } };
+export default function Page() { return <main className="editorial-article" id="main-content"><h1>Our story</h1><p>A referral often starts with a conversation. Once the customer walks away, the receiving team still needs a name, a number and someone to make the call.</p><p>BridgeWay connects those two moments. A card opens a short form, and the introduction lands with the team responsible for following up.</p></main>; }

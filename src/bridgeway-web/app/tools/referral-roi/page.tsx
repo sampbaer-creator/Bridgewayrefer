@@ -7,6 +7,6 @@ export default function Page() {
     <h1>Referral ROI Calculator</h1>
     <p>Use this referral ROI calculator to estimate potential return based on your own referral volume, conversion rate and contribution per booking.</p>
     <ReferralCalculator mode="roi" />
-    <p><a href="/contact">Book a BridgeWay demo</a> or <a href="/">see how BridgeWay works</a>.</p>
+    <p><a href="#walkthrough">Request a walkthrough</a> or <a href="/">see how BridgeWay works</a>.</p>
   </article></main>;
 }

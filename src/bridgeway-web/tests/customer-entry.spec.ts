@@ -13,23 +13,15 @@ test("staff sign-in opens the provider chooser before starting authentication", 
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
-test("the homepage has customer paths for both industries, pricing, and walkthroughs", async ({ page }) => {
+test("the homepage has customer paths for both industries and one walkthrough form", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  // The landing header collapses its nav into a menu on mobile.
-  await page.getByRole("button", { name: "Open menu" }).click();
-  await expect(page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
-  await page.getByRole("button", { name: "Close menu" }).click();
-  await expect(page.getByRole("link", { name: /Explore healthcare referrals/ })).toHaveAttribute("href", "/industries/healthcare");
-  await expect(page.getByRole("link", { name: /Explore trades referrals/ })).toHaveAttribute("href", "/industries/trades");
-  await expect(page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "/pricing");
-  await expect(page.getByRole("link", { name: "Get started" }).first()).toHaveAttribute("href", "/signup?plan=workspace");
-  await expect(page.getByRole("link", { name: "Request a custom quote" })).toHaveAttribute("href", "/contact");
-  await expect(page.getByRole("button", { name: "Book a demo" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Managed Calling", exact: true })).toBeVisible();
-  await expect(page.getByText("400", { exact: true })).toBeVisible();
-  await page.getByText("View the follow-up checklist", { exact: true }).click();
-  await expect(page.getByText("Assign a staff member and set a follow-up deadline.")).toBeVisible();
+  const main = page.getByRole("main");
+  await expect(main.getByRole("link", { name: /Healthcare/ })).toHaveAttribute("href", "/industries/healthcare");
+  await expect(main.getByRole("link", { name: /Trades/ })).toHaveAttribute("href", "/industries/trades");
+  await expect(page.locator('a[href^="/signup"], a[href="/pricing"]')).toHaveCount(0);
+  await expect(page.locator("#walkthrough + footer")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Request a walkthrough" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
@@ -52,8 +44,8 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
   await page.getByLabel("Industry", { exact: true }).selectOption("healthcare");
   await page.getByLabel("Business specialty", { exact: true }).selectOption("Orthodontics");
   const primary = page.getByRole("button", { name: "Continue to Stripe" });
-  await expect(primary).toHaveCSS("background-color", "rgb(72, 178, 230)");
-  await expect(primary).toHaveCSS("color", "rgb(13, 35, 57)");
+  await expect(primary).toHaveCSS("background-color", "rgb(43, 53, 66)");
+  await expect(primary).toHaveCSS("color", "rgb(217, 204, 186)");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page).toHaveURL(/checkout=verified/);
 });

@@ -1,4 +1,4 @@
-import ResourceLinks from "../components/ResourceLinks";
+import Walkthrough from "../components/Walkthrough";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { siteDescription, siteOrigin } from "../lib/site";
@@ -8,7 +8,7 @@ import Analytics from "../components/Analytics";
 import "@fontsource-variable/dm-sans";
 import "./globals.css";
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#D9CCBA" };
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
@@ -21,12 +21,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body>
         <a className="skip-link" href="#main-content">Skip to content</a>
         <Header />
         <Analytics />
         {children}
+        <Walkthrough />
         <footer className="site-footer">
           <div className="footer-inner">
             <Link className="footer-brand" href="/" aria-label="BridgeWayRefer home">
@@ -34,14 +35,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </Link>
             <p className="footer-tag">Referrals, followed through.</p>
             <nav aria-label="Footer">
-              <a href="/pricing">Pricing</a>
               <a href="/contact">Contact</a>
               <a href="/security">Security</a>
               <a href="/privacy">Privacy</a>
               <a href="/terms">Terms</a>
               <button type="button" className="footer-cookie-settings" data-cookie-settings>Cookie settings</button>
             </nav>
-            <ResourceLinks />
           <p className="footer-fine">© {new Date().getFullYear()} BridgeWay · Built for healthcare and home service teams.</p>
           </div>
         </footer>
@@ -49,4 +48,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-

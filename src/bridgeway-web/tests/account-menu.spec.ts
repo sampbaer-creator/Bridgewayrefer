@@ -19,7 +19,7 @@ async function staff(page: Page, platformAdmin: boolean) {
 
 test("the staff account menu shows who is signed in, switches workspace and signs out", async ({ page }) => {
   const logouts = await staff(page, true);
-  await expect(page.locator("body")).toHaveCSS("background-image", /conic-gradient.*linear-gradient.*rgb\(245, 155, 27\)/);
+  await expect(page.locator("body")).toHaveCSS("background-image", "none");
   const button = page.getByRole("button", { name: /account menu/ });
   await expect(button).toContainText("Fictional Owner");
   await button.click();
@@ -56,7 +56,7 @@ test("the admin console has an account menu with sign out", async ({ page }) => 
     return route.fulfill({ json: { ok: true } });
   });
   await page.goto("/admin");
-  await expect(page.locator("body")).toHaveCSS("background-image", /conic-gradient.*linear-gradient.*rgb\(245, 155, 27\)/);
+  await expect(page.locator("body")).toHaveCSS("background-image", "none");
   const button = page.getByRole("button", { name: /account menu/ });
   await expect(button).toContainText("Platform admin");
   await button.click();

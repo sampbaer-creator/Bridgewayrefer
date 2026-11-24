@@ -7,6 +7,6 @@ export default function Page() {
     <h1>Referral Rate Calculator</h1>
     <p>Use this referral rate calculator to see what share of recorded card-link opens led to a submitted referral.</p>
     <ReferralCalculator mode="rate" />
-    <p><a href="/contact">Book a BridgeWay demo</a> or <a href="/">see how BridgeWay works</a>.</p>
+    <p><a href="#walkthrough">Request a walkthrough</a> or <a href="/">see how BridgeWay works</a>.</p>
   </article></main>;
 }
