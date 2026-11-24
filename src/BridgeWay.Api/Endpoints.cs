@@ -44,6 +44,38 @@ public static class Endpoints
 
     internal static object PublicCard(Settings settings, JObject card, JObject? business) => new { officeName = card.Value<string>("resolvedOfficeName") ?? card.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? "", partnerName = card.Value<string>("resolvedPartnerName") ?? card.Value<string>("partnerName") ?? "", welcomeText = business?.Value<string>("welcomeText") is { Length: > 0 } welcome ? welcome : card.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = BusinessRules.AcceptsReferrals(settings, business), businessName = business?.Value<string>("name") ?? "", logoUrl = business?.Value<string>("logoUrl") ?? "", officeLogoUrl = card.Value<string>("resolvedOfficeLogoUrl") ?? "", phone = business?.Value<string>("phone") ?? "", patientForm = PatientFormDesign.Read(business) };
 
+    // Emails the BridgeWay team about a new walkthrough request. Best effort: the request is already saved
+    // and visible in the admin console, so a mail failure never fails the form.
+    static void NotifyDemoRequest(WebApplication app, Settings settings, string name, string email, string businessName, string? phone, string? notes)
+    {
+        var to = app.Configuration["DemoRequests:NotifyEmail"];
+        if (string.IsNullOrWhiteSpace(to)) to = "Bridgewayrefer@outlook.com";
+        if (!settings.SmtpConfigured) { app.Logger.LogWarning("Demo request saved; notification email skipped because SMTP is not configured."); return; }
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var message = new MimeKit.MimeMessage();
+                message.From.Add(MimeKit.MailboxAddress.Parse(settings.SmtpUsername));
+                message.To.Add(MimeKit.MailboxAddress.Parse(to.Trim()));
+                message.ReplyTo.Add(MimeKit.MailboxAddress.Parse(email));
+                message.Subject = "New walkthrough request - " + businessName;
+                message.Body = new MimeKit.TextPart("plain") { Text =
+                    $"Name: {name}\nEmail: {email}\nBusiness: {businessName}\n" +
+                    (string.IsNullOrEmpty(phone) ? "" : $"Phone: {phone}\n") +
+                    (string.IsNullOrEmpty(notes) ? "" : $"Notes: {notes}\n") +
+                    $"\nAll requests are in the admin console: {settings.PublicOrigin}" };
+                using var smtp = new MailKit.Net.Smtp.SmtpClient { Timeout = 20000 };
+                await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, settings.SmtpPort == 465 ? MailKit.Security.SecureSocketOptions.SslOnConnect : MailKit.Security.SecureSocketOptions.StartTls);
+                await smtp.AuthenticateAsync(settings.SmtpUsername, settings.SmtpPassword);
+                await smtp.SendAsync(message);
+                await smtp.DisconnectAsync(true);
+                app.Logger.LogInformation("Demo request notification email sent.");
+            }
+            catch { app.Logger.LogWarning("Demo request saved, but the notification email failed."); }
+        });
+    }
+
     public static void MapBridgeWay(this WebApplication app, Settings settings)
     {
         app.MapPost("/api/demo-requests", async (DemoRequest data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
@@ -62,6 +94,7 @@ public static class Endpoints
             if (!string.IsNullOrEmpty(notes)) doc["notes"] = notes;
             if (!string.IsNullOrEmpty(phone)) doc["phone"] = phone;
             try { await store.Create(doc, ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
+            NotifyDemoRequest(app, settings, name, email, businessName, phone, notes);
             return Results.Accepted(value: new { ok = true });
         });
         app.MapGet("/api/public/cards/{code}", async (string code, CosmosStore store, CancellationToken ct) =>
