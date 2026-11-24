@@ -257,6 +257,9 @@ public static class Endpoints
                 if (businessId.StartsWith("signup-", StringComparison.Ordinal) && !http.Request.Path.StartsWithSegments("/api/staff/billing") &&
                     (profile is null || BusinessRules.SignupPending(profile)))
                     throw new ApiError(403, "Complete the subscription to open this workspace.");
+                // Admin-led onboarding: nobody (including invited staff) opens the workspace until Stripe confirms payment.
+                if (OnboardingRules.IsPending(profile))
+                    throw new ApiError(403, "Setup is pending. The workspace opens after payment is confirmed.");
             }
             return await next(context);
         });

@@ -119,11 +119,21 @@ public static class StripeBillingEndpoints
                         return Results.Ok(new { received = true });
                 }
                 ApplySubscription(business, subscription, settings, DateTimeOffset.UtcNow);
+                // Admin-led onboarding: grant the bound owner Admin access only now, from the verified webhook.
+                JObject? ownerMembership = null;
+                if (OnboardingRules.IsPending(business) && business.Value<string>("ownerOid") is { Length: > 0 } ownerOid && business.Value<string>("ownerTenant") is { Length: > 0 } ownerTenant)
+                {
+                    var existingMember = await store.Read(store.Operations, CosmosStore.MembershipId(ownerTenant, ownerOid), businessKey, ct);
+                    store.UseBusiness(businessId);
+                    ownerMembership = OnboardingRules.ApplyActivation(business, existingMember, store, DateTimeOffset.UtcNow);
+                }
                 var eventDoc = new JObject { ["id"] = eventDocumentId, ["businessId"] = businessId, ["type"] = "stripe-event", ["eventId"] = eventId, ["eventType"] = eventType, ["createdAt"] = DateTimeOffset.UtcNow.ToString("O"), ["ttl"] = 7776000 };
-                using var batch = await store.Operations.CreateTransactionalBatch(businessKey)
+                var pending = store.Operations.CreateTransactionalBatch(businessKey)
                     .CreateItem(eventDoc)
-                    .ReplaceItem("business", business, new TransactionalBatchItemRequestOptions { IfMatchEtag = business.Value<string>("_etag") })
-                    .ExecuteAsync(ct);
+                    .ReplaceItem("business", business, new TransactionalBatchItemRequestOptions { IfMatchEtag = business.Value<string>("_etag") });
+                if (ownerMembership is not null)
+                    pending.CreateItem(ownerMembership).CreateItem(store.Audit("stripe-webhook", "onboarding-owner-activated", businessId));
+                using var batch = await pending.ExecuteAsync(ct);
                 if (batch.IsSuccessStatusCode) return Results.Ok(new { received = true });
                 if (batch.Any(x => x.StatusCode == HttpStatusCode.Conflict)) return Results.Ok(new { received = true, duplicate = true });
                 if (batch.Any(x => x.StatusCode == HttpStatusCode.PreconditionFailed)) continue;

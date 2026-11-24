@@ -56,10 +56,12 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
 
     static string PlanLabel(string plan) => plan == BillingPlans.ManagedCalling ? "Managed Calling" : "Workspace";
 
-    public async Task<string> CreateCustomer(string businessId, string businessName, string idempotencyKey, CancellationToken ct)
+    public async Task<string> CreateCustomer(string businessId, string businessName, string idempotencyKey, CancellationToken ct, string? email = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, Api + "customers");
-        request.Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["name"] = businessName, ["metadata[businessId]"] = businessId });
+        var fields = new Dictionary<string, string> { ["name"] = businessName, ["metadata[businessId]"] = businessId };
+        if (!string.IsNullOrWhiteSpace(email)) fields["email"] = email;
+        request.Content = new FormUrlEncodedContent(fields);
         Configure(request, idempotencyKey);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
@@ -67,7 +69,7 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         return JObject.Parse(body).Value<string>("id") ?? throw new ApiError(503, "Stripe did not return a customer ID.");
     }
 
-    public async Task<JObject> CreateCheckout(string businessId, string businessName, string customerId, string plan, string successUrl, string cancelUrl, string idempotencyKey, CancellationToken ct, int? trialDays = null)
+    public async Task<JObject> CreateCheckout(string businessId, string businessName, string customerId, string plan, string successUrl, string cancelUrl, string idempotencyKey, CancellationToken ct, int? trialDays = null, IReadOnlyDictionary<string, string>? extraMetadata = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, Api + "checkout/sessions");
         var form = new Dictionary<string, string>
@@ -80,6 +82,10 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
             ["metadata[businessId]"] = businessId, ["metadata[businessName]"] = businessName, ["metadata[plan]"] = plan,
             ["subscription_data[metadata][businessId]"] = businessId, ["subscription_data[metadata][plan]"] = plan,
         };
+        foreach (var (key, value) in extraMetadata ?? new Dictionary<string, string>())
+        {
+            form["metadata[" + key + "]"] = value; form["subscription_data[metadata][" + key + "]"] = value;
+        }
         // Card is collected at Checkout (payment_method_collection defaults to always for subscriptions); the first charge happens after the trial.
         if (trialDays is > 0) form["subscription_data[trial_period_days]"] = trialDays.Value.ToString(CultureInfo.InvariantCulture);
         request.Content = new FormUrlEncodedContent(form);
@@ -88,6 +94,14 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode) throw new ApiError(503, "Stripe could not create a Checkout Session.");
         return JObject.Parse(body);
+    }
+
+    /// <summary>Expires an open Checkout Session so a superseded onboarding link can no longer be paid.</summary>
+    public async Task<JObject> ExpireCheckout(string sessionId, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, Api + "checkout/sessions/" + Uri.EscapeDataString(sessionId) + "/expire");
+        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>());
+        return await Send(request, ct);
     }
 
     public async Task<string> CreatePortal(string customerId, string returnUrl, CancellationToken ct)

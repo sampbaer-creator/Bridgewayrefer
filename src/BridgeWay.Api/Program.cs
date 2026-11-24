@@ -215,6 +215,7 @@ app.MapGet("/staff/login", (string? workspace, string? flow, string? provider, s
     {
         "signup" => plan is "workspace" or "managed-calling" ? "/signup?plan=" + plan : "/signup",
         "admin" => "/admin",
+        "onboard" => "/onboard",
         _ => "/staff" + (string.IsNullOrWhiteSpace(workspace) ? "" : "?workspace=" + Uri.EscapeDataString(workspace))
     };
     return Results.Challenge(new AuthenticationProperties { RedirectUri = settings.PublicOrigin + destination }, [useGoogle ? googleScheme : OpenIdConnectDefaults.AuthenticationScheme]);
@@ -222,6 +223,7 @@ app.MapGet("/staff/login", (string? workspace, string? flow, string? provider, s
 app.MapPost("/api/logout", async (HttpContext ctx) => { await ctx.SignOutAsync(); return Results.Ok(new { ok = true }); });
 app.MapBridgeWay(settings);
 app.MapPlatformAdmin(settings);
+app.MapCustomerOnboarding(settings);
 app.MapStripeWebhook();
 app.Run();
 public partial class Program { }

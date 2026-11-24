@@ -1837,3 +1837,13 @@ body { background: var(--linen); color: var(--navy); }
 }
 .bw-signup-page { max-width: 46rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); }
 .bw-signup-page .bw-access-card { gap: 1rem; }
+
+/* Platform admin: customer onboarding */
+.admin-onboarding-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; align-items: end; margin: 16px 0; }
+.admin-onboarding-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.admin-onboarding-form .admin-onboarding-check { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.admin-onboarding-form .admin-primary-action { justify-content: center; }
+.admin-onboarding-issued { margin: 12px 0 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; }
+.admin-onboarding-link { display: flex; gap: 8px; margin-top: 8px; }
+.admin-onboarding-link input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; font-size: 12px; }
+.admin-onboarding-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
