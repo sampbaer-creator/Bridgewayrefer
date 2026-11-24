@@ -18,7 +18,7 @@ type AdminCard = { id: string; label: string; partnerId: string; partnerName: st
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
 const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign, requests: Inbox };
-type WalkthroughRequest = { name: string; email: string; businessName: string; phone?: string; notes?: string; createdAt: string };
+type WalkthroughRequest = { id: string; contacted: boolean; name: string; email: string; businessName: string; phone?: string; notes?: string; createdAt: string };
 
 const paid = ["active", "trialing", "past_due"];
 function liveState(b: BusinessSummary, session: AdminSession | null) {
@@ -253,6 +253,23 @@ export default function AdminConsole() {
   }
   async function makeQr(card: AdminCard) { try { setQr({ id: card.id, data: await QRCode.toDataURL(card.url, { width: 320, margin: 1, errorCorrectionLevel: "M" }) }); } catch { setError("Could not create the QR code."); } }
   function copy(text: string) { void navigator.clipboard.writeText(text).then(() => setNotice("Copied.")).catch(() => setError("Copy unavailable. Select the text to copy it manually.")); }
+  function markRequestContacted(request: WalkthroughRequest) {
+    void run("contact-request", async () => {
+      await api("/api/admin/demo-requests/" + request.id + "/contacted", { method: "PATCH" });
+      setRequests(rows => rows?.map(row => row.id === request.id ? { ...row, contacted: true } : row) ?? null);
+      setNotice("Request marked as contacted.");
+    });
+  }
+
+  function deleteRequest(request: WalkthroughRequest) {
+    if (!window.confirm(`Delete the walkthrough request from ${request.name}?`)) return;
+    void run("delete-request", async () => {
+      await api("/api/admin/demo-requests/" + request.id, { method: "DELETE" });
+      setRequests(rows => rows?.filter(row => row.id !== request.id) ?? null);
+      setNotice("Walkthrough request deleted.");
+    });
+  }
+
   function downloadCsv() {
     if (!detail) return;
     const rows = [["label", "partner", "office", "url", "active"], ...detail.cards.map(c => [c.label, c.partnerName, c.officeName, c.url, String(c.active)])];
@@ -382,10 +399,17 @@ export default function AdminConsole() {
         <a href="/signup" target="_blank" rel="noopener noreferrer">Open signup form</a>
         <button type="button" className="secondary" onClick={() => copy(new URL("/signup", window.location.origin).href)}>Copy signup link</button>
       </div>
-      <div className="admin-table"><table className="office-table"><thead><tr><th>Received</th><th>Name</th><th>Business</th><th>Email</th><th>Phone</th><th>Notes</th></tr></thead><tbody>
-        {(requests ?? []).map((r, i) => <tr key={r.createdAt + r.email + i}><td data-label="Received">{new Date(r.createdAt).toLocaleString()}</td><td data-label="Name">{r.name}</td><td data-label="Business">{r.businessName}</td><td data-label="Email"><a href={"mailto:" + r.email}>{r.email}</a></td><td data-label="Phone">{r.phone ? <a href={"tel:" + r.phone}>{r.phone}</a> : "—"}</td><td data-label="Notes">{r.notes || "—"}</td></tr>)}
-        {requests && !requests.length && <tr><td colSpan={6}>No walkthrough requests yet.</td></tr>}
-        {!requests && <tr><td colSpan={6}>Loading requests…</td></tr>}
+      <div className="admin-table"><table className="office-table"><thead><tr><th>Received</th><th>Name</th><th>Business</th><th>Email</th><th>Phone</th><th>Notes</th><th>Status and actions</th></tr></thead><tbody>
+        {(requests ?? []).map(r => <tr key={r.id}><td data-label="Received">{new Date(r.createdAt).toLocaleString()}</td><td data-label="Name">{r.name}</td><td data-label="Business">{r.businessName}</td><td data-label="Email"><a href={"mailto:" + r.email}>{r.email}</a></td><td data-label="Phone">{r.phone ? <a href={"tel:" + r.phone}>{r.phone}</a> : "—"}</td><td data-label="Notes">{r.notes || "—"}</td>
+          <td data-label="Status and actions">
+            <div className="admin-request-actions">
+              {r.contacted ? <span>Contacted</span> : <button type="button" className="secondary" disabled={Boolean(busy)} onClick={() => markRequestContacted(r)}>Mark contacted</button>}
+              <button type="button" className="secondary" disabled={Boolean(busy)} onClick={() => deleteRequest(r)}>Delete</button>
+            </div>
+          </td>
+        </tr>)}
+        {requests && !requests.length && <tr><td colSpan={7}>No walkthrough requests yet.</td></tr>}
+        {!requests && <tr><td colSpan={7}>Loading requests…</td></tr>}
       </tbody></table></div>
     </section>}
 
@@ -409,7 +433,6 @@ export default function AdminConsole() {
       </div>
       <div className="admin-finance-grid">
         <section className="card"><div className="admin-directory-heading"><h3>Billing pipeline</h3><span className="admin-status-pill" data-live={trialingBilling.length === 0}>Live data</span></div><dl className="admin-finance-list"><div><dt>Trialing</dt><dd>{trialingBilling.length}<span>${trialingMrr.toLocaleString()} potential MRR</span></dd></div><div><dt>Past due</dt><dd>{pastDueBilling.length}<span>${pastDueMrr.toLocaleString()} needs attention</span></dd></div><div><dt>Billing exempt</dt><dd>{exemptBilling.length}<span>pilot or comped workspaces</span></dd></div><div><dt>Awaiting payment</dt><dd>{businesses.filter(x => !x.archived && !x.billingExempt && !paid.includes(x.billingStatus)).length}<span>not counted in revenue</span></dd></div></dl></section>
-        <section className="card"><div className="admin-directory-heading"><h3>Revenue by plan</h3><span className="muted">All non-exempt</span></div><dl className="admin-finance-list">{Object.entries(planTotals).map(([plan, value]) => <div key={plan}><dt>{plan}</dt><dd>{value.count}<span>${value.mrr.toLocaleString()} MRR</span></dd></div>)}{!Object.keys(planTotals).length && <p className="empty">No billable workspaces yet.</p>}</dl></section>
       </div>
       <p className="hint">{stripeFinance ? `Connected to Stripe ${stripeFinance.mode} mode. Subscription totals reflect Stripe prices and quantities; use Stripe for invoices, refunds, payouts, and tax reporting.` : "Stripe is not available to this admin session yet. Configure the server-side Stripe key, price IDs, and webhook secret to connect live totals."}</p>
     </section>}
