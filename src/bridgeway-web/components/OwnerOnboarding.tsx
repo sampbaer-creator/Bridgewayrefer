@@ -4,13 +4,14 @@ import { api, ApiError, WORKSPACE_KEY } from "../lib/api";
 import { ProviderButton } from "./GoogleSignIn";
 
 const KEY = "bridgeway.onboarding";
-type Status = { businessName: string; plan: string; status: "active" | "awaiting_payment"; paymentConfirmed: boolean };
+type Status = { ownerName?: string; ownerEmail?: string; alertEmail?: string; industry?: string; specialty?: string; monthlyPriceUsd?: number; businessName: string; plan: string; status: "active" | "awaiting_payment"; paymentConfirmed: boolean };
 type View = "loading" | "missing" | "signed-out" | "ready" | "confirming" | "active" | "error";
 const planLabels: Record<string, string> = { workspace: "Workspace", "managed-calling": "Managed Calling" };
 
 export default function OwnerOnboarding() {
   const [link, setLink] = useState<{ workspace: string; token: string } | null>(null);
   const [view, setView] = useState<View>("loading"), [status, setStatus] = useState<Status | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [message, setMessage] = useState(""), [busy, setBusy] = useState(false), [checkout, setCheckout] = useState("");
 
   const check = useCallback(async (current: { workspace: string; token: string }) => {
@@ -53,7 +54,7 @@ export default function OwnerOnboarding() {
     if (!link) return;
     setBusy(true); setMessage("");
     try {
-      const result = await api<{ url?: string; active?: boolean; paymentConfirmed?: boolean }>("/api/onboarding/checkout", { method: "POST", body: JSON.stringify(link) });
+      const result = await api<{ url?: string; active?: boolean; paymentConfirmed?: boolean }>("/api/onboarding/checkout", { method: "POST", body: JSON.stringify({ ...link, confirmDetails: confirmed }) });
       if (result.url) { window.location.assign(result.url); return; }
       await check(link);
     } catch (e) { setMessage(e instanceof Error ? e.message : "Could not open checkout. Try again."); }
@@ -73,9 +74,19 @@ export default function OwnerOnboarding() {
       </>}
       {view === "ready" && status && <>
         {checkout === "cancelled" && <p className="notice" role="status">Checkout was canceled. Your workspace is saved; you can pay whenever you are ready.</p>}
+        <h2>Review your details</h2>
+        <dl className="bw-setup-details">
+          <dt>Business</dt><dd>{status.businessName}</dd>
+          <dt>Owner</dt><dd>{status.ownerName} {status.ownerEmail}</dd>
+          <dt>Referral alerts</dt><dd>{status.alertEmail || status.ownerEmail}</dd>
+          <dt>Industry / specialty</dt><dd>{status.industry} / {status.specialty}</dd>
+          <dt>Subscription</dt><dd>{planLabels[status.plan] ?? status.plan}{status.monthlyPriceUsd != null && ` - $${status.monthlyPriceUsd}/month`}</dd>
+        </dl>
+        <p>Need a correction? <a href="mailto:Bridgewayrefer@outlook.com">Contact BridgeWay</a> before paying.</p>
+        <label className="bw-setup-confirm"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} /> I confirm these details are correct.</label>
         <p>Setup is pending. Your dashboard opens as soon as payment is confirmed.</p>
         <p className="muted">Plan: {planLabels[status.plan] ?? status.plan}. Payment is handled securely by Stripe.</p>
-        <button className="bw-btn bw-btn-primary" disabled={busy} onClick={() => void pay()}>{busy ? "Opening Stripe…" : "Continue to payment"}</button>
+        <button className="bw-btn bw-btn-primary" disabled={busy || !confirmed} onClick={() => void pay()}>{busy ? "Opening Stripe…" : "Continue to payment"}</button>
       </>}
       {view === "confirming" && <p role="status">Payment received. We are confirming it with Stripe; this page updates automatically.</p>}
       {view === "ready" && checkout === "success" && <p role="status">Waiting for Stripe to confirm your payment. This page updates automatically.</p>}

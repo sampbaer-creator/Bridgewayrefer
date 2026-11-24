@@ -106,7 +106,7 @@ public static class OnboardingRules
 
 public sealed record OnboardingCreate(string Name, string OwnerEmail, string? OwnerName, string? AlertEmail, string? Industry, string? Specialty, string? Plan, bool SendEmail = true, string? Notes = null);
 public sealed record OnboardingLinkRequest(bool SendEmail = true);
-public sealed record OnboardingRedeem(string? Workspace, string? Token);
+public sealed record OnboardingRedeem(string? Workspace, string? Token, bool ConfirmDetails = false);
 
 public static class OnboardingEndpoints
 {
@@ -144,7 +144,7 @@ public static class OnboardingEndpoints
                     (string.IsNullOrWhiteSpace(ownerName) ? "Hello," : "Hi " + ownerName + ","), "",
                     "Your BridgeWay workspace for " + businessName + " is ready.", "",
                     "Plan: " + PlanLabel(plan), "",
-                    "Open this link, sign in with this email address (" + to + "), and complete payment to open your dashboard:",
+                    "Open this link, sign in with this email address (" + to + "), review your business details, and complete payment to open your dashboard:",
                     url, "", "The link expires in " + OnboardingRules.LinkDays + " days. Do not forward it.")
             };
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -291,7 +291,15 @@ public static class OnboardingEndpoints
         {
             var (business, _, _, _) = await Redeem(data, ctx, store, settings, ct);
             var active = business.Value<string>("onboardingStatus") == OnboardingRules.Active;
-            return Results.Ok(new { businessName = business.Value<string>("name"), plan = business.Value<string>("onboardingPlan"), status = active ? "active" : "awaiting_payment", paymentConfirmed = business.Value<string>("billingStatus") is "active" or "trialing" });
+            return Results.Ok(new
+            {
+                businessName = business.Value<string>("name"), ownerName = business.Value<string>("ownerName"),
+                ownerEmail = business.Value<string>("ownerEmail"), alertEmail = business.Value<string>("alertEmail"),
+                industry = business.Value<string>("industry"), specialty = business.Value<string>("specialty"),
+                monthlyPriceUsd = settings.MonthlyPriceFor(business.Value<string>("onboardingPlan")!),
+                plan = business.Value<string>("onboardingPlan"), status = active ? "active" : "awaiting_payment",
+                paymentConfirmed = business.Value<string>("billingStatus") is "active" or "trialing",
+            });
         });
 
         app.MapPost("/api/onboarding/checkout", async (OnboardingRedeem data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
@@ -299,6 +307,7 @@ public static class OnboardingEndpoints
             var (business, tenant, oid, inviteId) = await Redeem(data, ctx, store, settings, ct);
             if (business.Value<string>("onboardingStatus") == OnboardingRules.Active) return Results.Ok(new { active = true });
             if (business.Value<string>("billingStatus") is "active" or "trialing") return Results.Ok(new { paymentConfirmed = true });
+            if (!data.ConfirmDetails) throw new ApiError(400, "Confirm your business details before continuing to payment.");
             var plan = business.Value<string>("onboardingPlan")!;
             if (!settings.StripeConfigured || !stripe.KeyReady) throw new ApiError(503, "Payment is not available right now. Contact BridgeWay.");
             var now = DateTimeOffset.UtcNow;
@@ -308,7 +317,7 @@ public static class OnboardingEndpoints
 
             // Bind the owner identity first; the etag makes concurrent attempts fail instead of double-creating sessions.
             var attempt = (business.Value<int?>("onboardingCheckoutAttempts") ?? 0) + 1;
-            business["ownerOid"] = oid; business["ownerTenant"] = tenant; business["onboardingCheckoutAttempts"] = attempt;
+            business["ownerOid"] = oid; business["ownerTenant"] = tenant; business["onboardingDetailsConfirmedAt"] = now.ToString("O"); business["onboardingCheckoutAttempts"] = attempt;
             try { business["_etag"] = (await store.Operations.ReplaceItemAsync(business, "business", store.BusinessKey, new ItemRequestOptions { IfMatchEtag = business.Value<string>("_etag") }, ct)).ETag; }
             catch (CosmosException e) when (e.StatusCode == HttpStatusCode.PreconditionFailed) { throw new ApiError(409, "Checkout is already being prepared. Try again in a moment."); }
 

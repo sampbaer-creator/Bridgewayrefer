@@ -49,7 +49,7 @@ export default function AdminOnboarding() {
 
   const paidReady = config?.stripe && config.identity && (plan !== "managed-calling" || config.managedCalling);
   return <section className="card admin-customer-onboarding" id="admin-onboarding" aria-label="Customer onboarding">
-    <div className="admin-directory-heading"><div><h2>Customer onboarding</h2><p className="muted">The standard way to add a customer: create the business, send the owner a payment and signup link, and their dashboard opens once Stripe confirms payment.</p></div></div>
+    <div className="admin-directory-heading"><div><h2>Customer onboarding</h2><p className="muted">The standard way to add a customer: create the business, send the owner a payment and signup link, the owner signs in and confirms their details, and their dashboard opens once Stripe confirms payment.</p></div></div>
     {config && (!config.stripe || !config.identity || !config.email || !config.managedCalling) && <p className="notice">
       {!config.stripe && "Stripe is not configured, so Workspace and Managed Calling links cannot be created. "}
       {config.stripe && !config.managedCalling && "Managed Calling has no Stripe Price configured. "}
@@ -92,7 +92,7 @@ export default function AdminOnboarding() {
         <td data-label="Business">{c.name}{c.notes && <small className="muted admin-onboarding-note" title={c.notes}>{c.notes}</small>}</td>
         <td data-label="Owner">{c.ownerName && <strong className="admin-onboarding-owner">{c.ownerName}</strong>}<small className="muted">{c.ownerEmail}{c.ownerSignedIn && " · signed in"}</small></td>
         <td data-label="Plan">{planLabels[c.plan] ?? c.plan}</td>
-        <td data-label="Status"><span className="admin-status-pill" data-live={c.status === "Owner account connected"}>{c.status}</span>{c.linkExpiresAt && c.canIssueLink && <small className="muted"> link expires {new Date(c.linkExpiresAt).toLocaleDateString()}</small>}</td>
+        <td data-label="Status"><span className="admin-status-pill" data-live={c.status === "Owner account connected"}>{c.status}</span>{c.lastEmail && <small className="muted">Email: {c.lastEmail}</small>}{c.linkExpiresAt && c.canIssueLink && <small className="muted"> link expires {new Date(c.linkExpiresAt).toLocaleDateString()}</small>}</td>
         <td data-label="Created">{new Date(c.createdAt).toLocaleDateString()}</td>
         <td data-label="Actions">{c.plan === "corporate"
           ? <a className="secondary" href={`mailto:${c.ownerEmail}?subject=${encodeURIComponent("BridgeWay setup for " + c.name)}`}>Contact owner</a>
