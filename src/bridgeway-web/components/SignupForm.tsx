@@ -90,7 +90,7 @@ export default function SignupForm() {
             <span><b>{planCopy.managedCalling.name} &middot; from ${(state?.plans.managedCalling.amountUsd ?? 400)}/month</b><small>Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay.</small></span>
           </label>
           <Link href="/#walkthrough" className="bw-plan-option">
-            <span><b>Corporate · Custom pricing</b><small>Request a custom quote through BridgeWay.</small></span>
+            <span id="corporate"><b>Corporate · Custom pricing</b><small>Request a custom quote through BridgeWay.</small></span>
           </Link>
         </fieldset>
       {error && <p role="alert" className="bw-form-alert">{error}</p>}

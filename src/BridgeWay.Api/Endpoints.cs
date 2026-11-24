@@ -301,7 +301,7 @@ public static class Endpoints
         staff.MapGet("/offices", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { offices = (await store.Query("office", ct: ct)).Select(x => new { id = x.Value<string>("id"), name = x.Value<string>("name"), active = x.Value<bool>("active"), logoUrl = x.Value<string>("logoUrl") ?? "", etag = x.Value<string>("_etag") }) }));
         staff.MapPatch("/offices/{id}", async (string id, OfficeLogoUpdate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            RequireAdmin(ctx);
+            if (!settings.IsPlatformAdmin(ctx.User)) throw new ApiError(403, "Platform administrator access is required.");
             var logo = data.LogoUrl?.Trim() ?? "";
             if (logo.Length > 500 || !ValidLogo(logo) || string.IsNullOrWhiteSpace(data.Etag))
                 throw new ApiError(400, "Enter a valid HTTPS or site-relative logo URL.");
@@ -316,7 +316,7 @@ public static class Endpoints
         });
         staff.MapPost("/offices", async (OfficeCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            RequireAdmin(ctx);
+            if (!settings.IsPlatformAdmin(ctx.User)) throw new ApiError(403, "Platform administrator access is required.");
             var name = data.Name?.Trim() ?? ""; if (name.Length is < 2 or > 120) throw new ApiError(400, "Enter an office name, up to 120 characters.");
             var id = "office-" + Guid.NewGuid().ToString("N"); var office = store.Document("office", id); office["name"] = name; office["active"] = true;
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(store.Audit(Actor(ctx), "create-office", id)).CreateItem(office).ExecuteAsync(ct); CosmosStore.Check(batch);
@@ -332,6 +332,7 @@ public static class Endpoints
             // Members may sign in from any tenant, so find this business's active membership by object ID and use its stored tenant.
             var member = (await store.Query("membership", ct: ct)).FirstOrDefault(m => string.Equals(m.Value<string>("oid"), oid, StringComparison.OrdinalIgnoreCase) && m.Value<bool?>("active") == true);
             if (member?.Value<string>("type") != "membership" || string.IsNullOrWhiteSpace(member.Value<string>("tenantId")) || member.Value<string>("oid") != oid || member.Value<bool?>("active") != true) throw new ApiError(404, "Active member not found.");
+            if (member.Value<string>("role") != "Staff") throw new ApiError(403, "Only Platform Admin can remove elevated access.");
             var memberId = member.Value<string>("id") ?? throw new ApiError(404, "Active member not found.");
             if (!string.Equals(member.Value<string>("_etag"), data.Etag, StringComparison.Ordinal)) throw new ApiError(409, "This member changed. Refresh and try again.");
             await store.UpdateMember(member, data.Etag, null, true, Actor(ctx), ct);
@@ -346,8 +347,8 @@ public static class Endpoints
         {
             RequireAdmin(ctx);
             var email = data.Email?.Trim().ToLowerInvariant() ?? "";
-            if (!ValidEmail(email) || data.Role is not ("Admin" or "Staff")) throw new ApiError(400, "Enter a valid email and choose Admin or Staff.");
-            var (invite, url) = InvitationLinks.Create(store, settings, email, data.Role, Actor(ctx), 7);
+            if (!ValidEmail(email) || data.Role != "Staff") throw new ApiError(400, "Enter a valid email for an office staff invitation.");
+            var (invite, url) = InvitationLinks.Create(store, settings, email, "Staff", Actor(ctx), 7);
             await store.Create(invite, ct);
             return Results.Json(new { invitationId = invite.Value<string>("id"), email, role = data.Role, expiresAt = invite.Value<string>("expiresAt"), inviteUrl = url }, statusCode: 201);
         });
@@ -365,7 +366,7 @@ public static class Endpoints
         staff.MapGet("/partners", async (CosmosStore store, CancellationToken ct) => Results.Ok(new { partners = (await store.Partners(ct)).Select(p => new { id = p.Value<string>("id"), name = p.Value<string>("name"), active = p.Value<bool>("active"), etag = p.Value<string>("_etag") }) }));
         staff.MapPost("/partners", async (PartnerCreate data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
         {
-            RequireAdmin(ctx);
+            if (!settings.IsPlatformAdmin(ctx.User)) throw new ApiError(403, "Platform administrator access is required.");
             var name = data.Name?.Trim() ?? ""; if (name.Length is < 2 or > 120) throw new ApiError(400, "Enter a partner name, up to 120 characters.");
             var id = "partner-" + Guid.NewGuid().ToString("N"); var partner = store.Document("partner", id); partner["name"] = name; partner["active"] = true;
             using var batch = await store.Operations.CreateTransactionalBatch(store.BusinessKey).CreateItem(store.Audit(Actor(ctx), "create-partner", id)).CreateItem(partner).ExecuteAsync(ct); CosmosStore.Check(batch);

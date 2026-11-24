@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import QRCode from "qrcode";
 import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, ExternalLink, Inbox, Plus, Radio, UserPlus } from "lucide-react";
 import AdminOnboarding from "./AdminOnboarding";
+import { planCopy } from "../lib/plan-copy";
 import GoogleSignIn from "./GoogleSignIn";
 import AdminStripeSubscription from "./AdminStripeSubscription";
 import PatientForm from "./PatientForm";
@@ -18,7 +19,7 @@ type StripeFinance = { connected: boolean; mode: "live" | "test"; subscriptions:
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
-const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign, requests: Inbox, onboarding: UserPlus };
+const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign, requests: Inbox, signup: ExternalLink, onboarding: UserPlus };
 type WalkthroughRequest = { id: string; contacted: boolean; name: string; email: string; businessName: string; phone?: string; notes?: string; createdAt: string };
 
 const paid = ["active", "trialing", "past_due"];
@@ -32,7 +33,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 }
 
 export default function AdminConsole() {
-  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial" | "requests" | "onboarding">("businesses");
+  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial" | "requests" | "signup" | "onboarding">("businesses");
   const [requests, setRequests] = useState<WalkthroughRequest[] | null>(null);
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
@@ -288,7 +289,7 @@ export default function AdminConsole() {
   const effectiveLogo = b?.logoUrl || routingOffice?.logoUrl;
   const patientLink = b ? (session?.publicOrigin ?? "") + "/p/" + b.businessId : "";
   const checkoutOpen = Boolean(b?.checkoutExpiresAt && Date.parse(b.checkoutExpiresAt) > Date.now());
-  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", financial: "Financial overview", requests: "Walkthrough requests", onboarding: "Customer onboarding" }[tab];
+  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", financial: "Financial overview", requests: "Walkthrough requests", signup: "Customer signup", onboarding: "Customer onboarding" }[tab];
   const shownBusinesses = businesses.filter(x => (!search || x.name.toLowerCase().includes(search.toLowerCase())) && (liveFilter ? liveState(x, session) === liveFilter : !x.archived));
   const activeBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "active");
   const trialingBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "trialing");
@@ -320,7 +321,7 @@ export default function AdminConsole() {
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
       {([
         { label: "Workspaces", items: [["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"], ["onboarding", "Customer onboarding"]] },
-        { label: "Platform", items: [["website", "Website status"], ["financial", "Financial"], ["requests", "Walkthrough requests"]] },
+        { label: "Platform", items: [["website", "Website status"], ["financial", "Financial"], ["requests", "Walkthrough requests"], ["signup", "Customer signup"]] },
       ] as const).map(group => <div className="admin-nav-group" key={group.label}>
         <p>{group.label}</p>
         {group.items.map(([key, label]) => {
@@ -330,9 +331,6 @@ export default function AdminConsole() {
           </button>;
         })}
       </div>)}
-      <div className="admin-nav-group">
-        <a className="admin-signup-nav" href="/signup" target="_blank" rel="noopener noreferrer"><ExternalLink size={17} aria-hidden="true" />Customer signup (opens new tab)</a>
-      </div>
     </nav>
     <div className="admin-workspace-content">
     {deleting && <dialog className="admin-delete-dialog" aria-labelledby="admin-delete-title"
@@ -398,6 +396,22 @@ export default function AdminConsole() {
     </dl>}
 
     {tab === "onboarding" && <AdminOnboarding />}
+
+    {tab === "signup" && <section className="card" aria-label="Customer signup links">
+      <h2>Customer signup links</h2>
+      <p className="muted">Copy the link for the plan you agreed on and send it to the customer.</p>
+      {[
+        { name: planCopy.workspace.name, path: "/signup?plan=workspace", detail: "Sign in and continue to Stripe Checkout." },
+        { name: planCopy.managedCalling.name, path: "/signup?plan=managed-calling", detail: "Sign in and continue to Stripe Checkout." },
+        { name: "Corporate", path: "/signup#corporate", detail: "Request a custom quote." },
+      ].map(plan => <div className="card-row" key={plan.path}>
+        <div><strong>{plan.name}</strong><small>{plan.detail}</small></div>
+        <div className="card-row-actions">
+          <a href={plan.path} target="_blank" rel="noopener noreferrer" aria-label={`Open ${plan.name} (new tab)`}>Open</a>
+          <button type="button" className="secondary" onClick={() => copy(new URL(plan.path, session?.publicOrigin || window.location.origin).href)}>Copy {plan.name} link</button>
+        </div>
+      </div>)}
+    </section>}
 
     {tab === "requests" && <section className="card" id="admin-requests" aria-label="Walkthrough requests">
       <div className="admin-directory-heading"><div><h2>Walkthrough requests</h2><p className="muted">Everyone who filled out the Request a walkthrough form, newest first.</p></div><span className="muted">{requests ? `${requests.length} total` : ""}</span></div>

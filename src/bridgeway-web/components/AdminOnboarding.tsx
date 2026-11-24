@@ -48,7 +48,7 @@ export default function AdminOnboarding() {
   }
 
   const paidReady = config?.stripe && config.identity && (plan !== "managed-calling" || config.managedCalling);
-  return <section className="card admin-onboarding" id="admin-onboarding" aria-label="Customer onboarding">
+  return <section className="card admin-customer-onboarding" id="admin-onboarding" aria-label="Customer onboarding">
     <div className="admin-directory-heading"><div><h2>Customer onboarding</h2><p className="muted">Create the business, send the owner a payment link, and their dashboard opens after Stripe confirms payment.</p></div></div>
     {config && (!config.stripe || !config.identity || !config.email || !config.managedCalling) && <p className="notice">
       {!config.stripe && "Stripe is not configured, so Workspace and Managed Calling links cannot be created. "}
