@@ -403,7 +403,7 @@ public static class AdminEndpoints
                     "You have been invited to " + business.Value<string>("name") + ".\n\nOpen this link to accept:\n" + inviteUrl };
                 try
                 {
-                    await AlertWorker.SendEmail(settings, message, ct);
+                    await ctx.RequestServices.GetRequiredService<MicrosoftMailbox>().Send(message, ct);
                     sent = true;
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

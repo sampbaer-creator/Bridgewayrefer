@@ -69,7 +69,7 @@ public sealed class Settings
         priceId == StripePriceId ? BillingPlans.Workspace :
         ManagedCallingConfigured && priceId == ManagedCallingStripePriceId ? BillingPlans.ManagedCalling : null;
     public bool IdentityConfigured => TenantId.Length > 0 && ClientId.Length > 0 && ClientSecret.Length > 0;
-    public bool SmtpConfigured => AlertsEnabled && SmtpUsername.Length > 0 && SmtpPassword.Length > 0;
+    public bool SmtpConfigured => AlertsEnabled && SmtpUsername.Length > 0 && (SmtpPassword.Length > 0 || (IdentityConfigured && MicrosoftMailbox.RequiresOAuth(SmtpUsername)));
     public bool IsPlatformAdmin(string? tenantId, string? oid) =>
         !string.IsNullOrWhiteSpace(oid) && string.Equals(tenantId, TenantId, StringComparison.OrdinalIgnoreCase) &&
         PlatformAdminObjectIds.Contains(oid, StringComparer.OrdinalIgnoreCase);

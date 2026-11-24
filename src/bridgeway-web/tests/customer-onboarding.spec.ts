@@ -156,3 +156,27 @@ for (const width of [1440, 1024, 768, 390]) {
     await page.screenshot({ path: `test-results/onboarding-${width}.png`, fullPage: true });
   });
 }
+
+test("admin connects the sender mailbox and can request a test email", async ({ page }) => {
+  let connected = false;
+  await page.route("**/api/admin/session", route => route.fulfill({ json: { acceptingGlobally: true } }));
+  await page.route("**/api/admin/businesses", route => route.fulfill({ json: { businesses: [], totals: { businesses: 0, cards: 0, taps: 0, referrals: 0 } } }));
+  await page.route("**/api/admin/financial", route => route.fulfill({ status: 503, json: {} }));
+  await page.route("**/api/admin/onboarding", route => route.fulfill({ json: { customers: [], config } }));
+  await page.route("**/api/admin/email", route => route.fulfill({ json: { required: true, connected, email: "bridgewayrefer@outlook.com" } }));
+  await page.route("**/api/admin/email/test", route => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({});
+    return route.fulfill({ json: { accepted: true } });
+  });
+  await page.goto("/admin?mailbox=wrong-account");
+  const sender = page.getByRole("region", { name: "Sender email connection" });
+  await expect(sender.getByText(/That was a different mailbox/)).toBeVisible();
+  await expect(sender.getByRole("link", { name: "Connect sender mailbox" })).toHaveAttribute("href", "/api/admin/email/connect");
+  await expect(sender.getByRole("button", { name: "Send test email" })).toHaveCount(0);
+  connected = true;
+  await page.goto("/admin?mailbox=connected");
+  await expect(sender.getByText(/Connected to Microsoft/)).toBeVisible();
+  await sender.getByRole("button", { name: "Send test email" }).click();
+  await expect(sender.getByText(/Microsoft accepted the test email/)).toBeVisible();
+});

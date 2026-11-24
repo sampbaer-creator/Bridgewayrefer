@@ -8,7 +8,7 @@ using MimeKit;
 using Newtonsoft.Json.Linq;
 namespace BridgeWay.Api;
 
-public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, ILogger<AlertWorker> logger) : BackgroundService
+public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, ILogger<AlertWorker> logger, MicrosoftMailbox mailbox) : BackgroundService
 {
     public const int MaximumAttempts = 8;
 
@@ -82,7 +82,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                     message.Body = new TextPart("plain") { Text = doc.Value<string>("body")! };
                     if (doc.Value<string>("replyTo") is string replyTo) message.ReplyTo.Add(MailboxAddress.Parse(replyTo));
                 }
-                await SendEmail(settings, message, ct);
+                await mailbox.Send(message, ct);
                 doc["state"] = "Accepted"; doc["acceptedAt"] = DateTimeOffset.UtcNow.ToString("O"); doc["readyAt"] = 0;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -102,7 +102,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
             }
         }
     }
-    internal static async Task SendEmail(Settings settings, MimeMessage message, CancellationToken ct)
+    internal static async Task SendSmtp(Settings settings, MimeMessage message, CancellationToken ct)
     {
         using var smtp = new SmtpClient { Timeout = 20000 };
         await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, settings.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls, ct);

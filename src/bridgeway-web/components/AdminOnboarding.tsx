@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import MailboxSettings from "./MailboxSettings";
 import { api } from "../lib/api";
 
 type Customer = { businessId: string; name: string; ownerEmail: string; ownerName?: string; notes?: string; plan: string; status: string; billingStatus?: string; createdAt: string; linkExpiresAt?: string; ownerSignedIn: boolean; lastEmail?: string; canIssueLink: boolean };
@@ -57,6 +58,7 @@ export default function AdminOnboarding() {
       {!config.email && "Email (SMTP) is not configured: links will not be emailed, copy them instead."}
     </p>}
 
+    <MailboxSettings />
     <form className="admin-onboarding-form" onSubmit={create} aria-label="Create customer">
       <h3>Create customer</h3>
       <div className="admin-onboarding-grid">
