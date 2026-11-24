@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, Plus, Radio } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, Inbox, Plus, Radio } from "lucide-react";
 import GoogleSignIn from "./GoogleSignIn";
 import AdminStripeSubscription from "./AdminStripeSubscription";
 import PatientForm from "./PatientForm";
@@ -17,7 +17,8 @@ type StripeFinance = { connected: boolean; mode: "live" | "test"; subscriptions:
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
-const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign };
+const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign, requests: Inbox };
+type WalkthroughRequest = { name: string; email: string; businessName: string; phone?: string; notes?: string; createdAt: string };
 
 const paid = ["active", "trialing", "past_due"];
 function liveState(b: BusinessSummary, session: AdminSession | null) {
@@ -30,7 +31,8 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 }
 
 export default function AdminConsole() {
-  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial">("businesses");
+  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial" | "requests">("businesses");
+  const [requests, setRequests] = useState<WalkthroughRequest[] | null>(null);
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
   const [session, setSession] = useState<AdminSession | null>(null), [businesses, setBusinesses] = useState<BusinessSummary[]>([]), [totals, setTotals] = useState<Totals | null>(null), [stripeFinance, setStripeFinance] = useState<StripeFinance | null>(null);
@@ -72,6 +74,12 @@ export default function AdminConsole() {
   }, [fail]);
 
   useEffect(() => { void loadList(); }, [loadList]);
+  useEffect(() => {
+    if (tab !== "requests") return;
+    let live = true;
+    api<{ requests: WalkthroughRequest[] }>("/api/admin/demo-requests").then(r => { if (live) setRequests(r.requests); }).catch(e => { if (live) fail(e); });
+    return () => { live = false; };
+  }, [tab, fail]);
   useEffect(() => { setIssued([]); setQr(null); void loadDetail(selected); }, [selected, loadDetail]);
 
   async function run(key: string, action: () => Promise<void>) {
@@ -262,7 +270,7 @@ export default function AdminConsole() {
   const effectiveLogo = b?.logoUrl || routingOffice?.logoUrl;
   const patientLink = b ? (session?.publicOrigin ?? "") + "/p/" + b.businessId : "";
   const checkoutOpen = Boolean(b?.checkoutExpiresAt && Date.parse(b.checkoutExpiresAt) > Date.now());
-  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", financial: "Financial overview" }[tab];
+  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", financial: "Financial overview", requests: "Walkthrough requests" }[tab];
   const shownBusinesses = businesses.filter(x => (!search || x.name.toLowerCase().includes(search.toLowerCase())) && (liveFilter ? liveState(x, session) === liveFilter : !x.archived));
   const activeBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "active");
   const trialingBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "trialing");
@@ -294,7 +302,7 @@ export default function AdminConsole() {
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
       {([
         { label: "Workspaces", items: [["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"]] },
-        { label: "Platform", items: [["website", "Website status"], ["financial", "Financial"]] },
+        { label: "Platform", items: [["website", "Website status"], ["financial", "Financial"], ["requests", "Walkthrough requests"]] },
       ] as const).map(group => <div className="admin-nav-group" key={group.label}>
         <p>{group.label}</p>
         {group.items.map(([key, label]) => {
@@ -367,6 +375,15 @@ export default function AdminConsole() {
       <div><Radio className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Card taps</dt><dd>{totals.taps} <span className="admin-metric-note">{totals.cards} cards issued</span></dd></div>
       <div><ClipboardList className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Referrals submitted</dt><dd>{totals.referrals}</dd></div>
     </dl>}
+
+    {tab === "requests" && <section className="card" id="admin-requests" aria-label="Walkthrough requests">
+      <div className="admin-directory-heading"><div><h2>Walkthrough requests</h2><p className="muted">Everyone who filled out the Request a walkthrough form, newest first.</p></div><span className="muted">{requests ? `${requests.length} total` : ""}</span></div>
+      <div className="admin-table"><table className="office-table"><thead><tr><th>Received</th><th>Name</th><th>Business</th><th>Email</th><th>Phone</th><th>Notes</th></tr></thead><tbody>
+        {(requests ?? []).map((r, i) => <tr key={r.createdAt + r.email + i}><td data-label="Received">{new Date(r.createdAt).toLocaleString()}</td><td data-label="Name">{r.name}</td><td data-label="Business">{r.businessName}</td><td data-label="Email"><a href={"mailto:" + r.email}>{r.email}</a></td><td data-label="Phone">{r.phone ? <a href={"tel:" + r.phone}>{r.phone}</a> : "—"}</td><td data-label="Notes">{r.notes || "—"}</td></tr>)}
+        {requests && !requests.length && <tr><td colSpan={6}>No walkthrough requests yet.</td></tr>}
+        {!requests && <tr><td colSpan={6}>Loading requests…</td></tr>}
+      </tbody></table></div>
+    </section>}
 
     {tab === "financial" && <section className="admin-finance" aria-label="Financial overview">
       <div className="admin-finance-intro"><div><p className="eyebrow">REVENUE SNAPSHOT</p><h2>Subscription performance</h2><p className="muted">Totals are connected to Stripe when configured and fall back to workspace records while Stripe is unavailable.</p></div><span className="admin-finance-updated">{stripeFinance ? `Stripe ${stripeFinance.mode}` : `${businesses.length} workspaces tracked`}</span></div>

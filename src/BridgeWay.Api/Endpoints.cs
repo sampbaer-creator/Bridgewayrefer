@@ -44,9 +44,34 @@ public static class Endpoints
 
     internal static object PublicCard(Settings settings, JObject card, JObject? business) => new { officeName = card.Value<string>("resolvedOfficeName") ?? card.Value<string>("officeName") ?? business?.Value<string>("officeName") ?? "", partnerName = card.Value<string>("resolvedPartnerName") ?? card.Value<string>("partnerName") ?? "", welcomeText = business?.Value<string>("welcomeText") is { Length: > 0 } welcome ? welcome : card.Value<string>("welcomeText") ?? "Share a few details and our team will be in touch.", accepting = BusinessRules.AcceptsReferrals(settings, business), businessName = business?.Value<string>("name") ?? "", logoUrl = business?.Value<string>("logoUrl") ?? "", officeLogoUrl = card.Value<string>("resolvedOfficeLogoUrl") ?? "", phone = business?.Value<string>("phone") ?? "", patientForm = PatientFormDesign.Read(business) };
 
+    // Emails the BridgeWay team about a new walkthrough request without delaying the visitor's response.
+    static void NotifyWalkthrough(Settings settings, ILogger logger, string name, string email, string businessName, string? phone, string? notes)
+    {
+        var recipients = settings.WalkthroughNotifyEmails.Where(r => !string.IsNullOrWhiteSpace(r)).ToArray();
+        if (!settings.SmtpConfigured || recipients.Length == 0) { logger.LogWarning("Walkthrough request saved; email notification skipped because SMTP is not configured."); return; }
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var message = new MimeKit.MimeMessage();
+                message.From.Add(MimeKit.MailboxAddress.Parse(settings.SmtpUsername));
+                foreach (var recipient in recipients) message.To.Add(MimeKit.MailboxAddress.Parse(recipient.Trim()));
+                message.ReplyTo.Add(new MimeKit.MailboxAddress(name, email));
+                message.Subject = "New walkthrough request - " + businessName;
+                var lines = new List<string> { "Someone requested a walkthrough on BridgeWay.", "", "Name: " + name, "Business: " + businessName, "Email: " + email, "Phone: " + (string.IsNullOrEmpty(phone) ? "not provided" : phone) };
+                if (!string.IsNullOrEmpty(notes)) lines.Add("Notes: " + notes);
+                lines.Add(""); lines.Add("All requests: " + settings.PublicOrigin + "/admin");
+                message.Body = new MimeKit.TextPart("plain") { Text = string.Join(Environment.NewLine, lines) };
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                await AlertWorker.SendEmail(settings, message, timeout.Token);
+            }
+            catch (Exception e) { logger.LogWarning("Walkthrough notification email failed ({Error}).", e.GetType().Name); }
+        });
+    }
+
     public static void MapBridgeWay(this WebApplication app, Settings settings)
     {
-        app.MapPost("/api/demo-requests", async (DemoRequest data, HttpContext ctx, CosmosStore store, CancellationToken ct) =>
+        app.MapPost("/api/demo-requests", async (DemoRequest data, HttpContext ctx, CosmosStore store, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var name = data.Name?.Trim() ?? ""; var email = data.Email?.Trim() ?? ""; var businessName = data.BusinessName?.Trim() ?? "";
             if (name.Length is < 1 or > 120 || businessName.Length is < 1 or > 120 || !Regex.IsMatch(email, @"\A[^\s@]+@[^\s@]+\.[^\s@]+\z") || !data.Consent || !Guid.TryParse(data.SubmissionId, out var submissionId)) throw new ApiError(400, "Please check the demo request form.");
@@ -61,7 +86,8 @@ public static class Endpoints
             if (data.NfcCardQuantity is int quantity) doc["nfcCardQuantity"] = quantity;
             if (!string.IsNullOrEmpty(notes)) doc["notes"] = notes;
             if (!string.IsNullOrEmpty(phone)) doc["phone"] = phone;
-            try { await store.Create(doc, ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { }
+            try { await store.Create(doc, ct); } catch (Microsoft.Azure.Cosmos.CosmosException e) when (e.StatusCode == HttpStatusCode.Conflict) { return Results.Accepted(value: new { ok = true }); }
+            NotifyWalkthrough(settings, loggers.CreateLogger("WalkthroughNotify"), name, email.ToLowerInvariant(), businessName, phone, notes);
             return Results.Accepted(value: new { ok = true });
         });
         app.MapGet("/api/public/cards/{code}", async (string code, CosmosStore store, CancellationToken ct) =>
