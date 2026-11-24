@@ -89,8 +89,8 @@ export default function SignupForm() {
             <input type="radio" name="plan" value="managed-calling" checked={plan === "managed-calling"} onChange={() => choosePlan("managed-calling")} />
             <span><b>{planCopy.managedCalling.name} &middot; from ${(state?.plans.managedCalling.amountUsd ?? 400)}/month</b><small>Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay.</small></span>
           </label>
-          <Link href="mailto:Bridgewayrefer@outlook.com?subject=BridgeWay%20Corporate%20quote" className="bw-plan-option">
-            <span><b>Corporate · Custom pricing</b><small>Request a custom quote through BridgeWay.</small></span>
+          <Link href="/#walkthrough" className="bw-plan-option">
+            <span id="corporate"><b>Corporate · Custom pricing</b><small>Request a custom quote through BridgeWay.</small></span>
           </Link>
         </fieldset>
       {error && <p role="alert" className="bw-form-alert">{error}</p>}
@@ -103,9 +103,11 @@ export default function SignupForm() {
       )}
       {!state && error && <div className="bw-signup-actions">
         <button className="bw-btn bw-btn-secondary" type="button" onClick={() => { setError(""); setAttempt(value => value + 1); }}>Try again</button>
+        <Link className="bw-btn bw-btn-ghost" href="/#walkthrough">Contact BridgeWay</Link>
       </div>}
       {state && !available && <div>
         <p role="status">{state.enabled ? "This plan requires help from BridgeWay to get started." : "Online checkout is currently unavailable."} If you already requested a walkthrough, reply to your BridgeWay contact.</p>
+        <Link className="bw-btn bw-btn-primary" href="/#walkthrough">Request a walkthrough</Link>
       </div>}
       {available && !state?.signedIn && <>
         <p>Sign in with the account you will use to manage your business.</p>
