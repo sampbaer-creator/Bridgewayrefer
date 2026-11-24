@@ -45,7 +45,7 @@ test("signup sends the verified workspace to Checkout", async ({ page }) => {
   await page.getByLabel("Business specialty", { exact: true }).selectOption("Orthodontics");
   const primary = page.getByRole("button", { name: "Continue to Stripe" });
   await expect(primary).toHaveCSS("background-color", "rgb(43, 53, 66)");
-  await expect(primary).toHaveCSS("color", "rgb(217, 204, 186)");
+  await expect(primary).toHaveCSS("color", "rgb(253, 253, 254)");
   await page.getByRole("button", { name: "Continue to Stripe" }).click();
   await expect(page).toHaveURL(/checkout=verified/);
 });

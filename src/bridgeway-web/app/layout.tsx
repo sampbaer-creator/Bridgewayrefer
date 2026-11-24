@@ -8,7 +8,7 @@ import Analytics from "../components/Analytics";
 import "@fontsource-variable/dm-sans";
 import "./globals.css";
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#D9CCBA" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#FDFDFE" };
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
