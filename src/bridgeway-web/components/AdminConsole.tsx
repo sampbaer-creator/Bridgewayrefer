@@ -2,7 +2,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, ExternalLink, Inbox, Plus, Radio } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, ExternalLink, Inbox, Plus, Radio, UserPlus } from "lucide-react";
+import AdminOnboarding from "./AdminOnboarding";
 import { planCopy } from "../lib/plan-copy";
 import GoogleSignIn from "./GoogleSignIn";
 import AdminStripeSubscription from "./AdminStripeSubscription";
@@ -18,7 +19,7 @@ type StripeFinance = { connected: boolean; mode: "live" | "test"; subscriptions:
 type AdminCard = { id: string; label: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; createdAt: string; etag: string; url: string; taps: number; referrals: number };
 type Detail = { business: BusinessSummary; cards: AdminCard[]; partners: { id: string; name: string; active: boolean }[]; offices: { id: string; name: string; logoUrl?: string; active: boolean }[]; members: { id: string; etag: string; email: string; role: string }[]; invitations: { id: string; etag: string; email: string; role: string; expiresAt: string }[] };
 
-const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign, requests: Inbox, signup: ExternalLink };
+const adminIcons = { businesses: Building2, cards: CreditCard, create: Plus, website: Activity, financial: DollarSign, requests: Inbox, signup: ExternalLink, onboarding: UserPlus };
 type WalkthroughRequest = { id: string; contacted: boolean; name: string; email: string; businessName: string; phone?: string; notes?: string; createdAt: string };
 
 const paid = ["active", "trialing", "past_due"];
@@ -32,7 +33,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
 }
 
 export default function AdminConsole() {
-  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial" | "requests" | "signup">("businesses");
+  const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial" | "requests" | "signup" | "onboarding">("businesses");
   const [requests, setRequests] = useState<WalkthroughRequest[] | null>(null);
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
   const [state, setState] = useState<"loading" | "ready" | "signin" | "denied">("loading");
@@ -288,7 +289,7 @@ export default function AdminConsole() {
   const effectiveLogo = b?.logoUrl || routingOffice?.logoUrl;
   const patientLink = b ? (session?.publicOrigin ?? "") + "/p/" + b.businessId : "";
   const checkoutOpen = Boolean(b?.checkoutExpiresAt && Date.parse(b.checkoutExpiresAt) > Date.now());
-  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", financial: "Financial overview", requests: "Walkthrough requests", signup: "Customer signup" }[tab];
+  const sectionTitle = { businesses: "Businesses", cards: b?.name ?? "NFC cards", create: "Create business", website: "Website status", financial: "Financial overview", requests: "Walkthrough requests", signup: "Customer signup", onboarding: "Customer onboarding" }[tab];
   const shownBusinesses = businesses.filter(x => (!search || x.name.toLowerCase().includes(search.toLowerCase())) && (liveFilter ? liveState(x, session) === liveFilter : !x.archived));
   const activeBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "active");
   const trialingBilling = businesses.filter(x => !x.archived && !x.billingExempt && x.billingStatus === "trialing");
@@ -319,7 +320,7 @@ export default function AdminConsole() {
     <nav className="section-nav admin-tabs" aria-label="Admin sections">
       <a className="admin-rail-brand" href="/" aria-label="BridgeWayRefer home"><img src="/brand-logo.png" alt="" /></a>
       {([
-        { label: "Workspaces", items: [["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"]] },
+        { label: "Workspaces", items: [["businesses", "Businesses"], ["cards", "NFC cards"], ["create", "Create business"], ["onboarding", "Customer onboarding"]] },
         { label: "Platform", items: [["website", "Website status"], ["financial", "Financial"], ["requests", "Walkthrough requests"], ["signup", "Customer signup"]] },
       ] as const).map(group => <div className="admin-nav-group" key={group.label}>
         <p>{group.label}</p>
@@ -394,20 +395,31 @@ export default function AdminConsole() {
       <div><ClipboardList className="admin-metric-icon" size={22} aria-hidden="true" /><dt>Referrals submitted</dt><dd>{totals.referrals}</dd></div>
     </dl>}
 
-    {tab === "signup" && <section className="card" aria-label="Customer signup links">
-      <h2>Customer signup links</h2>
-      <p className="muted">Copy the link for the plan you agreed on and send it to the customer.</p>
-      {[
-        { name: planCopy.workspace.name, path: "/signup?plan=workspace", detail: "Sign in and continue to Stripe Checkout." },
-        { name: planCopy.managedCalling.name, path: "/signup?plan=managed-calling", detail: "Sign in and continue to Stripe Checkout." },
-        { name: "Corporate", path: "/signup#corporate", detail: "Request a custom quote." },
-      ].map(plan => <div className="card-row" key={plan.path}>
-        <div><strong>{plan.name}</strong><small>{plan.detail}</small></div>
-        <div className="card-row-actions">
-          <a href={plan.path} target="_blank" rel="noopener noreferrer" aria-label={`Open ${plan.name} (new tab)`}>Open</a>
-          <button type="button" className="secondary" onClick={() => copy(new URL(plan.path, session?.publicOrigin || window.location.origin).href)}>Copy {plan.name} link</button>
-        </div>
-      </div>)}
+    {tab === "onboarding" && <AdminOnboarding />}
+
+    {tab === "signup" && <section className="card admin-signup-links" aria-label="Customer signup links">
+      <div className="admin-directory-heading"><div><h2>Public signup links</h2><p className="muted">For special cases only. Each link opens a page for just that plan, and the customer creates the business themselves.</p></div></div>
+      <div className="admin-signup-standard">
+        <div><strong>Adding a customer? Use Customer onboarding.</strong><span>You create the business, they pay, and their account connects to it automatically.</span></div>
+        <button type="button" className="admin-primary-action" onClick={() => setTab("onboarding")}>Create customer</button>
+      </div>
+      <div className="admin-signup-grid">{[
+        { key: "workspace", name: planCopy.workspace.name, price: `From $${planCopy.workspace.fromUsd}/month`, path: "/signup?plan=workspace", detail: "Customer signs in and pays through Stripe Checkout." },
+        { key: "managed-calling", name: planCopy.managedCalling.name, price: `From $${planCopy.managedCalling.fromUsd}/month`, path: "/signup?plan=managed-calling", detail: "Customer signs in and pays through Stripe Checkout." },
+        { key: "corporate", name: "Corporate", price: "Custom pricing", path: "/signup?plan=corporate", detail: "No checkout. Customer requests a quote from you." },
+      ].map(plan => {
+        const url = new URL(plan.path, session?.publicOrigin || "https://bridgewayrefer.com").href;
+        return <article className="admin-signup-tile" key={plan.key} aria-label={plan.name + " link"}>
+          <p className="admin-signup-price">{plan.price}</p>
+          <h3>{plan.name}</h3>
+          <p className="muted">{plan.detail}</p>
+          <code title={url}>{url.replace(/^https?:\/\//, "")}</code>
+          <div className="admin-signup-actions">
+            <button type="button" className="admin-primary-action" aria-label={`Copy ${plan.name} link`} onClick={() => copy(url)}>Copy link</button>
+            <a className="secondary" href={plan.path} target="_blank" rel="noopener noreferrer" aria-label={`Preview ${plan.name} page (new tab)`}>Preview <ExternalLink size={14} aria-hidden="true" /></a>
+          </div>
+        </article>;
+      })}</div>
     </section>}
 
     {tab === "requests" && <section className="card" id="admin-requests" aria-label="Walkthrough requests">
