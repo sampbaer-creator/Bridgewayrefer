@@ -1813,3 +1813,27 @@ body { background: var(--linen); color: var(--navy); }
   .admin-finance-metrics { grid-template-columns: minmax(0, 1fr); }
   .admin-request-actions button { min-height: 44px; }
 }
+
+.admin-console .section-nav.admin-tabs .admin-signup-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  color: var(--dashboard-rail-text);
+  text-align: left;
+  text-decoration: none;
+}
+.admin-console .section-nav.admin-tabs .admin-signup-nav:hover { background: var(--dashboard-rail-hover); }
+.admin-console .admin-signup-nav svg { flex-shrink: 0; }
+.admin-console .admin-finance-metrics dd { display: block; min-width: 0; overflow-wrap: anywhere; }
+.admin-console .admin-finance-metrics dd > small {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: normal;
+}
+.bw-signup-page { max-width: 46rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); }
+.bw-signup-page .bw-access-card { gap: 1rem; }
