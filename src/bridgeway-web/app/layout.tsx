@@ -5,6 +5,7 @@ import { siteDescription, siteOrigin } from "../lib/site";
 import type { ReactNode } from "react";
 import Header from "../components/Header";
 import Analytics from "../components/Analytics";
+import ScrollReveal from "../components/ScrollReveal";
 import "@fontsource-variable/dm-sans";
 import "./globals.css";
 
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <a className="skip-link" href="#main-content">Skip to content</a>
         <Header />
         <Analytics />
+        <ScrollReveal />
         {children}
         <Walkthrough />
         <footer className="site-footer">
