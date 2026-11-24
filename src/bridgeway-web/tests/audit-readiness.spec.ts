@@ -47,13 +47,14 @@ test("a walkthrough request needs no login and keeps its idempotency key after a
   const ids: string[] = [];
   await page.route("**/api/demo-requests", async route => {
     const body = route.request().postDataJSON(); ids.push(body.submissionId);
-    expect(body).toMatchObject({ name: "Fictional User", businessName: "Fictional Practice", consent: true });
+    expect(body).toMatchObject({ name: "Fictional User", businessName: "Fictional Practice", phone: "(801) 555-0100", consent: true });
     await route.fulfill(ids.length === 1 ? { status: 503, json: { error: "Please retry" } } : { status: 202, json: { ok: true } });
   });
   await page.goto("/contact");
   await page.getByLabel("Your name").fill("Fictional User");
   await page.getByLabel("Work email").fill("fictional@example.invalid");
   await page.getByLabel("Practice or business").fill("Fictional Practice");
+  await page.getByLabel("Phone number").fill("(801) 555-0100");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Request a walkthrough" }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText("Please retry");
