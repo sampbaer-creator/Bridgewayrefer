@@ -12,8 +12,10 @@ public sealed class StripeBillingService(HttpClient http, Settings settings)
 
     static readonly string[] TestPrefixes = ["sk_test_", "rk_test_", "sk_org_test_"];
     static readonly string[] LivePrefixes = ["sk_live_", "rk_live_", "sk_org_live_"];
-    public bool TestMode => TestPrefixes.Any(p => settings.StripeSecretKey.StartsWith(p, StringComparison.Ordinal));
-    public bool LiveMode => LivePrefixes.Any(p => settings.StripeSecretKey.StartsWith(p, StringComparison.Ordinal));
+    public static bool IsTestKey(string key) => TestPrefixes.Any(p => key.StartsWith(p, StringComparison.Ordinal));
+    public static bool IsLiveKey(string key) => LivePrefixes.Any(p => key.StartsWith(p, StringComparison.Ordinal));
+    public bool TestMode => IsTestKey(settings.StripeSecretKey);
+    public bool LiveMode => IsLiveKey(settings.StripeSecretKey);
     /// <summary>True when a live key, or a test key where test mode is allowed, is configured. Every object read back must match this mode.</summary>
     public bool KeyReady => LiveMode || (TestMode && settings.AllowStripeTestMode);
 

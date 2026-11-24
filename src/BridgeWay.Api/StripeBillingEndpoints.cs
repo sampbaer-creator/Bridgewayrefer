@@ -43,6 +43,7 @@ public static class StripeBillingEndpoints
         var subscriptionId = subscription.Value<string>("id");
         var newSubscription = business.Value<string>("stripeSubscriptionId") != subscriptionId;
         business["stripeSubscriptionId"] = subscriptionId;
+        if (subscription.Value<bool?>("livemode") is bool liveMode) business["billingLiveMode"] = liveMode;
         var status = subscription.Value<string>("status") ?? "unknown";
         business["billingStatus"] = status;
         var priceId = (subscription["items"]?["data"] as JArray)?.OfType<JObject>().Select(item => item["price"]?.Value<string>("id")).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));

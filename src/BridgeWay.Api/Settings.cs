@@ -45,7 +45,7 @@ public sealed class Settings
     public string StripeContext { get; set; } = "";
     /// <summary>
     /// Stripe test-mode keys accept fake cards, so a test key in production would unlock paid workspaces for free.
-    /// Off by default outside Development; set Bridgewayrefer:AllowStripeTestMode=true only on staging or candidate revisions.
+    /// Off by default outside Development. Explicitly enable it for a deployed sandbox; turn it off before accepting live customers.
     /// </summary>
     public bool AllowStripeTestMode { get; set; }
     public string StripeApiVersion { get; set; } = "";
@@ -123,8 +123,17 @@ public static class BusinessRules
     public static bool AcceptsReferrals(Settings settings, Newtonsoft.Json.Linq.JObject? business) =>
         settings.AcceptReferrals && business is not null &&
         business.Value<bool?>("acceptReferrals") == true &&
-        !IsArchived(business) && business.Value<bool?>("suspended") != true &&
+        !IsArchived(business) && business.Value<bool?>("suspended") != true && BillingModeMatches(settings, business) &&
         (business.Value<bool?>("billingExempt") == true || PaidStatuses.Contains(business.Value<string>("billingStatus")));
+
+    // Stripe test customers and subscriptions cannot become live entitlements by changing a key.
+    public static bool BillingModeMatches(Settings settings, Newtonsoft.Json.Linq.JObject? business)
+    {
+        if (business?.Value<bool?>("billingLiveMode") is not bool paidLive) return true;
+        if (StripeBillingService.IsLiveKey(settings.StripeSecretKey)) return paidLive;
+        if (StripeBillingService.IsTestKey(settings.StripeSecretKey)) return !paidLive && settings.AllowStripeTestMode;
+        return false;
+    }
 
     public static bool SignupPending(Newtonsoft.Json.Linq.JObject? business) =>
         business?.Value<bool?>("customerSignup") == true && business.Value<bool?>("signupCompleted") != true;

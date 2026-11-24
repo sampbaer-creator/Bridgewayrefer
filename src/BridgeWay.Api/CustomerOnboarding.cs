@@ -137,13 +137,15 @@ public static class OnboardingEndpoints
             var message = new MimeKit.MimeMessage();
             message.From.Add(MimeKit.MailboxAddress.Parse(settings.SmtpUsername));
             message.To.Add(MimeKit.MailboxAddress.Parse(to));
-            message.Subject = "Finish setting up " + businessName + " on BridgeWay";
+            var testMode = StripeBillingService.IsTestKey(settings.StripeSecretKey);
+            message.Subject = (testMode ? "[TEST] " : "") + "Finish setting up " + businessName + " on BridgeWay";
             message.Body = new MimeKit.TextPart("plain")
             {
                 Text = string.Join(Environment.NewLine,
                     (string.IsNullOrWhiteSpace(ownerName) ? "Hello," : "Hi " + ownerName + ","), "",
                     "Your BridgeWay workspace for " + businessName + " is ready.", "",
                     "Plan: " + PlanLabel(plan), "",
+                    testMode ? "This is a Stripe sandbox invitation. Use a Stripe test card; no real payment will be collected." : "",
                     "Open this link, sign in with this email address (" + to + "), review your business details, and complete payment to open your dashboard:",
                     url, "", "The link expires in " + OnboardingRules.LinkDays + " days. Do not forward it.")
             };
@@ -169,7 +171,7 @@ public static class OnboardingEndpoints
     static object Row(JObject b, DateTimeOffset now) => new
     {
         businessId = b.Value<string>("businessId"), name = b.Value<string>("name"), ownerEmail = b.Value<string>("ownerEmail"), ownerName = b.Value<string>("ownerName"), notes = b.Value<string>("onboardingNotes"),
-        plan = b.Value<string>("onboardingPlan"), status = OnboardingRules.DisplayStatus(b, now), billingStatus = b.Value<string>("billingStatus"),
+        testMode = b.Value<bool?>("billingLiveMode") == false, plan = b.Value<string>("onboardingPlan"), status = OnboardingRules.DisplayStatus(b, now), billingStatus = b.Value<string>("billingStatus"),
         createdAt = b.Value<string>("createdAt"), linkExpiresAt = b.Value<string>("onboardingLinkExpiresAt"),
         ownerSignedIn = !string.IsNullOrEmpty(b.Value<string>("ownerOid")), lastEmail = b.Value<string>("onboardingLastEmail"),
         canIssueLink = b.Value<string>("onboardingPlan") != OnboardingRules.Corporate && b.Value<string>("onboardingStatus") is OnboardingRules.AwaitingPayment or OnboardingRules.NeedsAttention,
@@ -196,7 +198,7 @@ public static class OnboardingEndpoints
             return Results.Ok(new
             {
                 customers = rows,
-                config = new { stripe = settings.StripeConfigured && stripe.KeyReady, stripeIssue = stripe.TestMode && !settings.AllowStripeTestMode ? "test_key" : null, managedCalling = settings.ManagedCallingConfigured, email = settings.SmtpConfigured, identity = settings.IdentityConfigured },
+                config = new { stripe = settings.StripeConfigured && stripe.KeyReady, testMode = stripe.TestMode && settings.AllowStripeTestMode, stripeIssue = stripe.TestMode && !settings.AllowStripeTestMode ? "test_key" : null, managedCalling = settings.ManagedCallingConfigured, email = settings.SmtpConfigured, identity = settings.IdentityConfigured },
             });
         });
 
@@ -233,6 +235,7 @@ public static class OnboardingEndpoints
             string? token = null; JObject? invite = null;
             if (paid)
             {
+                business["billingLiveMode"] = stripe.LiveMode;
                 business["stripeCustomerId"] = await stripe.CreateCustomer(businessId, name, "bridgeway-customer-" + businessId, ct, ownerEmail);
                 (token, var inviteId) = OnboardingRules.NewToken();
                 invite = store.Document("onboarding-invite", inviteId); invite["state"] = "Pending"; invite["expiresAt"] = now.AddDays(OnboardingRules.LinkDays).ToString("O"); invite["createdBy"] = Actor(ctx);
@@ -297,7 +300,7 @@ public static class OnboardingEndpoints
                 ownerEmail = business.Value<string>("ownerEmail"), alertEmail = business.Value<string>("alertEmail"),
                 industry = business.Value<string>("industry"), specialty = business.Value<string>("specialty"),
                 monthlyPriceUsd = settings.MonthlyPriceFor(business.Value<string>("onboardingPlan")!),
-                plan = business.Value<string>("onboardingPlan"), status = active ? "active" : "awaiting_payment",
+                testMode = business.Value<bool?>("billingLiveMode") == false, plan = business.Value<string>("onboardingPlan"), status = active ? "active" : "awaiting_payment",
                 paymentConfirmed = business.Value<string>("billingStatus") is "active" or "trialing",
             });
         });
@@ -367,6 +370,7 @@ public static class OnboardingEndpoints
         var business = await store.Business(businessId, ct);
         var invite = await store.Read(inviteId, ct);
         if (business is null || BusinessRules.IsArchived(business) || business.Value<string>("deletedAt") is not null) throw new ApiError(404, "This setup link is no longer available.");
+        if (!BusinessRules.BillingModeMatches(settings, business)) throw new ApiError(409, "This invitation belongs to a different Stripe environment. Ask BridgeWay for a new invitation.");
         if (business.Value<string>("onboardingStatus") == OnboardingRules.Active)
         {
             // Already finished: let the owner continue to the dashboard, but never reveal it to anyone else.

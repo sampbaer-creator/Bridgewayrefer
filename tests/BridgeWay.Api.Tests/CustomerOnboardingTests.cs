@@ -211,6 +211,20 @@ public class CustomerOnboardingTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/admin/email/test", new { })).StatusCode);
     }
 
+    [Theory]
+    [InlineData("sk_test_fixture", true, false, true)]
+    [InlineData("sk_test_fixture", false, false, false)]
+    [InlineData("sk_test_fixture", true, true, false)]
+    [InlineData("sk_live_fixture", false, false, false)]
+    [InlineData("sk_live_fixture", false, true, true)]
+    public void BillingEnvironmentsKeepTestAndLiveWorkspacesSeparate(string key, bool allowTest, bool paidLive, bool expected)
+    {
+        var settings = new Settings { StripeSecretKey = key, AllowStripeTestMode = allowTest, AcceptReferrals = true };
+        var business = new JObject { ["billingLiveMode"] = paidLive, ["billingStatus"] = "active", ["acceptReferrals"] = true };
+        Assert.Equal(expected, BusinessRules.BillingModeMatches(settings, business));
+        Assert.Equal(expected, BusinessRules.AcceptsReferrals(settings, business));
+    }
+
     static WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(web =>
     {
         web.UseEnvironment("Development")
