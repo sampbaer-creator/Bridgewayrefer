@@ -484,8 +484,37 @@ public static class AdminEndpoints
         {
             store.UseBusiness(CosmosStore.PlatformPartition);
             var rows = await store.Query("demo-request", limit: 200, ct: ct);
-            return Results.Ok(new { requests = rows.OrderByDescending(r => r.Value<string>("createdAt"), StringComparer.Ordinal).Select(r => new { name = r.Value<string>("name"), email = r.Value<string>("email"), businessName = r.Value<string>("businessName"), interest = r.Value<string>("interest"), nfcCardQuantity = r.Value<int?>("nfcCardQuantity"), notes = r.Value<string>("notes"), phone = r.Value<string>("phone"), createdAt = r.Value<string>("createdAt") }) });
+            return Results.Ok(new { requests = rows.OrderByDescending(r => r.Value<string>("createdAt"), StringComparer.Ordinal).Select(r => new { id = Guid.Parse(r.Value<string>("id")!["demo-request-".Length..]), contacted = r.Value<bool?>("contacted") ?? false, name = r.Value<string>("name"), email = r.Value<string>("email"), businessName = r.Value<string>("businessName"), interest = r.Value<string>("interest"), nfcCardQuantity = r.Value<int?>("nfcCardQuantity"), notes = r.Value<string>("notes"), phone = r.Value<string>("phone"), createdAt = r.Value<string>("createdAt") }) });
         });
+        admin.MapPatch("/demo-requests/{id:guid}/contacted", async (Guid id, CosmosStore store, CancellationToken ct) =>
+        {
+            store.UseBusiness(CosmosStore.PlatformPartition);
+            try
+            {
+                await store.Operations.PatchItemAsync<JObject>("demo-request-" + id, store.BusinessKey,
+                    [PatchOperation.Set("/contacted", true)], cancellationToken: ct);
+            }
+            catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound)
+            {
+                throw new ApiError(404, "Walkthrough request not found.");
+            }
+            return Results.NoContent();
+        });
+
+        admin.MapDelete("/demo-requests/{id:guid}", async (Guid id, CosmosStore store, CancellationToken ct) =>
+        {
+            store.UseBusiness(CosmosStore.PlatformPartition);
+            try
+            {
+                await store.Operations.DeleteItemAsync<JObject>("demo-request-" + id, store.BusinessKey, cancellationToken: ct);
+            }
+            catch (CosmosException e) when (e.StatusCode == HttpStatusCode.NotFound)
+            {
+                return Results.NoContent();
+            }
+            return Results.NoContent();
+        });
+
     }
 }
 
