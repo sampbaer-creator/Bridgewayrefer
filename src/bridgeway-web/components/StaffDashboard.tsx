@@ -10,7 +10,6 @@ import StaffInvitation from "./StaffInvitation";
 import OfficeReport from "./OfficeReport";
 import PatientForm from "./PatientForm";
 
-type Office = { logoUrl?: string; id: string; name: string; active: boolean; etag: string };
 type CardLink = { id: string; partnerId: string; partnerName: string; officeId?: string; officeName: string; active: boolean; etag: string; url: string };
 type Member = { id: string; name: string; email: string; role: string; etag: string };
 type BusinessProfile = { name: string; officeName: string; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; accepting: boolean; suspended: boolean; alertEmail: string; billingStatus: string; monthlyPriceUsd: number; etag: string };
@@ -40,9 +39,8 @@ export default function StaffPage() {
 }
 
 function StaffDashboard() {
-  const [editingOffice, setEditingOffice] = useState("");
   const [preview, setPreview] = useState<{ workspace: string; config: PublicConfig } | null>(null);
-  const [referrals, setReferrals] = useState<Referral[]>([]), [partners, setPartners] = useState<Partner[]>([]), [offices, setOffices] = useState<Office[]>([]), [cards, setCards] = useState<CardLink[]>([]), [members, setMembers] = useState<Member[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]), [partners, setPartners] = useState<Partner[]>([]), [cards, setCards] = useState<CardLink[]>([]), [members, setMembers] = useState<Member[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]), [profile, setProfile] = useState<BusinessProfile | null>(null), [billing, setBilling] = useState<Billing | null>(null), [invitations, setInvitations] = useState<Invitation[]>([]), [alerts, setAlerts] = useState<Alerts | null>(null), [report, setReport] = useState<Report | null>(null);
   const [month, setMonth] = useState(""), [workspace, setWorkspace] = useState(""), [partnerFilter, setPartnerFilter] = useState(""), [query, setQuery] = useState(""), [fromDate, setFromDate] = useState(""), [toDate, setToDate] = useState("");
   const [checkoutPlan, setCheckoutPlan] = useState<"workspace" | "managed-calling">("workspace");
@@ -75,7 +73,7 @@ function StaffDashboard() {
 
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      stopped.current = true; generation.current++; loading.current?.controller.abort(); setReferrals([]); setPartners([]); setOffices([]); setCards([]); setMembers([]); setReport(null); setAlerts(null); setHistory({}); setDetailId(""); historyRequest.current++; setSession(e.status === 401 ? "expired" : "denied");
+      stopped.current = true; generation.current++; loading.current?.controller.abort(); setReferrals([]); setPartners([]); setCards([]); setMembers([]); setReport(null); setAlerts(null); setHistory({}); setDetailId(""); historyRequest.current++; setSession(e.status === 401 ? "expired" : "denied");
     } else setError(e instanceof Error ? e.message : "Service unavailable. Please try again.");
   }, []);
 
@@ -111,12 +109,11 @@ function StaffDashboard() {
       setReferrals(inbox.referrals); setTotals(inbox.totals ?? null); setNextCursor(inbox.nextCursor || null); setError("");
 
       const panelResults = await Promise.allSettled([
-        api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ offices: Office[] }>("/api/staff/offices", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }),
+        api<{ partners: Partner[] }>("/api/staff/partners", options), api<{ cards: CardLink[] }>("/api/staff/cards", options), api<{ members: Member[] }>("/api/staff/members", options), api<BusinessProfile>("/api/staff/business/profile", options), api<Billing>("/api/staff/billing", options), api<Alerts>("/api/staff/alerts", options), admin ? api<{ invitations: Invitation[] }>("/api/staff/invitations", options) : Promise.resolve({ invitations: [] }),
       ]);
       if (!current()) return;
-      const [partnerData, officeData, cardData, memberData, profileData, billingData, alertData, inviteData] = panelResults;
+      const [partnerData, cardData, memberData, profileData, billingData, alertData, inviteData] = panelResults;
       if (partnerData.status === "fulfilled") setPartners(partnerData.value.partners);
-      if (officeData.status === "fulfilled") setOffices(officeData.value.offices);
       if (cardData.status === "fulfilled") setCards(cardData.value.cards);
       if (memberData.status === "fulfilled") setMembers(memberData.value.members);
       if (profileData.status === "fulfilled") setProfile(profileData.value);
@@ -202,8 +199,8 @@ function StaffDashboard() {
   }
   function selectMonth(value: string) { if (value === selectedMonth.current) return; selectedMonth.current = value; generation.current++; loading.current?.controller.abort(); setMonth(value); }
   function selectWorkspace(value: string) {
-    setPreview(null); setEditingOffice("");
-    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setTotals(null); setReport(null); setPartners([]); setCards([]); setOffices([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId(""); historyRequest.current++; setHistoryError("");
+    setPreview(null);
+    workspaceRef.current = value; generation.current++; loading.current?.controller.abort(); setWorkspace(value); setSession("loading"); setError(""); setReferrals([]); setTotals(null); setReport(null); setPartners([]); setCards([]); setMembers([]); setProfile(null); setBilling(null); setCheckoutPlan("workspace"); setAlerts(null); setNextCursor(null); setHistory({}); setDetailId(""); historyRequest.current++; setHistoryError("");
     if (value) localStorage.setItem(WORKSPACE_KEY, value); else localStorage.removeItem(WORKSPACE_KEY);
   }
   async function changeStatus(referral: Referral, status: string) {
@@ -245,26 +242,6 @@ function StaffDashboard() {
   function clearFilters() {
     setQuery(""); setPartnerFilter(""); setDue(""); setFromDate(""); setToDate(""); setUnresolvedOnly(false); setAttentionOnly(false);
   }
-  async function createPartner(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = event.currentTarget; setBusy("partner"); setError("");
-    try { await api("/api/staff/partners", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Partner added."); }
-    catch (e) { handleError(e); } finally { setBusy(""); }
-  }
-  async function saveOfficeLogo(event: FormEvent<HTMLFormElement>, office: Office) {
-    event.preventDefault();
-    const logoUrl = new FormData(event.currentTarget).get("logoUrl");
-    setBusy("office-logo"); setError("");
-    try {
-      await api(`/api/staff/offices/${encodeURIComponent(office.id)}`, {
-        method: "PATCH", body: JSON.stringify({ logoUrl, etag: office.etag }),
-      });
-      setEditingOffice("");
-      await refresh();
-      setNotice("Office logo saved.");
-    } catch (e) { handleError(e); }
-    finally { setBusy(""); }
-  }
-
   async function openPatientPreview(card: CardLink) {
     const requestWorkspace = workspaceRef.current;
     setBusy("patient-preview"); setError("");
@@ -276,14 +253,9 @@ function StaffDashboard() {
     } finally { setBusy(""); }
   }
 
-  async function createOffice(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = event.currentTarget; setBusy("office"); setError("");
-    try { await api("/api/staff/offices", { method: "POST", body: JSON.stringify({ name: new FormData(form).get("name") }) }); form.reset(); await refresh(); setNotice("Office added."); }
-    catch (e) { handleError(e); } finally { setBusy(""); }
-  }
   async function inviteMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); setBusy("invite"); setError("");
-    try { const result = await api<{ inviteUrl: string }>("/api/staff/invitations", { method: "POST", body: JSON.stringify({ email: data.get("email"), role: data.get("role") }) }); form.reset(); setNotice("Invite link ready. Share it with the invited email address."); setInviteLink(result.inviteUrl); await refresh(); }
+    try { const result = await api<{ inviteUrl: string }>("/api/staff/invitations", { method: "POST", body: JSON.stringify({ email: data.get("email"), role: "Staff" }) }); form.reset(); setNotice("Invite link ready. Share it with the invited email address."); setInviteLink(result.inviteUrl); await refresh(); }
     catch (e) { handleError(e); } finally { setBusy(""); }
   }
   async function revokeMember(member: Member) {
@@ -315,13 +287,13 @@ function StaffDashboard() {
   useEffect(() => {
     function syncView() {
       let section = window.location.hash.slice(1);
-      const sharedViews = ["overview", "inbox", "management", "cards", "settings"];
-      const adminViews = ["office-report", "staff-access", "billing"];
+      const sharedViews = ["overview", "inbox", "network", "office-report"];
+      const adminViews = ["settings", "staff-access", "billing"];
       if (section === "workspace-setup") {
         section = "overview";
         window.history.replaceState(window.history.state, "", "#overview");
       }
-      const target = section === "referrals" ? "inbox" : section;
+      const target = section === "referrals" ? "inbox" : ["management", "cards"].includes(section) ? "network" : section;
       setActiveSection(sharedViews.includes(target) || (isAdmin && adminViews.includes(target)) ? target : "overview");
     }
     syncView();
@@ -356,7 +328,7 @@ function StaffDashboard() {
   if (session === "active" && preview?.workspace === workspace) return <>
     <div className="bw-intake-header" role="region" aria-label="Preview controls">
       <p><strong>Preview.</strong> Submissions are disabled.</p>
-      <button className="secondary" autoFocus onClick={() => setPreview(null)}>Back to cards</button>
+      <button className="secondary" autoFocus onClick={() => setPreview(null)}>Back to referral network</button>
     </div>
     <PatientForm config={preview.config} preview />
   </>;
@@ -378,9 +350,8 @@ function StaffDashboard() {
           <p className="staff-nav-group-title" aria-hidden="true">Workspace</p>
           <a href="#overview" className={activeSection === "overview" ? "is-active" : undefined} aria-current={activeSection === "overview" ? "location" : undefined} aria-label="Overview" title="Overview" onClick={() => setSidebarOpen(false)}><NavIcon name="overview" /><span className="staff-nav-label">Overview</span></a>
           <a href="#inbox" className={activeSection === "inbox" ? "is-active" : undefined} aria-current={activeSection === "inbox" ? "location" : undefined} aria-label="Referral inbox" title="Referral inbox" onClick={() => setSidebarOpen(false)}><NavIcon name="inbox" /><span className="staff-nav-label">Referral inbox</span></a>
-          {isAdmin && <a href="#office-report" className={activeSection === "office-report" ? "is-active" : undefined} aria-current={activeSection === "office-report" ? "location" : undefined} aria-label="Analytics" title="Analytics" onClick={() => setSidebarOpen(false)}><NavIcon name="analytics" /><span className="staff-nav-label">Analytics</span></a>}
-          <a href="#management" className={activeSection === "management" ? "is-active" : undefined} aria-current={activeSection === "management" ? "location" : undefined} aria-label="Partners and locations" title="Partners and locations" onClick={() => setSidebarOpen(false)}><NavIcon name="management" /><span className="staff-nav-label">Partners and locations</span></a>
-          <a href="#cards" className={activeSection === "cards" ? "is-active" : undefined} aria-current={activeSection === "cards" ? "location" : undefined} aria-label="Cards" title="Cards" onClick={() => setSidebarOpen(false)}><NavIcon name="cards" /><span className="staff-nav-label">Cards</span></a>
+          <a href="#office-report" className={activeSection === "office-report" ? "is-active" : undefined} aria-current={activeSection === "office-report" ? "location" : undefined} aria-label="Analytics" title="Analytics" onClick={() => setSidebarOpen(false)}><NavIcon name="analytics" /><span className="staff-nav-label">Analytics</span></a>
+          <a href="#network" className={activeSection === "network" ? "is-active" : undefined} aria-current={activeSection === "network" ? "location" : undefined} aria-label="Referral network" title="Referral network" onClick={() => setSidebarOpen(false)}><NavIcon name="management" /><span className="staff-nav-label">Referral network</span></a>
         </div>
         <div className="staff-nav-group" role="group" aria-label="Administration">
           <p className="staff-nav-group-title" aria-hidden="true">Administration</p>
@@ -515,23 +486,16 @@ function StaffDashboard() {
           })}</tbody></table></div>}
         </div>        {nextCursor && <div className="pagination"><button className="secondary" disabled={refreshing || busy === "more"} onClick={() => void loadMore()}>{busy === "more" ? "Loading…" : "Load more referrals"}</button></div>}
       </section>}
-      {activeSection === "office-report" && isAdmin && <><button className="secondary" type="button" aria-label="Refresh analytics" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh analytics"}</button><OfficeReport report={selectedReport} availableMonths={report?.availableMonths} month={month} onMonth={selectMonth}/></>}
-      {(activeSection === "management" || activeSection === "cards") && <section className="card doctors"><p className="eyebrow">REFERRAL NETWORK</p><h2>{activeSection === "cards" ? "Cards" : "Partners and locations"}</h2><p className="muted">Copy the referral URL and write it to the NFC card as a web link. Tap the physical card and scan the QR code to verify the business shown on the form.</p>
-        {activeSection === "management" && isAdmin && <><form className="inline" onSubmit={createPartner}><label htmlFor="partner-name">Add partner<input id="partner-name" name="name" maxLength={120} required placeholder="Builder or referring office"/></label><button className="secondary" disabled={busy === "partner"}>Add partner</button></form><div className="form-grid"><form className="inline" onSubmit={createOffice}><label htmlFor="office-name">Add location<input id="office-name" name="name" maxLength={120} required placeholder="Office name"/></label><button className="secondary" disabled={busy === "office"}>Add location</button></form></div></>}
-{activeSection === "cards" && <div className="partner-card-list">{cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.partnerName} · {card.officeName}</strong><small>{card.active ? "Active" : "Inactive"} · {card.url}</small></div><div className="card-row-actions"><button className="secondary" onClick={() => void navigator.clipboard.writeText(card.url).then(() => setNotice("Referral link copied.")).catch(() => setError("Copy unavailable. Select the link to copy it manually."))}>Copy link</button>{card.active ? <button className="secondary" disabled={busy === "patient-preview"} onClick={() => void openPatientPreview(card)}>Preview Patient Form</button> : <small>Activate this card to preview the form.</small>}<button className="secondary" onClick={() => void makeQr(card)}>Show QR code</button></div>{qrCard?.id === card.id && <div className="qr-download"><img src={qrCard.data} alt={`QR code for ${card.partnerName}`}/><a href={qrCard.data} download={`bridgewayrefer-${card.id}.png`}>Download QR PNG</a></div>}</article>)}</div>}
-{activeSection === "management" && <div className="partner-card-list"><p className="eyebrow">PARTNERS</p>{partners.map(p => <div className="card-row" key={p.id}><strong>{p.name}</strong><small>{p.active ? "Active" : "Inactive"}</small></div>)}</div>}
-{activeSection === "management" && <div className="partner-card-list"><p className="eyebrow">LOCATIONS</p>{offices.map(o => <div className="card-row" key={o.id}><strong>{o.name}</strong><small>{o.active ? "Active" : "Inactive"}</small>
-          {isAdmin && (editingOffice === o.id ? <form className="inline" onSubmit={event => void saveOfficeLogo(event, o)}>
-            <label htmlFor={`logo-${o.id}`}>Logo URL<input id={`logo-${o.id}`} name="logoUrl" maxLength={500} defaultValue={o.logoUrl} placeholder="https://?" autoFocus /></label>
-            <button className="secondary" disabled={busy === "office-logo"}>Save logo</button>
-            <button className="secondary" type="button" onClick={() => setEditingOffice("")}>Cancel</button>
-          </form> : <button className="secondary" onClick={() => setEditingOffice(o.id)}>Edit office</button>)}
-        </div>)}</div>}
+      {activeSection === "office-report" && <><button className="secondary" type="button" aria-label="Refresh analytics" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh analytics"}</button><OfficeReport report={selectedReport} availableMonths={report?.availableMonths} month={month} onMonth={selectMonth}/></>}
+      {activeSection === "network" && <section className="card doctors">
+        <h2>Referral network</h2>
+        <p className="muted">See who has a BridgeWay card and where it sends referrals. Contact BridgeWay to change an assignment.</p>
+        {cards.length ? <div className="partner-card-list">{cards.map(card => <article className="card-row" key={card.id}><div><strong>{card.partnerName} · {card.officeName}</strong><small>{card.active ? "Active" : "Inactive"} · {card.url}</small></div><div className="card-row-actions"><button className="secondary" onClick={() => void navigator.clipboard.writeText(card.url).then(() => setNotice("Referral link copied.")).catch(() => setError("Copy unavailable. Select the link to copy it manually."))}>Copy link</button>{card.active ? <button className="secondary" disabled={busy === "patient-preview"} onClick={() => void openPatientPreview(card)}>Preview Patient Form</button> : <small>Form preview is available for active cards.</small>}<button className="secondary" onClick={() => void makeQr(card)}>Show QR code</button></div>{qrCard?.id === card.id && <div className="qr-download"><img src={qrCard.data} alt={`QR code for ${card.partnerName}`}/><a href={qrCard.data} download={`bridgewayrefer-${card.id}.png`}>Download QR PNG</a></div>}</article>)}</div> : <p>No cards have been assigned yet.</p>}
       </section>}
 
         {activeSection === "settings" && isAdmin && profile && <section className="card"><p className="eyebrow">PUBLIC INTAKE</p><h2>Business profile</h2><form className="form-grid" onSubmit={saveProfile}><label htmlFor="profile-name">Business name<input id="profile-name" name="name" maxLength={120} defaultValue={profile.name} required/></label><label className="span-two" htmlFor="profile-welcome">Form welcome<input id="profile-welcome" name="welcomeText" maxLength={500} defaultValue={profile.welcomeText}/></label><label htmlFor="profile-phone">Business phone<input id="profile-phone" name="phone" maxLength={40} defaultValue={profile.phone}/></label><label htmlFor="profile-logo">Logo URL<input id="profile-logo" name="logoUrl" maxLength={500} defaultValue={profile.logoUrl} placeholder="https://…"/></label><label className="span-two" htmlFor="profile-alert">New-referral alert email<input id="profile-alert" name="alertEmail" type="email" maxLength={254} defaultValue={profile.alertEmail} placeholder="frontdesk@yourbusiness.com"/></label><label className="check span-two"><input type="checkbox" name="acceptReferrals" defaultChecked={profile.acceptReferrals}/><span>Accept referral requests from our cards.</span></label><button className="primary span-two" disabled={busy === "profile"}>Save business profile</button></form></section>}
-        {activeSection === "staff-access" && isAdmin && <section className="card" id="staff-access"><p className="eyebrow">INVITE-ONLY ACCESS</p><h2>Staff access</h2><form className="inline" onSubmit={inviteMember}><label htmlFor="invite-email">Invite email<input id="invite-email" name="email" type="email" maxLength={254} required placeholder="teammate@business.com"/></label><label htmlFor="invite-role">Role<select id="invite-role" name="role"><option>Staff</option><option>Admin</option></select></label><button className="secondary" disabled={busy === "invite"}>Create invite</button></form>{inviteLink && <p className="invite-link">Invite URL <a href={inviteLink}>{inviteLink}</a><button className="secondary" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</button></p>}<div className="partner-card-list">{members.map(m => <div className="card-row" key={m.id}><div><strong>{m.name}</strong><small>{m.email} · {m.role}</small></div><button className="secondary" disabled={busy === "member-" + m.id} onClick={() => void revokeMember(m)}>Revoke access</button></div>)}{invitations.filter(i => i.state === "Pending").map(i => <div className="card-row" key={i.id}><div><strong>{i.email}</strong><small>Invite pending · {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}</small></div><button className="secondary" disabled={busy === "invite-" + i.id} onClick={() => void cancelInvitation(i)}>Cancel invite</button></div>)}</div></section>}
-        {activeSection === "billing" && isAdmin && <section className="card" id="billing"><p className="eyebrow">BUSINESS SUBSCRIPTION</p><h2>Billing</h2><div className="billing-price"><strong>${billing?.amountUsd ?? 50}</strong><span>{billing?.plan === "managed-calling" ? "Managed Calling, total per business / month" : "Workspace / business / month"}</span></div>{billing && !["active", "trialing", "past_due"].includes(billing.status) && <label className="billing-plan-select">Plan for next subscription<select value={checkoutPlan} onChange={event => setCheckoutPlan(event.target.value as "workspace" | "managed-calling")}><option value="workspace">Workspace - $50/month</option><option value="managed-calling" disabled={!billing.managedCallingConfigured}>Managed Calling - $400/month{!billing.managedCallingConfigured ? " (not configured)" : ""}</option></select></label>}<p className="muted">Status: <b>{billing?.status || "Loading"}</b>{billing?.renewalAt ? ` · Renews ${new Date(billing.renewalAt).toLocaleDateString()}` : ""}{billing?.cancelAtPeriodEnd ? " · Cancels at period end" : ""}</p><div className="billing-actions"><button className="primary" disabled={!billing?.configured || billing?.billingExempt || busy === "billing" || ["active", "trialing", "past_due"].includes(billing?.status || "")} onClick={() => void subscribe()}>Subscribe</button><button className="secondary" disabled={!billing?.customerLinked || busy === "billing"} onClick={() => void manageBilling()}>Manage Billing</button></div>{billing?.billingExempt && <p className="hint">Billing is covered by BridgeWay for this workspace.</p>}{billing && !billing.configured && <p className="hint">Online billing is not available yet. Contact BridgeWay.</p>}{billing?.testMode && <p className="hint">Stripe test mode: no real charges.</p>}{billing?.status === "past_due" && <p className="notice">Your last payment failed. Update your card in Manage Billing to keep referrals flowing.</p>}</section>}
+        {activeSection === "staff-access" && isAdmin && <section className="card" id="staff-access"><p className="eyebrow">INVITE-ONLY ACCESS</p><h2>Office staff access</h2><form className="inline" onSubmit={inviteMember}><label htmlFor="invite-email">Invite email<input id="invite-email" name="email" type="email" maxLength={254} required placeholder="teammate@business.com"/></label><button className="secondary" disabled={busy === "invite"}>Create invite</button></form>{inviteLink && <p className="invite-link">Invite URL <a href={inviteLink}>{inviteLink}</a><button className="secondary" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</button></p>}<div className="partner-card-list">{members.map(m => <div className="card-row" key={m.id}><div><strong>{m.name}</strong><small>{m.email} · {m.role}</small></div>{m.role === "Staff" && <button className="secondary" disabled={busy === "member-" + m.id} onClick={() => void revokeMember(m)}>Revoke access</button>}</div>)}{invitations.filter(i => i.state === "Pending").map(i => <div className="card-row" key={i.id}><div><strong>{i.email}</strong><small>Invite pending · {i.role} · expires {new Date(i.expiresAt).toLocaleDateString()}</small></div><button className="secondary" disabled={busy === "invite-" + i.id} onClick={() => void cancelInvitation(i)}>Cancel invite</button></div>)}</div></section>}
+        {activeSection === "billing" && isAdmin && <section className="card" id="billing"><p className="eyebrow">BUSINESS SUBSCRIPTION</p><h2>Billing</h2><div className="billing-price"><strong>${billing?.amountUsd ?? 50}</strong><span>{billing?.plan === "managed-calling" ? "Managed Calling, total per business / month" : "Workspace / business / month"}</span></div>{billing && !["active", "trialing", "past_due"].includes(billing.status) && <label className="billing-plan-select">Plan for next subscription<select value={checkoutPlan} onChange={event => setCheckoutPlan(event.target.value as "workspace" | "managed-calling")}><option value="workspace">Workspace - $50/month</option><option value="managed-calling" disabled={!billing.managedCallingConfigured}>Managed Calling - $400/month{!billing.managedCallingConfigured ? " (not configured)" : ""}</option></select></label>}<p className="muted">Status: <b>{billing?.status || "Loading"}</b>{billing?.renewalAt ? ` · Renews ${new Date(billing.renewalAt).toLocaleDateString()}` : ""}{billing?.cancelAtPeriodEnd ? " · Cancels at period end" : ""}</p><div className="billing-actions"><button className="primary" disabled={!billing?.configured || billing?.billingExempt || busy === "billing" || ["active", "trialing", "past_due"].includes(billing?.status || "")} onClick={() => void subscribe()}>Subscribe</button><button className="secondary" disabled={!billing?.configured || !billing.customerLinked || busy === "billing"} onClick={() => void manageBilling()}>Manage Billing</button></div>{billing?.billingExempt && <p className="hint">Billing is covered by BridgeWay for this workspace.</p>}{billing && !billing.configured && <p className="hint">Online billing is not available yet. Contact BridgeWay.</p>}{billing?.testMode && <p className="hint">Stripe test mode: no real charges.</p>}{billing?.status === "past_due" && <p className="notice">Your last payment failed. Update your card in Manage Billing to keep referrals flowing.</p>}</section>}
         {activeSection === "settings" &&         <section className="card email-settings"><p className="eyebrow">STAY INFORMED</p><h2>Email alerts</h2><p role="status">{alerts ? alerts.enabled ? `Sending to ${alerts.recipient}. ${alerts.waiting} waiting, ${alerts.retrying} retrying.` : "Add an alert email in the business profile to get notified of new referrals." : "Checking email settings…"}</p>{isAdmin && <button className="secondary" disabled={!alerts?.enabled || busy === "alert"} onClick={() => void testAlert()}>Send test alert ↗</button>}{alerts && alerts.smtpConfigured === false && <p className="notice">Email delivery is unavailable. Contact BridgeWay to complete delivery setup.</p>}{!!alerts?.failed && <div className="alert-failure" role="status"><p>{alerts.failed} alerts failed after repeated delivery attempts.</p>{isAdmin && alerts.failures?.map(alert => <p key={alert.id}>{alert.attempts} attempts <button className="secondary" disabled={busy === "retry"} onClick={() => void retryAlert(alert.id)}>Retry failed alert</button></p>)}</div>}{!!alerts?.stalled && <p role="status">{alerts.stalled} alerts are waiting for recovery after an interrupted attempt.</p>}<p className="hint">Alerts contain a dashboard link. Referral details stay in the dashboard. Email server acceptance does not confirm inbox delivery.</p></section>}
 
     </>}
