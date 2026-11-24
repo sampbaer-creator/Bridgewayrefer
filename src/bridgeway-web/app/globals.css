@@ -1687,7 +1687,7 @@ main.admin-console {
 .admin-finance-metrics > div:nth-child(2) { border-top-color: #5A7581; }
 .admin-finance-metrics > div:nth-child(3) { border-top-color: var(--accent); }
 .admin-finance-metrics > div:nth-child(4) { border-top-color: #5A7581; }
-.admin-finance-metrics .admin-finance-primary { background: #D9CCBA; color: #D9CCBA; border-color: var(--navy-deep); }
+.admin-finance-metrics .admin-finance-primary { background: var(--navy-deep); color: #D9CCBA; border-color: var(--navy-deep); }
 .admin-finance-metrics dt { color: var(--admin-muted); font-size: 13px; }
 .admin-finance-metrics .admin-finance-primary dt { color: #D9CCBA; }
 .admin-finance-metrics dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 8px; margin: 8px 0 0; color: var(--admin-ink); font-size: 27px; font-weight: 700; font-variant-numeric: tabular-nums; }
