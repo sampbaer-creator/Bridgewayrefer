@@ -35,7 +35,7 @@ export default function PricingPage() {
               <li>{CHECK_ICON}Staff invitations</li>
               <li>{CHECK_ICON}Monthly reporting</li>
             </ul>
-            <Link className="bw-btn bw-btn-primary bw-btn-block" href="/signup?plan=workspace">Get started</Link>
+            <Link className="bw-btn bw-btn-primary bw-btn-block" href="#walkthrough">Request a walkthrough</Link>
           </article>
           <article className="bw-plan-card">
             <h3>{planCopy.managedCalling.name}</h3>
@@ -51,7 +51,7 @@ export default function PricingPage() {
               <li>{CHECK_ICON}Follow-up recorded in your workspace</li>
               <li>{CHECK_ICON}Calling hours confirmed during setup</li>
             </ul>
-            <Link className="bw-btn bw-btn-primary bw-btn-block" href="/signup?plan=managed-calling">Get Managed Calling</Link>
+            <Link className="bw-btn bw-btn-primary bw-btn-block" href="#walkthrough">Request a walkthrough</Link>
           </article>
           <article className="bw-plan-card">
             <h3>Corporate</h3>
@@ -62,11 +62,10 @@ export default function PricingPage() {
               <li>{CHECK_ICON}Guided setup</li>
               <li>{CHECK_ICON}Card routing by location</li>
             </ul>
-            <Link className="bw-btn bw-btn-primary bw-btn-block" href="/contact">Request a custom quote</Link>
+            <Link className="bw-btn bw-btn-primary bw-btn-block" href="#walkthrough">Request a walkthrough</Link>
           </article>
         </div>
         <p className="bw-price-fine">{planCopy.billing} Every card link also works as a QR code.</p>
-        <p className="bw-price-fine">Compare <Link href="/referral-management-software">referral management software</Link> and <Link href="/referral-tracking-software">referral tracking software</Link> workflows.</p>
       </section>
 
       <section className="bw-section bw-section-alt bw-setup-section" aria-label="What setup involves">
@@ -96,7 +95,7 @@ export default function PricingPage() {
             <p>New workspaces start with intake off until you are ready to go live.</p>
           </div>
         </div>
-        <Link className="bw-btn bw-btn-secondary" href="/contact">Questions? Contact us</Link>
+        <Link className="bw-btn bw-btn-secondary" href="#walkthrough">Request a walkthrough</Link>
       </section>
     </main>
   );

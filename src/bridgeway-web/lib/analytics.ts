@@ -4,7 +4,7 @@ export type Consent = "granted" | "denied";
 
 /** Public marketing pages that may load Google Tag Manager. Everything else (dashboards, sign-in,
  *  signup, referral intake under /r and /p, admin, legal pages) is never tracked. */
-const TRACKED = new Set(["/", "/how-it-works", "/pricing", "/contact", "/industries/dental", "/industries/trades", "/industries/healthcare"]);
+const TRACKED = new Set(["/", "/how-it-works", "/pricing", "/contact", "/blog", "/blog/nfc-referral-cards", "/faq", "/our-story", "/industries/dental", "/industries/trades", "/industries/healthcare"]);
 
 export function isTrackedPath(pathname: string | null | undefined) {
   if (!pathname) return false;
@@ -22,4 +22,10 @@ export function readConsent(): Consent | null {
 /** Global Privacy Control is treated as a refusal, so no banner and no tags. */
 export function browserOptedOut() {
   return typeof navigator !== "undefined" && (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+}
+
+export function trackWalkthrough(event: "walkthrough_click" | "walkthrough_submitted", placement: string) {
+  if (!isTrackedPath(location.pathname) || readConsent() !== "granted" || browserOptedOut()) return;
+  const browser = window as Window & { dataLayer?: unknown[] };
+  browser.dataLayer?.push({ event, page_path: location.pathname, placement });
 }

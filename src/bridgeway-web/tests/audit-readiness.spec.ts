@@ -13,8 +13,8 @@ test("a scheduled referral only becomes overdue when its action deadline is miss
 test("marketing routes expose metadata and private routes are excluded from indexing", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Track every referral from tap to follow-up.");
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Referral tracking software.*NFC and QR links/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Referrals, followed through.");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Referral management.*NFC and QR links/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const robots = await request.get("/robots.txt"); expect(robots.status()).toBe(200);
@@ -22,19 +22,19 @@ test("marketing routes expose metadata and private routes are excluded from inde
   const sitemap = await request.get("/sitemap.xml");
   const sitemapText = await sitemap.text();
   expect(sitemapText).toContain("/pricing"); expect(sitemapText).toContain("/industries/healthcare"); expect(sitemapText).toContain("/industries/trades");
-  expect(sitemapText).toContain("/referral-management-software"); expect(sitemapText).toContain("/referral-tracking-software"); expect(sitemapText).not.toContain("/staff");
+  expect(sitemapText).toContain("/blog"); expect(sitemapText).toContain("/faq"); expect(sitemapText).not.toContain("/staff");
   await page.goto("/industries/dental");
   await expect(page).toHaveURL(/\/industries\/dental$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Dental referral software");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/dental");
   await page.goto("/referral-management-software");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Referral management software");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/referral-management-software");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("From tap to follow-up");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/how-it-works");
   await page.goto("/referral-tracking-software");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Referral tracking software");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/referral-tracking-software");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("From tap to follow-up");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/how-it-works");
   await page.goto("/industries/trades");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("booked jobs");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Keep the next job in sight");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://bridgewayrefer.com/industries/trades");
   await page.goto("/staff");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
@@ -55,9 +55,9 @@ test("a walkthrough request needs no login and keeps its idempotency key after a
   await page.getByLabel("Work email").fill("fictional@example.invalid");
   await page.getByLabel("Practice or business").fill("Fictional Practice");
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Book a demo" }).click();
+  await page.getByRole("button", { name: "Request a walkthrough" }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText("Please retry");
-  await page.getByRole("button", { name: "Book a demo" }).click();
+  await page.getByRole("button", { name: "Request a walkthrough" }).click();
   await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
   expect(ids[0]).toBe(ids[1]);
 });

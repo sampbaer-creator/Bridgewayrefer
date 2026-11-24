@@ -12,17 +12,9 @@ test("the shared public header keeps its position across routes", async ({ page 
   });
   await page.goto("/");
   await page.evaluate(() => document.fonts.ready);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-family", /DM Sans Variable/);
-  expect(await page.evaluate(() => Array.from(document.fonts).some(
-    font => font.family.includes("DM Sans Variable") && font.status === "loaded",
-  ))).toBe(true);
-  await expect(header.locator(".public-nav-cta")).toHaveCSS("background-image", /^linear-gradient/);
-  const walkthrough = page.locator(".bw-lead-card");
-  await expect(walkthrough).toHaveCSS("background-image", /^linear-gradient.*rgb\(245, 155, 27\)/);
-  expect(await walkthrough.evaluate(element => getComputedStyle(element, "::after").backgroundImage))
-    .toMatch(/^conic-gradient/);
+  await expect(header.locator(".public-nav-cta")).toHaveCSS("background-image", "none");
+  await expect(page.locator("#walkthrough")).toBeVisible();
   const home = await positions();
-  await expect(page.locator("body")).toHaveCSS("background-image", /conic-gradient.*linear-gradient.*rgb\(245, 155, 27\)/);
   for (const path of ["/industries/healthcare", "/industries/trades", "/pricing", "/sign-in"]) {
     await page.goto(path);
     await page.evaluate(() => document.fonts.ready);
@@ -45,8 +37,9 @@ test("the mobile menu restores focus and navigates to homepage anchors", async (
   await expect(toggle).toBeFocused();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await toggle.click();
-  await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "FAQ" }).click();
-  await expect(page).toHaveURL(/\/#faq$/);
+  await page.locator("#mobile-menu summary").click();
+  await page.locator("#mobile-menu").getByRole("link", { name: "FAQ" }).click();
+  await expect(page).toHaveURL(/\/faq$/);
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
 });
 
