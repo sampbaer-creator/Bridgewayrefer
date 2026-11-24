@@ -378,6 +378,10 @@ export default function AdminConsole() {
 
     {tab === "requests" && <section className="card" id="admin-requests" aria-label="Walkthrough requests">
       <div className="admin-directory-heading"><div><h2>Walkthrough requests</h2><p className="muted">Everyone who filled out the Request a walkthrough form, newest first.</p></div><span className="muted">{requests ? `${requests.length} total` : ""}</span></div>
+      <div className="card-row">
+        <a href="/signup" target="_blank" rel="noopener noreferrer">Open signup form</a>
+        <button type="button" className="secondary" onClick={() => copy(new URL("/signup", window.location.origin).href)}>Copy signup link</button>
+      </div>
       <div className="admin-table"><table className="office-table"><thead><tr><th>Received</th><th>Name</th><th>Business</th><th>Email</th><th>Phone</th><th>Notes</th></tr></thead><tbody>
         {(requests ?? []).map((r, i) => <tr key={r.createdAt + r.email + i}><td data-label="Received">{new Date(r.createdAt).toLocaleString()}</td><td data-label="Name">{r.name}</td><td data-label="Business">{r.businessName}</td><td data-label="Email"><a href={"mailto:" + r.email}>{r.email}</a></td><td data-label="Phone">{r.phone ? <a href={"tel:" + r.phone}>{r.phone}</a> : "—"}</td><td data-label="Notes">{r.notes || "—"}</td></tr>)}
         {requests && !requests.length && <tr><td colSpan={6}>No walkthrough requests yet.</td></tr>}
