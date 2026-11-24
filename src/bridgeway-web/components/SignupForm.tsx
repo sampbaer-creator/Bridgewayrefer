@@ -20,9 +20,14 @@ export default function SignupForm() {
   const [plan, setPlan] = useState<Plan>("workspace");
 
   const [attempt, setAttempt] = useState(0);
+  // A plan-specific link (?plan=…) shows only that plan; /signup with no plan keeps the chooser.
+  const [fixedPlan, setFixedPlan] = useState<Plan | "corporate" | null>(null);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("plan") === "managed-calling") setPlan("managed-calling");
+    const requested = new URLSearchParams(window.location.search).get("plan");
+    if (requested === "managed-calling") setPlan("managed-calling");
+    if (requested === "workspace" || requested === "managed-calling") setFixedPlan(requested);
+    if (requested === "corporate" || window.location.hash === "#corporate") setFixedPlan("corporate");
   }, []);
 
   useEffect(() => {
@@ -75,11 +80,27 @@ export default function SignupForm() {
     }
   }
 
+  if (fixedPlan === "corporate") return (
+    <section className="bw-access-card" aria-label="Business signup">
+      <h1>Corporate plans</h1>
+      <p>Corporate pricing is custom. Tell us about your organization and BridgeWay will put together a quote.</p>
+      <div className="bw-plan-single" id="corporate"><b>Corporate · Custom pricing</b><small>Multiple locations, custom onboarding and invoicing, arranged directly with BridgeWay.</small></div>
+      <div className="bw-signup-actions"><Link className="bw-btn bw-btn-primary" href="/#walkthrough">Request a quote</Link></div>
+    </section>
+  );
+
+  const single = fixedPlan === "workspace" || fixedPlan === "managed-calling";
   return (
     <section className="bw-access-card" aria-label="Business signup">
-      <h1>Set up your BridgeWay account</h1>
-      <p>Choose a plan, sign in, and set up your business.</p>
-        <fieldset className="bw-plan-select">
+      <h1>{single ? `Set up ${plan === "managed-calling" ? planCopy.managedCalling.name : planCopy.workspace.name}` : "Set up your BridgeWay account"}</h1>
+      <p>{single ? "Sign in, add your business details, and complete payment." : "Choose a plan, sign in, and set up your business."}</p>
+        {single ? <>
+          <div className="bw-plan-single">
+            <b>{plan === "managed-calling" ? `${planCopy.managedCalling.name} · from $${state?.plans.managedCalling.amountUsd ?? 400}/month` : `${planCopy.workspace.name} · from $${state?.plans.workspace.amountUsd ?? 50}/month`}</b>
+            <small>{plan === "managed-calling" ? "Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay." : "Referral tracking, partners, staff access, reports and NFC card management."}</small>
+          </div>
+          <p className="bw-plan-other">Need a different plan? <Link href="/#walkthrough">Contact BridgeWay</Link>.</p>
+        </> : <fieldset className="bw-plan-select">
           <legend>Choose a plan</legend>
           <label className={plan === "workspace" ? "bw-plan-option selected" : "bw-plan-option"}>
             <input type="radio" name="plan" value="workspace" checked={plan === "workspace"} onChange={() => choosePlan("workspace")} />
@@ -92,7 +113,7 @@ export default function SignupForm() {
           <Link href="/#walkthrough" className="bw-plan-option">
             <span id="corporate"><b>Corporate · Custom pricing</b><small>Request a custom quote through BridgeWay.</small></span>
           </Link>
-        </fieldset>
+        </fieldset>}
       {error && <p role="alert" className="bw-form-alert">{error}</p>}
       {!state && !error && (
         <div className="bw-form-skeleton" role="status" aria-label="Checking signup availability">
@@ -106,8 +127,8 @@ export default function SignupForm() {
         <Link className="bw-btn bw-btn-ghost" href="/#walkthrough">Contact BridgeWay</Link>
       </div>}
       {state && !available && <div>
-        <p role="status">{state.enabled ? "This plan requires help from BridgeWay to get started." : "Online checkout is currently unavailable."} If you already requested a walkthrough, reply to your BridgeWay contact.</p>
-        <Link className="bw-btn bw-btn-primary" href="/#walkthrough">Request a walkthrough</Link>
+        <p role="status">{state.enabled ? "This plan requires help from BridgeWay to get started." : "Online checkout is currently unavailable."} Contact BridgeWay and we will send you a setup link.</p>
+        <Link className="bw-btn bw-btn-primary" href="/#walkthrough">Contact BridgeWay</Link>
       </div>}
       {available && !state?.signedIn && <>
         <p>Sign in with the account you will use to manage your business.</p>

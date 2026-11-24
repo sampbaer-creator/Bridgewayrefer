@@ -104,7 +104,7 @@ public static class OnboardingRules
     }
 }
 
-public sealed record OnboardingCreate(string Name, string OwnerEmail, string? AlertEmail, string? Industry, string? Specialty, string? Plan, bool SendEmail = true);
+public sealed record OnboardingCreate(string Name, string OwnerEmail, string? OwnerName, string? AlertEmail, string? Industry, string? Specialty, string? Plan, bool SendEmail = true, string? Notes = null);
 public sealed record OnboardingLinkRequest(bool SendEmail = true);
 public sealed record OnboardingRedeem(string? Workspace, string? Token);
 
@@ -129,7 +129,7 @@ public static class OnboardingEndpoints
     }
 
     /// <summary>Sends the onboarding link. Returns "sent", "failed" or "not_configured" so the admin sees the real outcome.</summary>
-    static async Task<string> EmailLink(Settings settings, ILogger logger, string to, string businessName, string plan, string url)
+    static async Task<string> EmailLink(Settings settings, ILogger logger, string to, string? ownerName, string businessName, string plan, string url)
     {
         if (!settings.SmtpConfigured) return "not_configured";
         try
@@ -141,6 +141,7 @@ public static class OnboardingEndpoints
             message.Body = new MimeKit.TextPart("plain")
             {
                 Text = string.Join(Environment.NewLine,
+                    (string.IsNullOrWhiteSpace(ownerName) ? "Hello," : "Hi " + ownerName + ","), "",
                     "Your BridgeWay workspace for " + businessName + " is ready.", "",
                     "Plan: " + PlanLabel(plan), "",
                     "Open this link, sign in with this email address (" + to + "), and complete payment to open your dashboard:",
@@ -167,7 +168,7 @@ public static class OnboardingEndpoints
 
     static object Row(JObject b, DateTimeOffset now) => new
     {
-        businessId = b.Value<string>("businessId"), name = b.Value<string>("name"), ownerEmail = b.Value<string>("ownerEmail"),
+        businessId = b.Value<string>("businessId"), name = b.Value<string>("name"), ownerEmail = b.Value<string>("ownerEmail"), ownerName = b.Value<string>("ownerName"), notes = b.Value<string>("onboardingNotes"),
         plan = b.Value<string>("onboardingPlan"), status = OnboardingRules.DisplayStatus(b, now), billingStatus = b.Value<string>("billingStatus"),
         createdAt = b.Value<string>("createdAt"), linkExpiresAt = b.Value<string>("onboardingLinkExpiresAt"),
         ownerSignedIn = !string.IsNullOrEmpty(b.Value<string>("ownerOid")), lastEmail = b.Value<string>("onboardingLastEmail"),
@@ -203,6 +204,9 @@ public static class OnboardingEndpoints
         {
             var name = data.Name?.Trim() ?? ""; var ownerEmail = data.OwnerEmail?.Trim().ToLowerInvariant() ?? ""; var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant() ?? "";
             var industry = data.Industry?.Trim() ?? ""; var specialty = data.Specialty?.Trim() ?? "";
+            var ownerName = data.OwnerName?.Trim() ?? ""; var notes = data.Notes?.Trim() ?? "";
+            if (ownerName.Length is < 1 or > 120 || ownerName.Any(char.IsControl)) throw new ApiError(400, "Enter the owner's name.");
+            if (notes.Length > 1000) throw new ApiError(400, "Keep notes under 1,000 characters.");
             if (name.Length is < 2 or > 120) throw new ApiError(400, "Enter a business name between 2 and 120 characters.");
             if (!Endpoints.ValidEmail(ownerEmail)) throw new ApiError(400, "Enter the owner's email address.");
             if (alertEmail.Length > 0 && !Endpoints.ValidEmail(alertEmail)) throw new ApiError(400, "Enter a valid alert email or leave it blank.");
@@ -220,7 +224,8 @@ public static class OnboardingEndpoints
             business["acceptReferrals"] = true; business["suspended"] = false; business["billingExempt"] = false; business["billingStatus"] = "not_configured";
             business["alertEmail"] = alertEmail.Length > 0 ? alertEmail : ownerEmail; business["createdBy"] = Actor(ctx);
             business["industry"] = industry; business["specialty"] = specialty;
-            business["adminOnboarding"] = true; business["ownerEmail"] = ownerEmail; business["onboardingPlan"] = plan;
+            business["adminOnboarding"] = true; business["ownerEmail"] = ownerEmail; business["ownerName"] = ownerName; business["onboardingPlan"] = plan;
+            if (notes.Length > 0) business["onboardingNotes"] = notes;
             business["onboardingStatus"] = paid ? OnboardingRules.AwaitingPayment : OnboardingRules.ManualFollowUp;
             if (paid) { business["selectedPlan"] = plan; business["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan); }
             var office = store.Document("office", "office-main"); office["name"] = name; office["active"] = true;
@@ -239,7 +244,7 @@ public static class OnboardingEndpoints
             using (var result = await batch.ExecuteAsync(ct)) CosmosStore.Check(result);
 
             var url = token is null ? null : OnboardingRules.Link(settings, businessId, token);
-            var email = url is not null && data.SendEmail ? await EmailLink(settings, loggers.CreateLogger("Onboarding"), ownerEmail, name, plan, url) : "skipped";
+            var email = url is not null && data.SendEmail ? await EmailLink(settings, loggers.CreateLogger("Onboarding"), ownerEmail, ownerName, name, plan, url) : "skipped";
             if (email != "skipped") await RecordEmail(store, businessId, email, ct);
             return Results.Json(new { businessId, name, plan, link = url, email }, statusCode: 201);
         });
@@ -276,7 +281,7 @@ public static class OnboardingEndpoints
                 CosmosStore.Check(result);
             }
             var url = OnboardingRules.Link(settings, businessId, token);
-            var email = data.SendEmail ? await EmailLink(settings, loggers.CreateLogger("Onboarding"), business.Value<string>("ownerEmail")!, business.Value<string>("name") ?? businessId, plan, url) : "skipped";
+            var email = data.SendEmail ? await EmailLink(settings, loggers.CreateLogger("Onboarding"), business.Value<string>("ownerEmail")!, business.Value<string>("ownerName"), business.Value<string>("name") ?? businessId, plan, url) : "skipped";
             if (email != "skipped") await RecordEmail(store, businessId, email, ct);
             return Results.Ok(new { businessId, link = url, email });
         });

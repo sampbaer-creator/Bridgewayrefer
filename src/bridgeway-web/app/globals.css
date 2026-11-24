@@ -1839,11 +1839,52 @@ body { background: var(--linen); color: var(--navy); }
 .bw-signup-page .bw-access-card { gap: 1rem; }
 
 /* Platform admin: customer onboarding */
-.admin-onboarding-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; align-items: end; margin: 16px 0; }
-.admin-onboarding-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
-.admin-onboarding-form .admin-onboarding-check { display: flex; align-items: center; gap: 8px; font-weight: 500; }
-.admin-onboarding-form .admin-primary-action { justify-content: center; }
-.admin-onboarding-issued { margin: 12px 0 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; }
+.admin-onboarding-form { margin: 18px 0 22px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.admin-onboarding-form h3 { margin: 0 0 14px; font-size: 16px; }
+.admin-onboarding-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; }
+.admin-onboarding-grid label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.admin-onboarding-grid .muted { font-weight: 400; }
+.admin-onboarding-grid textarea { resize: vertical; min-height: 44px; font: inherit; }
+.admin-onboarding-wide { grid-column: 1 / -1; }
+.admin-onboarding-submit { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.admin-onboarding-submit .hint { margin: 0; max-width: 46ch; }
+.admin-onboarding-check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.admin-onboarding-issued { margin: 12px 0 18px; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: #fff; }
 .admin-onboarding-link { display: flex; gap: 8px; margin-top: 8px; }
 .admin-onboarding-link input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; font-size: 12px; }
 .admin-onboarding-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.admin-onboarding-owner { display: block; }
+.admin-onboarding-note { display: block; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Platform admin: public signup links */
+.admin-signup-standard { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 18px; padding: 14px 16px; border-radius: 10px; background: var(--navy); color: #FDFDFE; }
+.admin-signup-standard strong { display: block; }
+.admin-signup-standard span { font-size: 14px; opacity: .85; }
+.admin-signup-standard .admin-primary-action { background: #FDFDFE; color: var(--navy); border-color: #FDFDFE; }
+.admin-signup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.admin-signup-tile { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.admin-signup-tile h3 { margin: 0; font-size: 18px; }
+.admin-signup-tile .muted { margin: 0; font-size: 14px; flex: 1; }
+.admin-signup-price { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.admin-signup-tile code { display: block; padding: 8px 10px; border-radius: 6px; background: #F3F4F2; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-signup-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.admin-signup-actions .admin-primary-action { flex: 1; justify-content: center; }
+.admin-signup-actions a.secondary { display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; }
+
+/* Public signup: a single-plan link shows one plan */
+.bw-plan-single { margin-top: 1rem; padding: 1.1rem 1.2rem; border: 1px solid var(--bw-accent, var(--accent)); border-radius: 12px; background: #fff; }
+.bw-plan-single b { display: block; font-size: 1.05rem; }
+.bw-plan-single small { display: block; margin-top: .25rem; color: var(--bw-muted, var(--muted)); }
+.bw-plan-other { margin-top: .6rem; font-size: .9rem; }
+.admin-field-label { display: flex; align-items: baseline; gap: 6px; }
+.admin-field-label em { font-style: normal; font-weight: 400; font-size: 12px; color: var(--muted); }
+.admin-onboarding-submit .admin-onboarding-check { display: inline-flex; align-items: center; gap: 8px; width: auto; margin: 0; font-weight: 500; }
+.admin-onboarding-submit .admin-onboarding-check input { width: 18px; height: 18px; min-height: 0; margin: 0; }
+.admin-customer-onboarding .office-table th, .admin-customer-onboarding .office-table td { text-align: left; vertical-align: top; overflow-wrap: normal; word-break: normal; }
+.admin-customer-onboarding .office-table td[data-label="Created"] { white-space: nowrap; }
+.admin-customer-onboarding .office-table td[data-label="Owner"] small { display: block; white-space: nowrap; }
+.admin-customer-onboarding .admin-onboarding-actions button { white-space: nowrap; }
+.admin-customer-onboarding .admin-onboarding-actions { flex-wrap: nowrap; }
+.admin-customer-onboarding .admin-status-pill { white-space: nowrap; }
+.admin-customer-onboarding td[data-label="Status"] small { display: block; margin-top: 4px; }
+.bw-plan-other a { text-decoration: underline; text-underline-offset: 2px; }

@@ -9,8 +9,8 @@ test("platform admin creates a customer, sees email delivery and copies the paym
   await page.route("**/api/admin/financial", route => route.fulfill({ status: 503, json: {} }));
   await page.route("**/api/admin/onboarding", async route => {
     if (route.request().method() === "POST") {
-      expect(route.request().postDataJSON()).toMatchObject({ name: "Fictional Dental", ownerEmail: "owner@example.invalid", industry: "healthcare", specialty: "Orthodontics", plan: "managed-calling", sendEmail: true });
-      customers.push({ businessId: "biz-a", name: "Fictional Dental", ownerEmail: "owner@example.invalid", plan: "managed-calling", status: "Awaiting payment", createdAt: "2026-11-24T12:00:00Z", linkExpiresAt: "2026-12-08T12:00:00Z", ownerSignedIn: false, canIssueLink: true });
+      expect(route.request().postDataJSON()).toMatchObject({ name: "Fictional Dental", ownerName: "Pat Owner", notes: "Met at the dental expo", ownerEmail: "owner@example.invalid", industry: "healthcare", specialty: "Orthodontics", plan: "managed-calling", sendEmail: true });
+      customers.push({ businessId: "biz-a", name: "Fictional Dental", ownerName: "Pat Owner", notes: "Met at the dental expo", ownerEmail: "owner@example.invalid", plan: "managed-calling", status: "Awaiting payment", createdAt: "2026-11-24T12:00:00Z", linkExpiresAt: "2026-12-08T12:00:00Z", ownerSignedIn: false, canIssueLink: true });
       return route.fulfill({ status: 201, json: { businessId: "biz-a", link: "https://bridgewayrefer.com/onboard#token=abc&workspace=biz-a", email: "failed" } });
     }
     return route.fulfill({ json: { customers, config } });
@@ -24,13 +24,16 @@ test("platform admin creates a customer, sees email delivery and copies the paym
   await page.getByRole("button", { name: "Customer onboarding" }).click();
   const section = page.getByRole("region", { name: "Customer onboarding" });
   await section.getByLabel("Business name").fill("Fictional Dental");
+  await section.getByLabel("Owner name").fill("Pat Owner");
   await section.getByLabel("Owner email").fill("owner@example.invalid");
+  await section.getByLabel(/Notes/).fill("Met at the dental expo");
   await section.getByLabel("Specialty").fill("Orthodontics");
   await section.getByLabel("Plan").selectOption("managed-calling");
-  await section.getByRole("button", { name: "Create and get payment link" }).click();
+  await section.getByRole("button", { name: "Send payment and signup link" }).click();
   await expect(section.getByRole("status")).toContainText("Email delivery failed");
   await expect(section.getByLabel("Payment link")).toHaveValue(/onboard#token=abc/);
   await expect(section.getByRole("cell", { name: "Awaiting payment" })).toBeVisible();
+  await expect(section.getByRole("cell", { name: /Pat Owner/ })).toBeVisible();
   await section.getByRole("button", { name: "Resend link" }).click();
   await expect(section.getByRole("status")).toContainText("Email sent to the owner");
   await expect(section.getByLabel("Payment link")).toHaveValue(/token=new/);
@@ -47,9 +50,9 @@ test("corporate customers get a follow-up record, not a payment link", async ({ 
   await page.getByRole("button", { name: "Customer onboarding" }).click();
   const section = page.getByRole("region", { name: "Customer onboarding" });
   await expect(section.getByText("Stripe is not configured")).toBeVisible();
-  await expect(section.getByRole("button", { name: "Create and get payment link" })).toBeDisabled();
+  await expect(section.getByRole("button", { name: "Send payment and signup link" })).toBeDisabled();
   await section.getByLabel("Plan").selectOption("corporate");
-  await expect(section.getByRole("button", { name: "Create for follow-up" })).toBeEnabled();
+  await expect(section.getByRole("button", { name: "Save for follow-up" })).toBeEnabled();
   await expect(section.getByRole("link", { name: "Contact owner" })).toHaveAttribute("href", /^mailto:cfo@example\.invalid/);
   await expect(section.getByRole("button", { name: "Resend link" })).toHaveCount(0);
 });
@@ -98,4 +101,37 @@ test("an expired or replaced link explains how to get a new one", async ({ page 
   await page.goto("/onboard");
   await expect(page.getByRole("main").getByRole("alert")).toHaveText(/expired or was replaced/);
   await expect(page.getByRole("button", { name: "Continue to payment" })).toHaveCount(0);
+});
+
+test("public signup links are special-case tiles that point admins to Customer onboarding", async ({ page }) => {
+  await page.route("**/api/admin/session", route => route.fulfill({ json: { acceptingGlobally: true, publicOrigin: "https://bridgewayrefer.com" } }));
+  await page.route("**/api/admin/businesses", route => route.fulfill({ json: { businesses: [], totals: { businesses: 0, cards: 0, taps: 0, referrals: 0 } } }));
+  await page.route("**/api/admin/financial", route => route.fulfill({ status: 503, json: {} }));
+  await page.route("**/api/admin/onboarding", route => route.fulfill({ json: { customers: [], config } }));
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Customer signup" }).click();
+  const links = page.getByRole("region", { name: "Customer signup links" });
+  for (const [name, path] of [["Referral Workspace", "plan=workspace"], ["Managed Calling", "plan=managed-calling"], ["Corporate", "plan=corporate"]]) {
+    const tile = links.getByRole("article", { name: `${name} link` });
+    await expect(tile.getByText(`bridgewayrefer.com/signup?${path}`)).toBeVisible();
+    await expect(tile.getByRole("button", { name: `Copy ${name} link` })).toBeVisible();
+  }
+  await links.getByRole("button", { name: "Create customer" }).click();
+  await expect(page.getByRole("region", { name: "Customer onboarding" })).toBeVisible();
+});
+
+test("each public plan link opens a page for only that plan", async ({ page }) => {
+  await page.route("**/api/signup", route => route.fulfill({ json: { signedIn: false, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: true } } } }));
+  await page.goto("/signup?plan=workspace");
+  const signup = page.getByRole("region", { name: "Business signup" });
+  await expect(signup.getByRole("heading", { name: "Set up Referral Workspace" })).toBeVisible();
+  await expect(signup.getByRole("radio")).toHaveCount(0);
+  await expect(signup.getByText(/Managed Calling/)).toHaveCount(0);
+  await expect(signup.getByText(/Corporate/)).toHaveCount(0);
+
+  await page.goto("/signup?plan=corporate");
+  await expect(signup.getByRole("heading", { name: "Corporate plans" })).toBeVisible();
+  await expect(signup.getByRole("link", { name: "Request a quote" })).toHaveAttribute("href", "/#walkthrough");
+  await expect(signup.getByText(/Referral Workspace/)).toHaveCount(0);
+  await expect(signup.getByRole("link", { name: /Sign up with/ })).toHaveCount(0);
 });

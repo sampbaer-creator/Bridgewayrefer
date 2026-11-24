@@ -55,7 +55,7 @@ for (const [width, columns] of [[1440, 4], [768, 2], [390, 1]]) {
   });
 }
 
-test("unavailable Managed Calling requires an explicit switch", async ({ page }) => {
+test("unavailable Managed Calling asks the customer to contact BridgeWay; the chooser still switches plans", async ({ page }) => {
   let posts = 0;
   await page.route("**/api/signup", route => {
     if (route.request().method() === "POST") posts++;
@@ -64,6 +64,12 @@ test("unavailable Managed Calling requires an explicit switch", async ({ page })
   await page.goto("/signup?plan=managed-calling");
   await expect(page.getByRole("status")).toContainText("This plan requires help from BridgeWay");
   await expect(page.getByRole("button", { name: /continue to stripe/i })).toHaveCount(0);
+  await expect(page.getByRole("radio")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Business signup" }).getByRole("link", { name: "Contact BridgeWay" }).last()).toHaveAttribute("href", "/#walkthrough");
+  // The general /signup page keeps the chooser, and switching plans updates the address.
+  await page.goto("/signup");
+  await page.getByRole("radio", { name: /^managed calling/i }).check();
+  await expect(page).toHaveURL(/plan=managed-calling$/);
   await page.getByRole("radio", { name: /^referral workspace/i }).check();
   await expect(page).toHaveURL(/plan=workspace$/);
   await expect(page.getByRole("region", { name: "Business signup" }).getByRole("radio", { name: /^referral workspace/i })).toBeChecked();

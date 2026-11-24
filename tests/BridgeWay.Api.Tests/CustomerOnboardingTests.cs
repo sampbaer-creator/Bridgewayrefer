@@ -157,7 +157,7 @@ public class CustomerOnboardingTests
     {
         await using var app = Factory(); using var client = app.CreateClient();
         client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
-        var body = new { name = "Fictional Dental", ownerEmail = "owner@example.invalid", industry = "healthcare", specialty = "Orthodontics", plan = "workspace" };
+        var body = new { name = "Fictional Dental", ownerName = "Pat Owner", ownerEmail = "owner@example.invalid", industry = "healthcare", specialty = "Orthodontics", plan = "workspace" };
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/admin/onboarding")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/admin/onboarding", body)).StatusCode);
         client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:regular-staff");
@@ -172,12 +172,14 @@ public class CustomerOnboardingTests
         await using var app = Factory(); using var client = app.CreateClient();
         client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
         client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:platform-owner");
-        var response = await client.PostAsJsonAsync("/api/admin/onboarding", new { name = "Fictional Dental", ownerEmail = "owner@example.invalid", industry = "healthcare", specialty = "Orthodontics", plan = "workspace" });
+        var response = await client.PostAsJsonAsync("/api/admin/onboarding", new { name = "Fictional Dental", ownerName = "Pat Owner", ownerEmail = "owner@example.invalid", industry = "healthcare", specialty = "Orthodontics", plan = "workspace" });
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Contains("StripePriceId", await response.Content.ReadAsStringAsync());
-        var invalid = await client.PostAsJsonAsync("/api/admin/onboarding", new { name = "Fictional Dental", ownerEmail = "not-an-email", industry = "healthcare", specialty = "Orthodontics", plan = "workspace" });
+        var invalid = await client.PostAsJsonAsync("/api/admin/onboarding", new { name = "Fictional Dental", ownerName = "Pat Owner", ownerEmail = "not-an-email", industry = "healthcare", specialty = "Orthodontics", plan = "workspace" });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
-        var badPlan = await client.PostAsJsonAsync("/api/admin/onboarding", new { name = "Fictional Dental", ownerEmail = "owner@example.invalid", industry = "healthcare", specialty = "Orthodontics", plan = "free" });
+        var noOwner = await client.PostAsJsonAsync("/api/admin/onboarding", new { name = "Fictional Dental", ownerEmail = "owner@example.invalid", industry = "healthcare", specialty = "Orthodontics", plan = "workspace" });
+        Assert.Equal(HttpStatusCode.BadRequest, noOwner.StatusCode);
+        var badPlan = await client.PostAsJsonAsync("/api/admin/onboarding", new { name = "Fictional Dental", ownerName = "Pat Owner", ownerEmail = "owner@example.invalid", industry = "healthcare", specialty = "Orthodontics", plan = "free" });
         Assert.Equal(HttpStatusCode.BadRequest, badPlan.StatusCode);
     }
 
