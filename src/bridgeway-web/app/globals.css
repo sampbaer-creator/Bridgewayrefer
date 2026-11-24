@@ -1640,8 +1640,6 @@ main.admin-console {
 }
 @media (max-width: 640px) {
   .admin-console .admin-settings-grid { grid-template-columns: minmax(0, 1fr); }
-  .admin-finance-intro { align-items: start; flex-direction: column; }
-  .admin-finance-metrics, .admin-finance-grid, .admin-finance-charts { grid-template-columns: minmax(0, 1fr); }
   .admin-console .admin-table tr { margin-bottom: 8px; }
   .admin-console .admin-table .office-table td { padding-block: 5px; }
   .admin-console .admin-table .office-table td:first-child { border-bottom: 1px solid var(--admin-line); margin-bottom: 3px; }
@@ -1695,7 +1693,7 @@ main.admin-console {
 .admin-finance-metrics dd small { flex-basis: 100%; color: var(--admin-muted); font-size: 12px; font-weight: 500; }
 .admin-finance-metrics .admin-finance-primary dd small { color: #FDFDFE; }
 .admin-finance-primary > svg { float: right; opacity: .8; }
-.admin-finance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-finance-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .admin-finance-charts { display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; }
 .admin-finance-chart h3 { margin: 0; color: var(--admin-ink); font-size: 17px; }
 .admin-finance-chart { min-height: 250px; border: 1px solid var(--dashboard-border); box-shadow: 0 8px 22px rgb(13 35 57 / 5%); }
@@ -1802,3 +1800,16 @@ body { background: var(--linen); color: var(--navy); }
 /* Sign-in card */
 .bw-sign-in .bw-access { min-height: 0; }
 .bw-sign-in .bw-access-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: 0 12px 32px rgb(15 23 32 / 8%); }
+
+.admin-request-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+@media (max-width: 900px) {
+  .admin-finance-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-finance-charts { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 540px) {
+  .admin-console .admin-page-heading { grid-template-columns: minmax(0, 1fr); }
+  .admin-finance-intro { align-items: start; flex-direction: column; }
+  .admin-finance-metrics { grid-template-columns: minmax(0, 1fr); }
+  .admin-request-actions button { min-height: 44px; }
+}
