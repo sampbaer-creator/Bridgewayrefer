@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import MailboxSettings from "./MailboxSettings";
 import { api } from "../lib/api";
 
-type Customer = { businessId: string; name: string; ownerEmail: string; ownerName?: string; notes?: string; plan: string; status: string; billingStatus?: string; createdAt: string; linkExpiresAt?: string; ownerSignedIn: boolean; lastEmail?: string; canIssueLink: boolean };
-type Config = { stripeIssue?: string | null; stripe: boolean; managedCalling: boolean; email: boolean; identity: boolean };
+type Customer = { testMode?: boolean; businessId: string; name: string; ownerEmail: string; ownerName?: string; notes?: string; plan: string; status: string; billingStatus?: string; createdAt: string; linkExpiresAt?: string; ownerSignedIn: boolean; lastEmail?: string; canIssueLink: boolean };
+type Config = { testMode?: boolean; stripeIssue?: string | null; stripe: boolean; managedCalling: boolean; email: boolean; identity: boolean };
 type Issued = { businessId: string; link: string; email: string };
 
 const planLabels: Record<string, string> = { workspace: "Referral Workspace", "managed-calling": "Managed Calling", corporate: "Corporate/Custom" };
@@ -59,6 +59,7 @@ export default function AdminOnboarding() {
       {!config.email && "Email (SMTP) is not configured: links will not be emailed, copy them instead."}
     </p>}
 
+    {config?.testMode && <p className="notice" role="status"><strong>Stripe sandbox is enabled.</strong> Invitations and Checkout use test payments. No real money is collected. Use Stripe test card 4242 4242 4242 4242 with a future expiry and any three-digit CVC.</p>}
     <MailboxSettings />
     <form className="admin-onboarding-form" onSubmit={create} aria-label="Create customer">
       <h3>Create customer</h3>
@@ -95,7 +96,7 @@ export default function AdminOnboarding() {
         <td data-label="Business">{c.name}{c.notes && <small className="muted admin-onboarding-note" title={c.notes}>{c.notes}</small>}</td>
         <td data-label="Owner">{c.ownerName && <strong className="admin-onboarding-owner">{c.ownerName}</strong>}<small className="muted">{c.ownerEmail}{c.ownerSignedIn && " · signed in"}</small></td>
         <td data-label="Plan">{planLabels[c.plan] ?? c.plan}</td>
-        <td data-label="Status"><span className="admin-status-pill" data-live={c.status === "Owner account connected"}>{c.status}</span>{c.lastEmail && <small className="muted">Email: {c.lastEmail}</small>}{c.linkExpiresAt && c.canIssueLink && <small className="muted"> link expires {new Date(c.linkExpiresAt).toLocaleDateString()}</small>}</td>
+        <td data-label="Status"><span className="admin-status-pill" data-live={c.status === "Owner account connected"}>{c.status}</span>{c.testMode && <small className="muted"> Sandbox workspace</small>}{c.lastEmail && <small className="muted">Email: {c.lastEmail}</small>}{c.linkExpiresAt && c.canIssueLink && <small className="muted"> link expires {new Date(c.linkExpiresAt).toLocaleDateString()}</small>}</td>
         <td data-label="Created">{new Date(c.createdAt).toLocaleDateString()}</td>
         <td data-label="Actions">{c.plan === "corporate"
           ? <a className="secondary" href={`mailto:${c.ownerEmail}?subject=${encodeURIComponent("BridgeWay setup for " + c.name)}`}>Contact owner</a>

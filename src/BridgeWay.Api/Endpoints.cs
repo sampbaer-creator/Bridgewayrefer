@@ -170,7 +170,7 @@ public static class Endpoints
                 business["acceptReferrals"] = false; business["customerSignup"] = true;
                 business["industry"] = data.Industry?.Trim(); business["specialty"] = data.Specialty?.Trim();
                 if (alertEmail.Length > 0) business["alertEmail"] = alertEmail;
-                business["selectedPlan"] = plan; business["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan); business["billingStatus"] = "not_configured";
+                business["selectedPlan"] = plan; business["monthlyPriceUsd"] = settings.MonthlyPriceFor(plan); business["billingStatus"] = "not_configured"; business["billingLiveMode"] = stripe.LiveMode;
                 var office = store.Document("office", "office-main");
                 office["name"] = officeName.Length > 0 ? officeName : name; office["active"] = true;
                 var member = store.Membership(businessId, tenant, objectId, email, "Admin", businessName: name);
@@ -232,6 +232,7 @@ public static class Endpoints
             {
                 var profile = await store.Business(store.BusinessId, http.RequestAborted);
                 if (BusinessRules.IsArchived(profile)) throw new ApiError(403, "This workspace is archived.");
+                if (!BusinessRules.BillingModeMatches(settings, profile)) throw new ApiError(403, "This workspace belongs to a different Stripe environment. Ask BridgeWay for a new setup invitation.");
                 if (businessId.StartsWith("signup-", StringComparison.Ordinal) && !http.Request.Path.StartsWithSegments("/api/staff/billing") &&
                     (profile is null || BusinessRules.SignupPending(profile)))
                     throw new ApiError(403, "Complete the subscription to open this workspace.");
@@ -248,7 +249,7 @@ public static class Endpoints
             {
                 var businessId = row.Value<string>("businessId")!;
                 var profile = await store.Business(businessId, ct);
-                if (BusinessRules.IsArchived(profile)) return null;
+                if (BusinessRules.IsArchived(profile) || !BusinessRules.BillingModeMatches(settings, profile)) return null;
                 return new
                 {
                     businessId,
@@ -258,7 +259,7 @@ public static class Endpoints
                 };
             }));
             var selected = businesses.FirstOrDefault(b => b?.businessId == scope.BusinessId);
-            return Results.Ok(new { ok = true, account = AccountIdentity.From(ctx.User), platformAdmin = settings.IsPlatformAdmin(ctx.User),
+            return Results.Ok(new { ok = true, testMode = settings.AllowStripeTestMode && StripeBillingService.IsTestKey(settings.StripeSecretKey), account = AccountIdentity.From(ctx.User), platformAdmin = settings.IsPlatformAdmin(ctx.User),
                 businessId = selected?.businessId, role = selected?.role, businesses = businesses.Where(b => b is not null) });
         });
         staff.MapGet("/business/profile", async (CosmosStore store, CancellationToken ct) =>

@@ -15,7 +15,7 @@ type Member = { id: string; name: string; email: string; role: string; etag: str
 type BusinessProfile = { name: string; officeName: string; welcomeText: string; phone: string; logoUrl: string; acceptReferrals: boolean; accepting: boolean; suspended: boolean; alertEmail: string; billingStatus: string; monthlyPriceUsd: number; etag: string };
 type Billing = { plan?: string; amountUsd: number; interval: string; status: string; billingExempt: boolean; renewalAt?: string; cancelAtPeriodEnd: boolean; configured: boolean; managedCallingConfigured?: boolean; testMode: boolean; customerLinked: boolean };
 type Invitation = { id: string; email: string; role: string; state: string; expiresAt: string; etag: string };
-type Session = { businessId?: string | null; role: string; businesses: Business[]; account?: Account; platformAdmin?: boolean };
+type Session = { testMode?: boolean; businessId?: string | null; role: string; businesses: Business[]; account?: Account; platformAdmin?: boolean };
 
 const NAV_ICONS: Record<string, string[]> = {
   cards: ["M3 6h18v12H3z", "M7 14h4", "M15 9.5a3 3 0 0 1 0 5", "M18 8a6 6 0 0 1 0 8"],
@@ -46,6 +46,7 @@ function StaffDashboard() {
   const [checkoutPlan, setCheckoutPlan] = useState<"workspace" | "managed-calling">("workspace");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
+  const [sandboxMode, setSandboxMode] = useState(false);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [account, setAccount] = useState<Account | null>(null);
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [session, setSession] = useState<"loading" | "active" | "expired" | "denied">("loading"), [busy, setBusy] = useState(""), [refreshing, setRefreshing] = useState(false);
@@ -88,7 +89,7 @@ function StaffDashboard() {
     try {
       const auth = await api<Session & { ok: boolean }>("/api/staff/session", options);
       if (!current()) return;
-      const available = auth.businesses || []; setBusinesses(available); setSession("active"); setPlatformAdmin(Boolean(auth.platformAdmin)); setAccount(auth.account ?? null);
+      const available = auth.businesses || []; setBusinesses(available); setSession("active"); setPlatformAdmin(Boolean(auth.platformAdmin)); setSandboxMode(Boolean(auth.testMode)); setAccount(auth.account ?? null);
       if (!auth.businessId && requestWorkspace && !available.some(b => b.businessId === requestWorkspace)) {
         workspaceRef.current = ""; localStorage.removeItem(WORKSPACE_KEY); setWorkspace(""); setReferrals([]); setReport(null); return;
       }
@@ -370,6 +371,7 @@ function StaffDashboard() {
         <div className="staff-topbar-user"><AccountMenu account={account} area="staff" platformAdmin={platformAdmin} role={businesses.find(b => b.businessId === workspace)?.role} workspaces={businesses} currentWorkspace={workspace} onSwitchWorkspace={selectWorkspace} /></div>
       </header>
       <div className="staff-content">
+    {sandboxMode && <p className="notice"><strong>Sandbox workspace</strong> - Stripe payments are simulated. No real money is collected.</p>}
     <p className="error-message" role="alert">{error}</p><p className="hint" role="status">{notice}</p>
     {activeSection === "overview" && <>    <section className="staff-overview" id="overview" aria-labelledby="overview-title">
       <div className="staff-page-heading"><div><p className="eyebrow">YOUR WORKSPACE AT A GLANCE</p><h1 id="overview-title">Referral overview</h1><p>Track your referral activity and keep the next conversation moving.</p></div><div className="staff-overview-month"><label className="sr-only" htmlFor="overview-month">Overview month</label><select id="overview-month" value={month || selectedReport?.month || ""} onChange={e => selectMonth(e.target.value)} disabled={!report?.availableMonths?.length}>{!report?.availableMonths?.length && <option value="">Loading months…</option>}{report?.availableMonths?.map(value => <option key={value} value={value}>{new Date(value + "-15T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}</option>)}</select></div></div>

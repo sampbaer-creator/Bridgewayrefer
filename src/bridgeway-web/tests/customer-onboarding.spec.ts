@@ -191,3 +191,20 @@ test("test Stripe keys explain billing readiness before the admin submits a cust
   await expect(page.getByText(/Complete Stripe activation and configure live billing/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Send payment and signup link" })).toBeDisabled();
 });
+
+test("sandbox mode enables invitations and clearly labels test checkout", async ({ page }) => {
+  await page.route("**/api/admin/session", route => route.fulfill({ json: { acceptingGlobally: true } }));
+  await page.route("**/api/admin/businesses", route => route.fulfill({ json: { businesses: [], totals: { businesses: 0, cards: 0, taps: 0, referrals: 0 } } }));
+  await page.route("**/api/admin/financial", route => route.fulfill({ status: 503, json: {} }));
+  await page.route("**/api/admin/email", route => route.fulfill({ json: { required: true, connected: true, email: "bridgewayrefer@outlook.com" } }));
+  await page.route("**/api/admin/onboarding", route => route.fulfill({ json: { customers: [], config: { ...config, testMode: true } } }));
+  await page.goto("/admin?mailbox=setup");
+  await expect(page.getByText("Stripe sandbox is enabled.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send payment and signup link" })).toBeEnabled();
+  await page.addInitScript(() => sessionStorage.setItem("bridgeway.onboarding", JSON.stringify({ workspace: "biz-a", token: "e".repeat(64) })));
+  await page.route("**/api/onboarding/status", route => route.fulfill({ json: { businessName: "Sandbox Office", plan: "workspace", status: "awaiting_payment", paymentConfirmed: false, testMode: true } }));
+  await page.goto("/onboard");
+  await expect(page.getByText(/this is a test workspace/)).toBeVisible();
+  await page.getByRole("checkbox", { name: "I confirm these details are correct." }).check();
+  await expect(page.getByRole("button", { name: "Continue to test payment" })).toBeEnabled();
+});

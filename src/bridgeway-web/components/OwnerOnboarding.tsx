@@ -4,7 +4,7 @@ import { api, ApiError, WORKSPACE_KEY } from "../lib/api";
 import { ProviderButton } from "./GoogleSignIn";
 
 const KEY = "bridgeway.onboarding";
-type Status = { ownerName?: string; ownerEmail?: string; alertEmail?: string; industry?: string; specialty?: string; monthlyPriceUsd?: number; businessName: string; plan: string; status: "active" | "awaiting_payment"; paymentConfirmed: boolean };
+type Status = { testMode?: boolean; ownerName?: string; ownerEmail?: string; alertEmail?: string; industry?: string; specialty?: string; monthlyPriceUsd?: number; businessName: string; plan: string; status: "active" | "awaiting_payment"; paymentConfirmed: boolean };
 type View = "loading" | "missing" | "signed-out" | "ready" | "confirming" | "active" | "error";
 const planLabels: Record<string, string> = { workspace: "Workspace", "managed-calling": "Managed Calling" };
 
@@ -66,6 +66,7 @@ export default function OwnerOnboarding() {
     <div className="bw-access-card">
       <p className="eyebrow">BRIDGEWAY SETUP</p>
       <h1>{status?.businessName ? `Finish setting up ${status.businessName}` : "Finish your BridgeWay setup"}</h1>
+      {status?.testMode && <p className="notice" role="status"><strong>Stripe sandbox</strong> - this is a test workspace. No real money is collected. Use test card 4242 4242 4242 4242, any future expiry, and any three-digit CVC.</p>}
       {view === "loading" && <p role="status">Checking your setup link…</p>}
       {view === "missing" && <p>Open the setup link from your BridgeWay email. If it has expired, ask BridgeWay for a new one.</p>}
       {view === "signed-out" && <>
@@ -86,7 +87,7 @@ export default function OwnerOnboarding() {
         <label className="bw-setup-confirm"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} /> I confirm these details are correct.</label>
         <p>Setup is pending. Your dashboard opens as soon as payment is confirmed.</p>
         <p className="muted">Plan: {planLabels[status.plan] ?? status.plan}. Payment is handled securely by Stripe.</p>
-        <button className="bw-btn bw-btn-primary" disabled={busy || !confirmed} onClick={() => void pay()}>{busy ? "Opening Stripe…" : "Continue to payment"}</button>
+        <button className="bw-btn bw-btn-primary" disabled={busy || !confirmed} onClick={() => void pay()}>{busy ? "Opening Stripe…" : status.testMode ? "Continue to test payment" : "Continue to payment"}</button>
       </>}
       {view === "confirming" && <p role="status">Payment received. We are confirming it with Stripe; this page updates automatically.</p>}
       {view === "ready" && checkout === "success" && <p role="status">Waiting for Stripe to confirm your payment. This page updates automatically.</p>}

@@ -34,6 +34,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 {
                     await using var scope = scopes.CreateAsyncScope();
                     businesses = (await scope.ServiceProvider.GetRequiredService<CosmosStore>().AllBusinesses(stoppingToken))
+                        .Where(b => BusinessRules.BillingModeMatches(settings, b))
                         .Select(b => (Id: b.Value<string>("businessId") ?? "", Recipient: BusinessRules.AlertEmail(settings, b)))
                         .Where(b => b.Id.Length > 0 && b.Recipient.Length > 0).ToArray();
                 }

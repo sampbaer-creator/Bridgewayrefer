@@ -72,7 +72,7 @@ public class StripeLifecycleTests
 
     static void VerifyLifecycle(IReadOnlyList<JObject> subscriptions, string price)
     {
-        var settings = new Settings { AcceptReferrals = true, StripePriceId = price };
+        var settings = new Settings { AcceptReferrals = true, StripePriceId = price, StripeSecretKey = "sk_test_fixture", AllowStripeTestMode = true };
         var business = new JObject { ["customerSignup"] = true, ["acceptReferrals"] = true, ["checkoutSessionId"] = "cs_test_fixture" };
         Assert.True(BusinessRules.SignupPending(business));
         Assert.False(BusinessRules.AcceptsReferrals(settings, business));
