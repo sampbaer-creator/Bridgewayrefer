@@ -129,7 +129,7 @@ public static class OnboardingEndpoints
     }
 
     /// <summary>Sends the onboarding link. Returns "sent", "failed" or "not_configured" so the admin sees the real outcome.</summary>
-    static async Task<string> EmailLink(Settings settings, ILogger logger, string to, string? ownerName, string businessName, string plan, string url)
+    static async Task<string> EmailLink(Settings settings, MicrosoftMailbox mailbox, ILogger logger, string to, string? ownerName, string businessName, string plan, string url)
     {
         if (!settings.SmtpConfigured) return "not_configured";
         try
@@ -148,7 +148,7 @@ public static class OnboardingEndpoints
                     url, "", "The link expires in " + OnboardingRules.LinkDays + " days. Do not forward it.")
             };
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            await AlertWorker.SendEmail(settings, message, timeout.Token);
+            await mailbox.Send(message, timeout.Token);
             return "sent";
         }
         catch (Exception e) { logger.LogWarning("Onboarding email failed ({Error}).", e.GetType().Name); return "failed"; }
@@ -200,7 +200,7 @@ public static class OnboardingEndpoints
             });
         });
 
-        admin.MapPost("", async (OnboardingCreate data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, ILoggerFactory loggers, CancellationToken ct) =>
+        admin.MapPost("", async (OnboardingCreate data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, MicrosoftMailbox mailbox, ILoggerFactory loggers, CancellationToken ct) =>
         {
             var name = data.Name?.Trim() ?? ""; var ownerEmail = data.OwnerEmail?.Trim().ToLowerInvariant() ?? ""; var alertEmail = data.AlertEmail?.Trim().ToLowerInvariant() ?? "";
             var industry = data.Industry?.Trim() ?? ""; var specialty = data.Specialty?.Trim() ?? "";
@@ -244,13 +244,13 @@ public static class OnboardingEndpoints
             using (var result = await batch.ExecuteAsync(ct)) CosmosStore.Check(result);
 
             var url = token is null ? null : OnboardingRules.Link(settings, businessId, token);
-            var email = url is not null && data.SendEmail ? await EmailLink(settings, loggers.CreateLogger("Onboarding"), ownerEmail, ownerName, name, plan, url) : "skipped";
+            var email = url is not null && data.SendEmail ? await EmailLink(settings, mailbox, loggers.CreateLogger("Onboarding"), ownerEmail, ownerName, name, plan, url) : "skipped";
             if (email != "skipped") await RecordEmail(store, businessId, email, ct);
             return Results.Json(new { businessId, name, plan, link = url, email }, statusCode: 201);
         });
 
         // Issues a new link (and optionally emails it). The previous link and any open Checkout stop working.
-        admin.MapPost("/{businessId}/link", async (string businessId, OnboardingLinkRequest data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, ILoggerFactory loggers, CancellationToken ct) =>
+        admin.MapPost("/{businessId}/link", async (string businessId, OnboardingLinkRequest data, HttpContext ctx, CosmosStore store, StripeBillingService stripe, MicrosoftMailbox mailbox, ILoggerFactory loggers, CancellationToken ct) =>
         {
             if (!BusinessIdPattern.IsMatch(businessId)) throw new ApiError(404, "Customer not found.");
             store.UseBusiness(businessId);
@@ -281,7 +281,7 @@ public static class OnboardingEndpoints
                 CosmosStore.Check(result);
             }
             var url = OnboardingRules.Link(settings, businessId, token);
-            var email = data.SendEmail ? await EmailLink(settings, loggers.CreateLogger("Onboarding"), business.Value<string>("ownerEmail")!, business.Value<string>("ownerName"), business.Value<string>("name") ?? businessId, plan, url) : "skipped";
+            var email = data.SendEmail ? await EmailLink(settings, mailbox, loggers.CreateLogger("Onboarding"), business.Value<string>("ownerEmail")!, business.Value<string>("ownerName"), business.Value<string>("name") ?? businessId, plan, url) : "skipped";
             if (email != "skipped") await RecordEmail(store, businessId, email, ct);
             return Results.Ok(new { businessId, link = url, email });
         });

@@ -75,6 +75,7 @@ export default function AdminConsole() {
     }
   }, [fail]);
 
+  useEffect(() => { if (new URLSearchParams(window.location.search).has("mailbox")) setTab("onboarding"); }, []);
   useEffect(() => { void loadList(); }, [loadList]);
   useEffect(() => {
     if (tab !== "requests") return;

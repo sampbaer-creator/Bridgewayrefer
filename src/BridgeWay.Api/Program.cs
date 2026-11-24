@@ -33,6 +33,9 @@ if (string.IsNullOrWhiteSpace(cosmosDatabase))
 settings.PublicOrigin = settings.PublicOrigin.TrimEnd('/');
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 524288);
 builder.Services.AddSingleton(settings);
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IMicrosoftMailboxStore, CosmosMailboxStore>();
+builder.Services.AddSingleton<MicrosoftMailbox>();
 builder.Services.AddHttpClient<StripeBillingService>();
 builder.Services.AddSingleton<BusinessLogoStorage>();
 builder.Services.AddSingleton(_ =>
@@ -95,6 +98,7 @@ if (settings.IdentityConfigured) auth.AddOpenIdConnect(OpenIdConnectDefaults.Aut
     options.Events.OnAuthorizationCodeReceived = ctx => { if (ctx.TokenEndpointRequest is not null) ctx.TokenEndpointRequest.RedirectUri = settings.PublicOrigin + "/signin-oidc"; return Task.CompletedTask; };
     options.Events.OnRemoteFailure = ctx => { ctx.HandleResponse(); ctx.Response.Redirect("/sign-in?error=signin"); return Task.CompletedTask; };
 });
+MicrosoftMailbox.ConfigureAuthentication(auth, settings);
 const string googleScheme = "Google";
 var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
 var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
@@ -225,5 +229,6 @@ app.MapBridgeWay(settings);
 app.MapPlatformAdmin(settings);
 app.MapCustomerOnboarding(settings);
 app.MapStripeWebhook();
+MicrosoftMailbox.MapEndpoints(app, settings);
 app.Run();
 public partial class Program { }

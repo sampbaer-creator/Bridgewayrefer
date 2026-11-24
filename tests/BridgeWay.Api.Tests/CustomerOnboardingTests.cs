@@ -197,6 +197,20 @@ public class CustomerOnboardingTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/onboarding/status", new { workspace = "biz-a", token })).StatusCode);
     }
 
+    [Fact]
+    public async Task SenderConnectionAndTestEmailsRequireAPlatformAdmin()
+    {
+        await using var app = Factory(); using var client = app.CreateClient();
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+        foreach (var path in new[] { "/api/admin/email", "/api/admin/email/connect" })
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/admin/email/test", new { })).StatusCode);
+        client.DefaultRequestHeaders.Add("X-Test-Identity", "tenant:regular-staff");
+        foreach (var path in new[] { "/api/admin/email", "/api/admin/email/connect" })
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/admin/email/test", new { })).StatusCode);
+    }
+
     static WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(web =>
     {
         web.UseEnvironment("Development")
