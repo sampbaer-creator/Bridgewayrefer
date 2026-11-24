@@ -137,4 +137,12 @@ smoke_check "$PUBLIC_ORIGIN/"
 smoke_check "$PUBLIC_ORIGIN/health/cosmos" "\"revision\":\"$API_CAND\""
 smoke_check "$PUBLIC_ORIGIN/robots.txt" "sitemap"
 smoke_check "$PUBLIC_ORIGIN/signup"
-log "Rollout complete. Previous revisions kept inactive-but-present for rollback."
+# 6. Old revisions must stop running workers after the verified pair is promoted.
+# Cleanup failure must not roll back a healthy deployment; surface it for follow-up.
+for pair in "$API_APP:$API_CAND" "$WEB_APP:$WEB_CAND"; do
+  app="${pair%%:*}"; keep="${pair#*:}"
+  if ! bash scripts/retire-nonserving-revisions.sh "$app" "$RESOURCE_GROUP" "$keep"; then
+    log "WARNING: Could not retire every non-serving revision of $app. Check for stale workers."
+  fi
+done
+log "Rollout complete. Previous revisions stopped and retained for rollback."
