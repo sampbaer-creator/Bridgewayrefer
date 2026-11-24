@@ -36,7 +36,7 @@ public sealed class Settings
     public string SmtpUsername { get; set; } = "";
     public string SmtpPassword { get; set; } = "";
     /// <summary>Addresses notified when someone submits the public Request a walkthrough form.</summary>
-    public string[] WalkthroughNotifyEmails { get; set; } = ["Bridgewayrefer@outlook.com", "Bridgewayrefer@gmail.com"];
+    public string[] WalkthroughNotifyEmails { get; set; } = ["Bridgewayrefer@outlook.com"];
     public string StripeSecretKey { get; set; } = "";
     public string StripePriceId { get; set; } = "";
     /// <summary>Optional second recurring Stripe Price for the $400/month Managed Calling plan.</summary>
