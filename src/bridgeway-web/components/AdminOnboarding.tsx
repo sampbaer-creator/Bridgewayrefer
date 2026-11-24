@@ -4,7 +4,7 @@ import MailboxSettings from "./MailboxSettings";
 import { api } from "../lib/api";
 
 type Customer = { businessId: string; name: string; ownerEmail: string; ownerName?: string; notes?: string; plan: string; status: string; billingStatus?: string; createdAt: string; linkExpiresAt?: string; ownerSignedIn: boolean; lastEmail?: string; canIssueLink: boolean };
-type Config = { stripe: boolean; managedCalling: boolean; email: boolean; identity: boolean };
+type Config = { stripeIssue?: string | null; stripe: boolean; managedCalling: boolean; email: boolean; identity: boolean };
 type Issued = { businessId: string; link: string; email: string };
 
 const planLabels: Record<string, string> = { workspace: "Referral Workspace", "managed-calling": "Managed Calling", corporate: "Corporate/Custom" };
@@ -52,7 +52,8 @@ export default function AdminOnboarding() {
   return <section className="card admin-customer-onboarding" id="admin-onboarding" aria-label="Customer onboarding">
     <div className="admin-directory-heading"><div><h2>Customer onboarding</h2><p className="muted">The standard way to add a customer: create the business, send the owner a payment and signup link, the owner signs in and confirms their details, and their dashboard opens once Stripe confirms payment.</p></div></div>
     {config && (!config.stripe || !config.identity || !config.email || !config.managedCalling) && <p className="notice">
-      {!config.stripe && "Stripe is not configured, so Workspace and Managed Calling links cannot be created. "}
+      {config.stripeIssue === "test_key" && "Stripe is using a test key. Complete Stripe activation and configure live billing before sending payment invitations. "}
+      {!config.stripe && config.stripeIssue !== "test_key" && "Stripe is not configured, so Workspace and Managed Calling links cannot be created. "}
       {config.stripe && !config.managedCalling && "Managed Calling has no Stripe Price configured. "}
       {!config.identity && "Owner sign-in is not configured. "}
       {!config.email && "Email (SMTP) is not configured: links will not be emailed, copy them instead."}

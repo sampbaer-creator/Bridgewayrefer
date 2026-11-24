@@ -66,6 +66,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
         foreach (var doc in candidates)
         {
             var id = doc.Value<string>("id")!;
+            doc["sendingRevision"] = Environment.GetEnvironmentVariable("CONTAINER_APP_REVISION") ?? "local"; doc["sendingAt"] = DateTimeOffset.UtcNow.ToString("O");
             doc["state"] = "Sending"; doc["readyAt"] = now + 300; doc["attempts"] = doc.Value<int>("attempts") + 1;
             ItemResponse<JObject> claim;
             try { claim = await store.Operations.ReplaceItemAsync(doc, id, partitionKey, new ItemRequestOptions { IfMatchEtag = doc.Value<string>("_etag") }, ct); }
@@ -86,8 +87,9 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 doc["state"] = "Accepted"; doc["acceptedAt"] = DateTimeOffset.UtcNow.ToString("O"); doc["readyAt"] = 0;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-            catch
+            catch (Exception error)
             {
+                doc["lastFailureKind"] = error.GetType().Name; doc["lastFailureAt"] = DateTimeOffset.UtcNow.ToString("O");
                 var disposition = FailureDisposition(doc.Value<int>("attempts"), DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                 logger.LogWarning("Email delivery failed ({State}); sensitive details suppressed.", disposition.State);
                 doc["state"] = disposition.State; doc["readyAt"] = disposition.ReadyAt;

@@ -188,7 +188,7 @@ public static class OnboardingEndpoints
             return await next(context);
         });
 
-        admin.MapGet("", async (CosmosStore store, CancellationToken ct) =>
+        admin.MapGet("", async (CosmosStore store, StripeBillingService stripe, CancellationToken ct) =>
         {
             var now = DateTimeOffset.UtcNow;
             var rows = (await store.AllBusinesses(ct)).Where(b => b.Value<bool?>("adminOnboarding") == true && b.Value<string>("deletedAt") is null)
@@ -196,7 +196,7 @@ public static class OnboardingEndpoints
             return Results.Ok(new
             {
                 customers = rows,
-                config = new { stripe = settings.StripeConfigured, managedCalling = settings.ManagedCallingConfigured, email = settings.SmtpConfigured, identity = settings.IdentityConfigured },
+                config = new { stripe = settings.StripeConfigured && stripe.KeyReady, stripeIssue = stripe.TestMode && !settings.AllowStripeTestMode ? "test_key" : null, managedCalling = settings.ManagedCallingConfigured, email = settings.SmtpConfigured, identity = settings.IdentityConfigured },
             });
         });
 

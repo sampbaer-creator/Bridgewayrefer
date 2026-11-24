@@ -180,3 +180,14 @@ test("admin connects the sender mailbox and can request a test email", async ({ 
   await sender.getByRole("button", { name: "Send test email" }).click();
   await expect(sender.getByText(/Microsoft accepted the test email/)).toBeVisible();
 });
+
+test("test Stripe keys explain billing readiness before the admin submits a customer", async ({ page }) => {
+  await page.route("**/api/admin/session", route => route.fulfill({ json: { acceptingGlobally: true } }));
+  await page.route("**/api/admin/businesses", route => route.fulfill({ json: { businesses: [], totals: { businesses: 0, cards: 0, taps: 0, referrals: 0 } } }));
+  await page.route("**/api/admin/financial", route => route.fulfill({ status: 503, json: {} }));
+  await page.route("**/api/admin/email", route => route.fulfill({ json: { required: true, connected: true, email: "bridgewayrefer@outlook.com" } }));
+  await page.route("**/api/admin/onboarding", route => route.fulfill({ json: { customers: [], config: { ...config, stripe: false, stripeIssue: "test_key" } } }));
+  await page.goto("/admin?mailbox=setup");
+  await expect(page.getByText(/Complete Stripe activation and configure live billing/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send payment and signup link" })).toBeDisabled();
+});
