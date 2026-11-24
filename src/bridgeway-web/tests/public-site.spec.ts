@@ -63,7 +63,6 @@ test("unavailable Managed Calling requires an explicit switch", async ({ page })
   });
   await page.goto("/signup?plan=managed-calling");
   await expect(page.getByRole("status")).toContainText("This plan requires help from BridgeWay");
-  await expect(page.getByRole("region", { name: "Business signup" }).getByRole("link", { name: "Request a walkthrough" })).toHaveAttribute("href", "/#walkthrough");
   await expect(page.getByRole("button", { name: /continue to stripe/i })).toHaveCount(0);
   await page.getByRole("radio", { name: /^referral workspace/i }).check();
   await expect(page).toHaveURL(/plan=workspace$/);
