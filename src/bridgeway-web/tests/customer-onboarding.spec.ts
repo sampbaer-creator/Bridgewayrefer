@@ -66,7 +66,10 @@ test("the owner signs in, sees setup pending, and is sent to Stripe Checkout", a
       ? route.fulfill({ json: { businessName: "Fictional Dental", plan: "workspace", status: "awaiting_payment", paymentConfirmed: false } })
       : route.fulfill({ status: 401, json: {} });
   });
-  await page.route("**/api/onboarding/checkout", route => route.fulfill({ json: { url: "/checkout-placeholder" } }));
+  await page.route("**/api/onboarding/checkout", route => {
+    expect(route.request().postDataJSON()).toEqual({ workspace: "biz-a", token, confirmDetails: true });
+    return route.fulfill({ json: { url: "/checkout-placeholder" } });
+  });
   await page.route("**/checkout-placeholder", route => route.fulfill({ body: "<h1>Stripe Checkout</h1>", contentType: "text/html" }));
 
   await page.goto(`/onboard#token=${token}&workspace=biz-a`);
@@ -77,6 +80,8 @@ test("the owner signs in, sees setup pending, and is sent to Stripe Checkout", a
   await page.reload();
   await expect(page.getByRole("heading", { name: "Finish setting up Fictional Dental" })).toBeVisible();
   await expect(page.getByText("Setup is pending")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue to payment" })).toBeDisabled();
+  await page.getByRole("checkbox", { name: "I confirm these details are correct." }).check();
   await page.getByRole("button", { name: "Continue to payment" }).click();
   await expect(page.getByRole("heading", { name: "Stripe Checkout" })).toBeVisible();
 });
@@ -135,3 +140,19 @@ test("each public plan link opens a page for only that plan", async ({ page }) =
   await expect(signup.getByText(/Referral Workspace/)).toHaveCount(0);
   await expect(signup.getByRole("link", { name: /Sign up with/ })).toHaveCount(0);
 });
+
+for (const width of [1440, 1024, 768, 390]) {
+  test(`owner review remains readable at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => sessionStorage.setItem("bridgeway.onboarding", JSON.stringify({ workspace: "biz-a", token: "d".repeat(64) })));
+    await page.route("**/api/onboarding/status", route => route.fulfill({ json: {
+      businessName: "Fictional Dental", ownerName: "Pat Owner", ownerEmail: "owner@example.invalid", alertEmail: "team@example.invalid", industry: "healthcare", specialty: "Orthodontics", monthlyPriceUsd: 50, plan: "workspace", status: "awaiting_payment", paymentConfirmed: false,
+    } }));
+    await page.goto("/onboard");
+    await expect(page.getByRole("heading", { name: "Review your details" })).toBeVisible();
+    await expect(page.getByText("$50/month", { exact: false })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect(page.getByRole("button", { name: "Continue to payment" })).toBeDisabled();
+    await page.screenshot({ path: `test-results/onboarding-${width}.png`, fullPage: true });
+  });
+}

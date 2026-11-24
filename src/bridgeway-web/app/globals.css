@@ -1888,3 +1888,10 @@ body { background: var(--linen); color: var(--navy); }
 .admin-customer-onboarding .admin-status-pill { white-space: nowrap; }
 .admin-customer-onboarding td[data-label="Status"] small { display: block; margin-top: 4px; }
 .bw-plan-other a { text-decoration: underline; text-underline-offset: 2px; }
+
+.bw-setup-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px 20px; padding: 20px 0; border-block: 1px solid var(--line); }
+.bw-setup-details dt { color: var(--muted); font-size: 14px; }
+.bw-setup-details dd { margin: 0; overflow-wrap: anywhere; }
+.bw-setup-confirm { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; cursor: pointer; }
+.bw-setup-confirm input { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 3px; }
+@media (max-width: 480px) { .bw-setup-details { grid-template-columns: 1fr; gap: 4px; } .bw-setup-details dd { margin-bottom: 12px; } }

@@ -40,6 +40,12 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
                 catch { logger.LogWarning("Email worker could not list workspaces; will retry."); }
             }
+            if (settings.AlertWorkerEnabled && settings.SmtpConfigured)
+            {
+                try { await SendPending(CosmosStore.PlatformPartition, "", stoppingToken); }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+                catch { logger.LogWarning("Walkthrough email queue paused; will retry."); }
+            }
             foreach (var (businessId, recipient) in businesses)
             {
                 if (stoppingToken.IsCancellationRequested) break;
@@ -66,10 +72,16 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
             catch (CosmosException e) when (e.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound) { continue; }
             try
             {
-                var message = new MimeMessage(); message.From.Add(MailboxAddress.Parse(settings.SmtpUsername)); message.To.Add(MailboxAddress.Parse(recipient));
+                var message = new MimeMessage(); message.From.Add(MailboxAddress.Parse(settings.SmtpUsername)); message.To.Add(MailboxAddress.Parse(doc.Value<string>("recipient") ?? recipient));
                 message.Subject = "New referral received - Bridgewayrefer";
                 message.MessageId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(businessId + ":" + id))) + "@" + new Uri(settings.PublicOrigin).Host;
                 message.Body = new TextPart("plain") { Text = "A new referral is waiting in your secure office dashboard.\n\nSign in to review it:\n" + settings.PublicOrigin + "/sign-in\n\nPatient details are available only in the dashboard." };
+                if (businessId == CosmosStore.PlatformPartition)
+                {
+                    message.Subject = doc.Value<string>("subject")!;
+                    message.Body = new TextPart("plain") { Text = doc.Value<string>("body")! };
+                    if (doc.Value<string>("replyTo") is string replyTo) message.ReplyTo.Add(MailboxAddress.Parse(replyTo));
+                }
                 await SendEmail(settings, message, ct);
                 doc["state"] = "Accepted"; doc["acceptedAt"] = DateTimeOffset.UtcNow.ToString("O"); doc["readyAt"] = 0;
             }
