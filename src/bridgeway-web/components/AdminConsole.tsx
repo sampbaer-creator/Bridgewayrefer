@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, Inbox, Plus, Radio } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Building2, ClipboardList, CreditCard, DollarSign, ExternalLink, Inbox, Plus, Radio } from "lucide-react";
 import GoogleSignIn from "./GoogleSignIn";
 import AdminStripeSubscription from "./AdminStripeSubscription";
 import PatientForm from "./PatientForm";
@@ -329,6 +329,9 @@ export default function AdminConsole() {
           </button>;
         })}
       </div>)}
+      <div className="admin-nav-group">
+        <a className="admin-signup-nav" href="/signup" target="_blank" rel="noopener noreferrer"><ExternalLink size={17} aria-hidden="true" />Customer signup (opens new tab)</a>
+      </div>
     </nav>
     <div className="admin-workspace-content">
     {deleting && <dialog className="admin-delete-dialog" aria-labelledby="admin-delete-title"
@@ -396,7 +399,6 @@ export default function AdminConsole() {
     {tab === "requests" && <section className="card" id="admin-requests" aria-label="Walkthrough requests">
       <div className="admin-directory-heading"><div><h2>Walkthrough requests</h2><p className="muted">Everyone who filled out the Request a walkthrough form, newest first.</p></div><span className="muted">{requests ? `${requests.length} total` : ""}</span></div>
       <div className="card-row">
-        <a href="/signup" target="_blank" rel="noopener noreferrer">Open signup form</a>
         <button type="button" className="secondary" onClick={() => copy(new URL("/signup", window.location.origin).href)}>Copy signup link</button>
       </div>
       <div className="admin-table"><table className="office-table"><thead><tr><th>Received</th><th>Name</th><th>Business</th><th>Email</th><th>Phone</th><th>Notes</th><th>Status and actions</th></tr></thead><tbody>

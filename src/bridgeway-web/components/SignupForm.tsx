@@ -38,11 +38,11 @@ export default function SignupForm() {
 
   const available = state?.enabled && (plan === "managed-calling" ? state.plans.managedCalling.available : state.plans.workspace.available);
 
-  function chooseWorkspace() {
+  function choosePlan(nextPlan: Plan) {
     const url = new URL(window.location.href);
-    url.searchParams.set("plan", "workspace");
+    url.searchParams.set("plan", nextPlan);
     window.history.replaceState(null, "", url);
-    setPlan("workspace");
+    setPlan(nextPlan);
   }
 
   async function startCheckout(event: FormEvent<HTMLFormElement>) {
@@ -77,6 +77,22 @@ export default function SignupForm() {
 
   return (
     <section className="bw-access-card" aria-label="Business signup">
+      <h1>Set up your BridgeWay account</h1>
+      <p>Choose a plan, sign in, and set up your business.</p>
+        <fieldset className="bw-plan-select">
+          <legend>Choose a plan</legend>
+          <label className={plan === "workspace" ? "bw-plan-option selected" : "bw-plan-option"}>
+            <input type="radio" name="plan" value="workspace" checked={plan === "workspace"} onChange={() => choosePlan("workspace")} />
+            <span><b>{planCopy.workspace.name} &middot; from ${(state?.plans.workspace.amountUsd ?? 50)}/month</b><small>Referral tracking, partners, staff access, reports and NFC card management.</small></span>
+          </label>
+          <label className={plan === "managed-calling" ? "bw-plan-option selected" : "bw-plan-option"}>
+            <input type="radio" name="plan" value="managed-calling" checked={plan === "managed-calling"} onChange={() => choosePlan("managed-calling")} />
+            <span><b>{planCopy.managedCalling.name} &middot; from ${(state?.plans.managedCalling.amountUsd ?? 400)}/month</b><small>Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay.</small></span>
+          </label>
+          <Link href="/#walkthrough" className="bw-plan-option">
+            <span><b>Corporate · Custom pricing</b><small>Request a custom quote through BridgeWay.</small></span>
+          </Link>
+        </fieldset>
       {error && <p role="alert" className="bw-form-alert">{error}</p>}
       {!state && !error && (
         <div className="bw-form-skeleton" role="status" aria-label="Checking signup availability">
@@ -87,19 +103,12 @@ export default function SignupForm() {
       )}
       {!state && error && <div className="bw-signup-actions">
         <button className="bw-btn bw-btn-secondary" type="button" onClick={() => { setError(""); setAttempt(value => value + 1); }}>Try again</button>
-        <Link className="bw-btn bw-btn-ghost" href="/contact">Contact BridgeWay</Link>
+        <Link className="bw-btn bw-btn-ghost" href="/#walkthrough">Contact BridgeWay</Link>
       </div>}
-      {state && !state.enabled && <>
-        <p role="status">Sign-up is unavailable right now.</p>
-        <div className="bw-signup-actions"><Link className="bw-btn bw-btn-primary" href="/contact">Contact BridgeWay</Link></div>
-      </>}
-      {state?.enabled && !available && <>
-        <p role="status">{plan === "managed-calling" ? "Managed Calling is not available online right now." : "Referral Workspace is not available online right now."}</p>
-        <div className="bw-signup-actions">
-          <Link className="bw-btn bw-btn-primary" href="/contact">Contact BridgeWay</Link>
-          {plan === "managed-calling" && state.plans.workspace.available && <button type="button" className="bw-btn bw-btn-ghost" onClick={chooseWorkspace}>Switch to Referral Workspace</button>}
-        </div>
-      </>}
+      {state && !available && <div>
+        <p role="status">{state.enabled ? "This plan requires help from BridgeWay to get started." : "Online checkout is currently unavailable."} If you already requested a walkthrough, reply to your BridgeWay contact.</p>
+        <Link className="bw-btn bw-btn-primary" href="/#walkthrough">Request a walkthrough</Link>
+      </div>}
       {available && !state?.signedIn && <>
         <p>Sign in with the account you will use to manage your business.</p>
         <div className="bw-auth-providers">
@@ -108,20 +117,7 @@ export default function SignupForm() {
         </div>
       </>}
       {available && state?.signedIn && <form onSubmit={startCheckout} className="bw-contact-form">
-        <fieldset className="bw-plan-select">
-          <legend>Choose a plan</legend>
-          <label className={plan === "workspace" ? "bw-plan-option selected" : "bw-plan-option"}>
-            <input type="radio" name="plan" value="workspace" checked={plan === "workspace"} disabled={!state.plans.workspace.available} onChange={chooseWorkspace} />
-            <span><b>{planCopy.workspace.name} &middot; from ${state.plans.workspace.amountUsd}/month</b><small>Referral tracking, partners, staff access, reports and NFC card management.</small></span>
-          </label>
-          <label className={plan === "managed-calling" ? "bw-plan-option selected" : "bw-plan-option"}>
-            <input type="radio" name="plan" value="managed-calling" checked={plan === "managed-calling"} disabled={!state.plans.managedCalling.available} onChange={() => setPlan("managed-calling")} />
-            <span><b>{planCopy.managedCalling.name} &middot; from ${state.plans.managedCalling.amountUsd}/month</b><small>Includes Referral Workspace, plus cold calling and CRM follow-up handled by BridgeWay.{!state.plans.managedCalling.available ? " Not available online yet. Contact us." : ""}</small></span>
-          </label>
-          <Link href="/contact" className="bw-plan-option">
-            <span><b>Corporate · Custom pricing</b><small>Request a quote tailored to your business.</small></span>
-          </Link>
-        </fieldset>
+
         <label className="bw-field">Business name<input name="name" autoComplete="organization" minLength={2} maxLength={120} required /></label>
         <label className="bw-field"><span id="signup-industry-label">Industry</span>
           <select aria-labelledby="signup-industry-label" name="industry" value={industry} required onChange={event => { setIndustry(event.target.value); setSpecialty(""); }}>
