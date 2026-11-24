@@ -39,24 +39,20 @@ test("retired workspace setup bookmarks open Overview", async ({ page }) => {
 
 });
 
-test("office logo editor and patient preview preserve submission and open counts", async ({ page }) => {
+test("read-only referral network and patient preview preserve submission and open counts", async ({ page }) => {
   const publicWrites: string[] = [];
   page.on("request", request => {
     if (["/api/link-opens", "/api/referrals"].includes(new URL(request.url()).pathname) && request.method() === "POST") publicWrites.push(request.url());
   });
   await page.route("**/missing-office-logo.png", route => route.fulfill({ status: 404 }));
   await page.goto("/staff#management");
-  await page.getByRole("button", { name: "Edit office" }).click();
-  await page.getByLabel("Logo URL").fill("/brand-mark.png");
-  await page.getByRole("button", { name: "Save logo" }).click();
-  await expect(page.getByText("Office logo saved.")).toBeVisible();
-
-  await page.getByRole("link", { name: "Cards", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Referral network" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit office" })).toHaveCount(0);
   await page.getByRole("button", { name: "Preview Patient Form" }).click();
   await expect(page.getByText("Submissions are disabled.")).toBeVisible();
   await expect(page.getByRole("img", { name: "Fictional Group" })).toHaveAttribute("src", "/brand-mark.png");
   await expect(page.getByRole("button", { name: "Send my request" })).toBeDisabled();
-  await page.getByRole("button", { name: "Back to cards" }).click();
+  await page.getByRole("button", { name: "Back to referral network" }).click();
   await expect(page.getByRole("button", { name: "Preview Patient Form" })).toBeVisible();
   expect(publicWrites).toEqual([]);
 });
