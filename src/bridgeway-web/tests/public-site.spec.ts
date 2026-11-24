@@ -62,10 +62,10 @@ test("unavailable Managed Calling requires an explicit switch", async ({ page })
     return route.fulfill({ json: { signedIn: true, enabled: true, plans: { workspace: { amountUsd: 50, available: true }, managedCalling: { amountUsd: 400, available: false } } } });
   });
   await page.goto("/signup?plan=managed-calling");
-  await expect(page.getByText("Managed Calling is not available online right now.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Contact BridgeWay" })).toHaveAttribute("href", "/contact");
+  await expect(page.getByRole("status")).toContainText("This plan requires help from BridgeWay");
+  await expect(page.getByRole("region", { name: "Business signup" }).getByRole("link", { name: "Request a walkthrough" })).toHaveAttribute("href", "/#walkthrough");
   await expect(page.getByRole("button", { name: /continue to stripe/i })).toHaveCount(0);
-  await page.getByRole("button", { name: "Switch to Referral Workspace" }).click();
+  await page.getByRole("radio", { name: /^referral workspace/i }).check();
   await expect(page).toHaveURL(/plan=workspace$/);
   await expect(page.getByRole("region", { name: "Business signup" }).getByRole("radio", { name: /^referral workspace/i })).toBeChecked();
   expect(posts).toBe(0);
