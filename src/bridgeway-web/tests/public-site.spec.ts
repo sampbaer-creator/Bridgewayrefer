@@ -15,7 +15,7 @@ test("the shared public header keeps its position across routes", async ({ page 
   await expect(header.locator(".public-nav-cta")).toHaveCSS("background-image", "none");
   await expect(page.locator("#walkthrough")).toBeVisible();
   const home = await positions();
-  for (const path of ["/industries/healthcare", "/industries/trades", "/pricing", "/sign-in"]) {
+  for (const path of ["/industries/healthcare", "/industries/trades", "/sign-in"]) {
     await page.goto(path);
     await page.evaluate(() => document.fonts.ready);
     const current = await positions();
@@ -42,18 +42,6 @@ test("the mobile menu restores focus and navigates to homepage anchors", async (
   await expect(page).toHaveURL(/\/faq$/);
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
 });
-
-for (const [width, columns] of [[1440, 4], [768, 2], [390, 1]]) {
-  test(`pricing fits four setup steps in ${columns} columns at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto("/pricing");
-    const steps = page.getByRole("list", { name: "Setup steps" });
-    await expect(steps.getByRole("listitem")).toHaveCount(4);
-    const rows = await steps.getByRole("listitem").evaluateAll(items => items.map(item => item.getBoundingClientRect().top));
-    expect(new Set(rows).size).toBe(4 / columns);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-  });
-}
 
 test("unavailable Managed Calling asks the customer to contact BridgeWay; the chooser still switches plans", async ({ page }) => {
   let posts = 0;

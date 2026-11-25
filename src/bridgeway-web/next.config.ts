@@ -4,6 +4,7 @@ const config: NextConfig = {
   output: "standalone",
   async redirects() {
     return [
+      { source: "/pricing", destination: "/#walkthrough", permanent: true },
       { source: "/guides/nfc-referral-cards", destination: "/blog/nfc-referral-cards", permanent: true },
       { source: "/guides/:path*", destination: "/blog", permanent: true },
       { source: "/compare/spreadsheet", destination: "/how-it-works", permanent: true },

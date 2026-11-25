@@ -94,10 +94,26 @@ if (settings.IdentityConfigured) auth.AddOpenIdConnect(OpenIdConnectDefaults.Aut
         // Invited email-code guests must authenticate in the resource directory.
         // The common endpoint cannot discover an email-only guest identity.
         if (ctx.Properties.RedirectUri == settings.PublicOrigin + "/admin")
+        {
+            ctx.ProtocolMessage.Prompt = "select_account";
             ctx.ProtocolMessage.IssuerAddress = $"https://login.microsoftonline.com/{settings.TenantId}/oauth2/v2.0/authorize";
+        }
         return Task.CompletedTask;
     };
-    options.Events.OnAuthorizationCodeReceived = ctx => { if (ctx.TokenEndpointRequest is not null) ctx.TokenEndpointRequest.RedirectUri = settings.PublicOrigin + "/signin-oidc"; return Task.CompletedTask; };
+    options.Events.OnAuthorizationCodeReceived = ctx =>
+    {
+        var tokenRequest = ctx.TokenEndpointRequest;
+        if (tokenRequest is not null)
+        {
+            tokenRequest.RedirectUri = settings.PublicOrigin + "/signin-oidc";
+            // Admin authentication starts at the resource tenant so Microsoft account guests resolve to
+            // their tenant-local object ID. Redeem the code at that same tenant's token endpoint; using
+            // the common endpoint here rejects personal Microsoft accounts (AADSTS500202).
+            if (ctx.Properties?.RedirectUri == settings.PublicOrigin + "/admin")
+                tokenRequest.TokenEndpoint = $"https://login.microsoftonline.com/{settings.TenantId}/oauth2/v2.0/token";
+        }
+        return Task.CompletedTask;
+    };
     options.Events.OnRemoteFailure = ctx => { ctx.HandleResponse(); ctx.Response.Redirect("/sign-in?error=signin"); return Task.CompletedTask; };
 });
 MicrosoftMailbox.ConfigureAuthentication(auth, settings);
@@ -122,6 +138,8 @@ if (googleConfigured)
         options.Events.OnRedirectToIdentityProvider = ctx =>
         {
             ctx.ProtocolMessage.RedirectUri = settings.PublicOrigin + "/signin-google";
+            if (ctx.Properties.RedirectUri == settings.PublicOrigin + "/admin")
+                ctx.ProtocolMessage.Prompt = "select_account";
             return Task.CompletedTask;
         };
         options.Events.OnAuthorizationCodeReceived = ctx =>
