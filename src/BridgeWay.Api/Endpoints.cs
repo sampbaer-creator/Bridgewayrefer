@@ -213,6 +213,22 @@ public static class Endpoints
                 if (string.IsNullOrWhiteSpace(oid) || string.IsNullOrWhiteSpace(tid) || !settings.AcceptsStaffTenant(tid)) throw new ApiError(403, "Access denied.");
                 var memberships = await store.Memberships(oid, tid, http.RequestAborted);
                 var requested = RequestedBusiness(http);
+                if (settings.IsPlatformAdmin(http.User))
+                {
+                    var profiles = IsSession(http)
+                        ? await store.AllBusinesses(http.RequestAborted)
+                        : requested is null ? [] : new[] { await store.Business(requested, http.RequestAborted) }.OfType<JObject>().ToList();
+                    foreach (var profile in profiles)
+                    {
+                        var id = profile.Value<string>("businessId");
+                        if (string.IsNullOrWhiteSpace(id) || BusinessRules.IsArchived(profile) || !BusinessRules.BillingModeMatches(settings, profile)) continue;
+                        memberships.RemoveAll(member => member.Value<string>("businessId") == id);
+                        memberships.Add(new JObject
+                        {
+                            ["businessId"] = id, ["oid"] = oid, ["tenantId"] = tid, ["active"] = true, ["role"] = "Admin"
+                        });
+                    }
+                }
                 var selected = TenantAuthorization.SelectActiveMembership(memberships, requested);
                 if (selected is null && requested is null && memberships.Count == 1) selected = memberships[0];
                 if (selected is null && memberships.Count > 1 && !IsSession(http)) throw new ApiError(409, "Choose a workspace before continuing.");
