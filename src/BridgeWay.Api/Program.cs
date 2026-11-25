@@ -36,6 +36,8 @@ builder.Services.AddSingleton(settings);
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IMicrosoftMailboxStore, CosmosMailboxStore>();
 builder.Services.AddSingleton<MicrosoftMailbox>();
+builder.Services.AddSingleton<CloudflareEmailSender>();
+builder.Services.AddSingleton<EmailDeliveryService>();
 builder.Services.AddHttpClient<StripeBillingService>();
 builder.Services.AddSingleton<BusinessLogoStorage>();
 builder.Services.AddSingleton(_ =>
