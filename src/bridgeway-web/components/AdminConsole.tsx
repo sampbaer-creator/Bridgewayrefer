@@ -32,7 +32,7 @@ function liveState(b: BusinessSummary, session: AdminSession | null) {
   return "Live";
 }
 
-export default function AdminConsole() {
+export default function AdminConsole({ signInFailed = false }: { signInFailed?: boolean }) {
   const [tab, setTab] = useState<"businesses" | "cards" | "create" | "website" | "financial" | "requests" | "signup" | "onboarding">("businesses");
   const [requests, setRequests] = useState<WalkthroughRequest[] | null>(null);
   const [workspaceView, setWorkspaceView] = useState<"cards" | "patient" | "settings" | "people" | "activity">("cards");
@@ -280,8 +280,8 @@ export default function AdminConsole() {
     const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); link.download = `bridgewayrefer-cards-${detail.business.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`; link.click(); URL.revokeObjectURL(link.href);
   }
 
-  if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Platform admin sign-in</h1><p>Sign in with your BridgeWay owner account.</p><a className="session-sign-in" href="/admin/login">Continue with Microsoft</a><GoogleSignIn admin /></section></main>;
-  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Access denied</h1><p>This account is not a platform administrator.</p><a className="session-sign-in" href="/staff">Go to the staff dashboard</a><button type="button" className="secondary" onClick={() => void signOut("/admin")}>Sign out and use another account</button></section></main>;
+  if (state === "signin") return <main className="dashboard" id="main-content"><section className="card session-expired"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Platform admin sign-in</h1><p>Sign in with your BridgeWay admin account.</p>{signInFailed && <p role="alert">Sign-in could not be completed. Choose your admin account and try again.</p>}<a className="session-sign-in" href="/admin/login">Continue with Microsoft</a><GoogleSignIn admin /></section></main>;
+  if (state === "denied") return <main className="dashboard" id="main-content"><section className="card session-expired" role="alert"><img className="session-logo" src="/brand-logo.png" alt="BridgeWayRefer" width={100} height={34} /><h1>Access denied</h1><p>This account is not a platform administrator.</p><p>Choose an approved BridgeWay admin account to continue.</p><a className="session-sign-in" href="/admin/login">Continue with Microsoft</a><GoogleSignIn admin /><p><a href="/staff">Go to the staff dashboard</a></p><button type="button" className="secondary" onClick={() => void signOut("/admin")}>Sign out and use another account</button></section></main>;
   if (state === "loading") return <main className="dashboard" id="main-content" aria-busy="true"><section className="card session-check"><p className="eyebrow">PLATFORM ADMIN</p><h1>Checking workspace access…</h1><p role="status">Your admin session is being verified before the directory loads.</p>{error && <><p role="alert">{error}</p><button className="secondary" onClick={() => { setError(""); void loadList(); }}>Retry</button></>}</section></main>;
 
   const b = detail?.business.businessId === selected ? detail.business : undefined;
