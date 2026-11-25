@@ -8,7 +8,7 @@ using MimeKit;
 using Newtonsoft.Json.Linq;
 namespace BridgeWay.Api;
 
-public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, ILogger<AlertWorker> logger, MicrosoftMailbox mailbox) : BackgroundService
+public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, ILogger<AlertWorker> logger, EmailDeliveryService email) : BackgroundService
 {
     public const int MaximumAttempts = 8;
 
@@ -41,7 +41,7 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
                 catch { logger.LogWarning("Email worker could not list workspaces; will retry."); }
             }
-            if (settings.AlertWorkerEnabled && settings.SmtpConfigured)
+            if (settings.AlertWorkerEnabled && settings.EmailDeliveryConfigured)
             {
                 try { await SendPending(CosmosStore.PlatformPartition, "", stoppingToken); }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
@@ -82,9 +82,10 @@ public sealed class AlertWorker(IServiceScopeFactory scopes, Settings settings, 
                 {
                     message.Subject = doc.Value<string>("subject")!;
                     message.Body = new TextPart("plain") { Text = doc.Value<string>("body")! };
+                    if (doc.Value<string>("from") is string from) { message.From.Clear(); message.From.Add(new MailboxAddress("BridgeWay Refer", from)); }
                     if (doc.Value<string>("replyTo") is string replyTo) message.ReplyTo.Add(MailboxAddress.Parse(replyTo));
                 }
-                await mailbox.Send(message, ct);
+                await email.Send(message, ct);
                 doc["state"] = "Accepted"; doc["acceptedAt"] = DateTimeOffset.UtcNow.ToString("O"); doc["readyAt"] = 0;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

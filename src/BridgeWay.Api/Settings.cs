@@ -35,6 +35,17 @@ public sealed class Settings
     public int SmtpPort { get; set; } = 465;
     public string SmtpUsername { get; set; } = "";
     public string SmtpPassword { get; set; } = "";
+    /// <summary>Cloudflare Email Sending API account ID and scoped API token for custom-domain transactional mail.</summary>
+    public string CloudflareEmailSendingAccountId { get; set; } = "";
+    public string CloudflareEmailSendingApiToken { get; set; } = "";
+    public string WalkthroughFromAddress { get; set; } = "demo@bridgewayrefer.com";
+    public string OnboardingFromAddress { get; set; } = "hello@bridgewayrefer.com";
+    public string SupportFromAddress { get; set; } = "support@bridgewayrefer.com";
+    public bool CloudflareEmailSendingConfigured => CloudflareEmailSendingAccountId.Length > 0 && CloudflareEmailSendingApiToken.Length > 0;
+    public bool IsCloudflareSender(string? address) =>
+        string.Equals(address, WalkthroughFromAddress, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(address, OnboardingFromAddress, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(address, SupportFromAddress, StringComparison.OrdinalIgnoreCase);
     /// <summary>Addresses notified when someone submits the public Request a walkthrough form.</summary>
     public string[] WalkthroughNotifyEmails { get; set; } = ["Bridgewayrefer@outlook.com"];
     public string StripeSecretKey { get; set; } = "";
@@ -70,6 +81,7 @@ public sealed class Settings
         ManagedCallingConfigured && priceId == ManagedCallingStripePriceId ? BillingPlans.ManagedCalling : null;
     public bool IdentityConfigured => TenantId.Length > 0 && ClientId.Length > 0 && ClientSecret.Length > 0;
     public bool SmtpConfigured => AlertsEnabled && SmtpUsername.Length > 0 && (SmtpPassword.Length > 0 || (IdentityConfigured && MicrosoftMailbox.RequiresOAuth(SmtpUsername)));
+    public bool EmailDeliveryConfigured => SmtpConfigured || CloudflareEmailSendingConfigured;
     public bool IsPlatformAdmin(string? tenantId, string? oid) =>
         !string.IsNullOrWhiteSpace(oid) && string.Equals(tenantId, TenantId, StringComparison.OrdinalIgnoreCase) &&
         PlatformAdminObjectIds.Contains(oid, StringComparer.OrdinalIgnoreCase);

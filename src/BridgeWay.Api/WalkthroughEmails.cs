@@ -11,6 +11,11 @@ public static class WalkthroughEmails
     {
         var receipt = AlertWorker.NewAlert(store, id + "-receipt");
         receipt["recipient"] = email.ToLowerInvariant();
+        if (settings.CloudflareEmailSendingConfigured)
+        {
+            receipt["from"] = settings.WalkthroughFromAddress;
+            receipt["replyTo"] = settings.SupportFromAddress;
+        }
         receipt["subject"] = "We received your BridgeWay walkthrough request";
         receipt["body"] = "Hi " + name + ",\n\nThank you for your interest in BridgeWay Refer! We have received your walkthrough request for " + businessName + ". Our team will be in touch soon to learn more about your needs and arrange a convenient time to show you around.\n\nWe look forward to connecting!\nThe BridgeWay Refer Team";
         receipt["ttl"] = 7776000;
