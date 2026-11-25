@@ -114,7 +114,8 @@ if (settings.IdentityConfigured) auth.AddOpenIdConnect(OpenIdConnectDefaults.Aut
         }
         return Task.CompletedTask;
     };
-    options.Events.OnRemoteFailure = ctx => { ctx.HandleResponse(); ctx.Response.Redirect("/sign-in?error=signin"); return Task.CompletedTask; };
+    options.Events.OnRemoteFailure = ctx => { ctx.HandleResponse(); ctx.Response.Redirect(ctx.Properties?.RedirectUri == settings.PublicOrigin + "/admin"
+                ? "/admin?error=signin" : "/sign-in?error=signin"); return Task.CompletedTask; };
 });
 MicrosoftMailbox.ConfigureAuthentication(auth, settings);
 const string googleScheme = "Google";
@@ -173,7 +174,8 @@ if (googleConfigured)
         options.Events.OnRemoteFailure = ctx =>
         {
             ctx.HandleResponse();
-            ctx.Response.Redirect("/sign-in?error=signin");
+            ctx.Response.Redirect(ctx.Properties?.RedirectUri == settings.PublicOrigin + "/admin"
+                ? "/admin?error=signin" : "/sign-in?error=signin");
             return Task.CompletedTask;
         };
     });

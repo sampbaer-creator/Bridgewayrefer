@@ -14,7 +14,6 @@ export default function SignIn() {
             <ProviderButton provider="microsoft" />
             <GoogleSignIn outlined />
           </div>
-          <p><a href="/admin">Platform admin sign-in</a></p>
         </div>
       </section>
     </main>
