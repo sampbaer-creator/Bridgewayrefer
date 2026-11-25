@@ -376,6 +376,7 @@ export default function AdminConsole({ signInFailed = false }: { signInFailed?: 
         </select>
       </label>}
       <AccountMenu account={session?.account ?? null} area="admin" platformAdmin actions={b && !b.archived ? [
+        { label: "Open staff dashboard", onSelect: () => { window.location.assign("/staff?workspace=" + encodeURIComponent(b.businessId)); } },
         { label: "NFC cards", onSelect: () => { setTab("cards"); setWorkspaceView("cards"); } },
         { label: "Patient form", onSelect: () => { setTab("cards"); setWorkspaceView("patient"); } },
         { label: "Workspace settings", onSelect: () => { setTab("cards"); setWorkspaceView("settings"); } },
