@@ -21,7 +21,7 @@ test("marketing routes expose metadata and private routes are excluded from inde
   expect(await robots.text()).toContain("sitemap.xml");
   const sitemap = await request.get("/sitemap.xml");
   const sitemapText = await sitemap.text();
-  expect(sitemapText).toContain("/pricing"); expect(sitemapText).toContain("/industries/healthcare"); expect(sitemapText).toContain("/industries/trades");
+  expect(sitemapText).not.toContain("/pricing"); expect(sitemapText).toContain("/industries/healthcare"); expect(sitemapText).toContain("/industries/trades");
   expect(sitemapText).toContain("/blog"); expect(sitemapText).toContain("/faq"); expect(sitemapText).not.toContain("/staff");
   await page.goto("/industries/dental");
   await expect(page).toHaveURL(/\/industries\/dental$/);

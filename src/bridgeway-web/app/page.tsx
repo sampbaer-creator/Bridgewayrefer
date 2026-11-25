@@ -8,7 +8,7 @@ export default function HomePage() {
     <section className="cover">
       <div className="cover-copy">
         <h1>Referrals, followed through.</h1>
-        <p>A partner makes the introduction. Your team knows who to call and who sent them.</p>
+        <p>Partners share your referral card. Customers tap or scan, complete a short form, and arrive in your team?s referral inbox. See who sent them and assign the follow-up.</p>
         <a className="editorial-button" href="#walkthrough">Request a walkthrough</a>
       </div>
       <Image src="/photos/office.jpg" alt="Daylight across a shared office" width={1440} height={961} preload sizes="(max-width: 720px) 100vw, 55vw" />

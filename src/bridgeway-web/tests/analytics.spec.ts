@@ -9,7 +9,7 @@ async function watch(page: Page) {
 
 test("no tags load on a marketing page until the visitor accepts", async ({ page }) => {
   const hits = await watch(page);
-  await page.goto("/pricing");
+  await page.goto("/how-it-works");
   const banner = page.getByRole("region", { name: "Cookie choices" });
   await expect(banner).toBeVisible();
   expect(hits).toHaveLength(0);

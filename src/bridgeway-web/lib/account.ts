@@ -9,10 +9,10 @@ export function initials(account: Account) {
   return letters.toUpperCase() || "?";
 }
 
-export async function signOut() {
+export async function signOut(destination: "/sign-in" | "/admin" = "/sign-in") {
   try { await fetch("/api/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); }
   finally {
     localStorage.removeItem(WORKSPACE_KEY);
-    window.location.assign("/sign-in");
+    window.location.assign(destination);
   }
 }

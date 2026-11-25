@@ -4,7 +4,7 @@
 
 BridgeWay Refer helps businesses collect referrals in person and track what happens next. A customer taps an NFC card or scans a QR code to open a short form on their phone. The referral goes straight to the receiving team’s inbox. No app download is required.
 
-[Visit the website](https://bridgewayrefer.com/) · [See pricing](https://bridgewayrefer.com/pricing) · [Sign in](https://bridgewayrefer.com/sign-in)
+[Visit the website](https://bridgewayrefer.com/) · [Sign in](https://bridgewayrefer.com/sign-in)
 
 ## How it works
 
